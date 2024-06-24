@@ -15,12 +15,12 @@ Covalence Prizes revolutionizes incentive mechanisms by leveraging homomorphic e
 Prerequisites: Node.js, pnpm, Hardhat
 
 ```bash
-git clone https://github.com/CovalenceNetwork/coprizes.git
-cd coprizes
+git clone https://github.com/CovalenceNetwork/covalence-prizes.git
+cd covalence-prizes
+cp .env.example .env
 pnpm install
-pnpm typechain
+pnpm compile
 pnpm test
-pnpm task:deploy  # Deploy to Fhenix testnet
 ```
 
 ## Core Components
