@@ -33,15 +33,6 @@ pnpm test
 
 Refer to `test/Prize.ts` for comprehensive usage examples.
 
-## Contributing
-
-Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
 ## License
 
 MIT License. See [LICENSE](LICENSE) file.
-
-## Acknowledgments
-
-Built with [Fhenix Protocol](https://fhenix.io/), [Hardhat](https://hardhat.org/), and [ethers.js](https://docs.ethers.io/v6/).
-```
