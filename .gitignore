@@ -24,4 +24,4 @@ coverage.json
 package-lock.json
 yarn.lock
 
-/.notgit
+/tmp
