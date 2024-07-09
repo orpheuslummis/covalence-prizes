@@ -1,8 +1,9 @@
+// PrizeManager.sol
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import "./PrizeContract.sol";
-import "./StrategyRegistry/StrategyRegistry.sol";
+import "./StrategyRegistry.sol";
 
 contract PrizeManager {
   struct Prize {

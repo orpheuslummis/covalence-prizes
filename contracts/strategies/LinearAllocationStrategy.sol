@@ -1,16 +1,9 @@
+// LinearAllocationStrategy.sol
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./interfaces/IAllocationStrategy.sol";
+import "../interfaces/IAllocationStrategy.sol";
 
-/**
- * @title LinearAllocation
- * @dev Implements a linear allocation strategy for reward distribution.
- *
- * This strategy allocates rewards linearly proportional to the weighted sum of scores
- * for each contribution. The linearity ensures that the reward amount increases
- * directly with the increase in the weighted score.
- */
 contract LinearAllocation is IAllocationStrategy {
   function computeAndAllocate(
     address[] memory contestants,
