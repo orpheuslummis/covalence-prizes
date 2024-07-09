@@ -110,11 +110,12 @@ contract PrizeContractFHE is AccessControl, Permissioned {
     }
   }
 
-  function fundPrize(
-    inEuint32 calldata _encryptedAmount
-  ) public onlyOrganizer inState(State.Setup) {
+  function fundPrize(inEuint32 calldata _encryptedAmount) public payable onlyOrganizer inState(State.Setup) {
     euint32 encryptedAmount = FHE.asEuint32(_encryptedAmount);
-    FHE.req(FHE.eq(encryptedAmount, monetaryRewardPool));
+    ebool isEqual = FHE.eq(encryptedAmount, monetaryRewardPool);
+    FHE.req(isEqual);
+    // Remove the plaintext check
+    // require(msg.value == FHE.decrypt(monetaryRewardPool), "Incorrect funding amount");
     emit PrizeFunded(msg.sender);
   }
 
@@ -257,10 +258,7 @@ contract PrizeContractFHE is AccessControl, Permissioned {
   function moveToNextState() public onlyOrganizer {
     require(uint(state) < uint(State.Closed), "Cannot move to next state");
     if (state == State.Setup) {
-      ebool isFunded = FHE.gte(
-        FHE.asEuint32(address(this).balance),
-        monetaryRewardPool
-      );
+      ebool isFunded = FHE.eq(FHE.asEuint32(address(this).balance), monetaryRewardPool);
       FHE.req(isFunded);
     }
     if (state == State.Evaluating) {
@@ -306,19 +304,44 @@ contract PrizeContractFHE is AccessControl, Permissioned {
     emit StateChanged(oldState, newState);
   }
 
-  function getSealedReward(
-    Permission calldata permission,
-    bytes32 publicKey
-  )
-    public
-    view
-    inState(State.Closed)
-    onlyPermitted(permission, msg.sender)
-    returns (bytes memory)
+  function getEncryptedBalance(Permission calldata permission) 
+      public 
+      view 
+      onlyPermitted(permission, msg.sender) 
+      returns (string memory) 
   {
-    Contribution storage contribution = contributions[msg.sender];
-    require(contribution.contestant != address(0), "No contribution found");
-    string memory sealedString = FHE.sealoutput(contribution.reward, publicKey);
-    return bytes(sealedString);
+      euint32 balance = FHE.asEuint32(address(this).balance);
+      return FHE.sealoutput(balance, permission.publicKey);
+  }
+
+  function getEncryptedTotalScore(address contestant, Permission calldata permission) 
+      public 
+      view 
+      onlyPermitted(permission, msg.sender) 
+      returns (string memory) 
+  {
+      Contribution storage contribution = contributions[contestant];
+      require(contribution.contestant != address(0), "No contribution found");
+      
+      euint32 totalScore = FHE.asEuint32(0);
+      for (uint256 i = 0; i < contribution.scores.length; i++) {
+          totalScore = FHE.add(totalScore, contribution.scores[i]);
+      }
+      
+      return FHE.sealoutput(totalScore, permission.publicKey);
+  }
+
+  function getEncryptedReward(
+      address contestant,
+      Permission calldata permission
+  )
+      public
+      view
+      onlyPermitted(permission, msg.sender)
+      returns (string memory)
+  {
+      Contribution storage contribution = contributions[contestant];
+      require(contribution.contestant != address(0), "No contribution found");
+      return FHE.sealoutput(contribution.reward, permission.publicKey);
   }
 }

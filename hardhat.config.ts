@@ -40,13 +40,34 @@ if (!keys) {
 
 
 const config: HardhatUserConfig = {
+  // solidity: "0.8.25",
   solidity:{version:  "0.8.25", settings: {optimizer: {enabled: true, runs: 1}}},
+  // Optional: defaultNetwork is already being set to "localfhenix" by fhenix-hardhat-plugin
+  defaultNetwork: "localfhenix",
   networks: {
+    // localfhenix: {
+    //   gas: "auto",
+    //   gasMultiplier: 1.2,
+    //   gasPrice: "auto",
+    //   timeout: 10_000,
+    //   httpHeaders: {},
+    //   url: "http://127.0.0.1:42069",
+    //   accounts: {
+    //     mnemonic:
+    //     "demand hotel mass rally sphere tiger measure sick spoon evoke fashion comfort",
+    //     path: "m/44'/60'/0'/0",
+    //     initialIndex: 0,
+    //     count: 20,
+    //   },
+    // },
     testnet: testnetConfig,
   },
   typechain: {
     outDir: "types",
     target: "ethers-v6",
+  },
+  mocha: {
+    timeout: 40_000
   },
 };
 

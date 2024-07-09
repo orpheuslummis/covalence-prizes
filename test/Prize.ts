@@ -1,9 +1,12 @@
+// Prize.ts
 import { expect } from "chai";
 import hre from "hardhat";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { FheInstance, createFheInstance } from "../utils/instance";
 import { IAllocationStrategy, PrizeManager, StrategyRegistry } from "../types";
 import { getTokensFromFaucet } from "./utils";
+
+const PRIZE_AMOUNT = hre.ethers.parseEther("0.1");
 
 enum PrizeState {
   Created,
@@ -14,16 +17,18 @@ enum PrizeState {
   Cancelled
 }
 
-describe("Unit tests", function () {
+describe("Prize", function () {
   let prizeManager: PrizeManager;
   let allocationStrategy: IAllocationStrategy;
   let strategyRegistry: StrategyRegistry;
   let instance: FheInstance;
   let organizer: SignerWithAddress;
-
   before(async function () {
-    await getTokensFromFaucet();
-    organizer = (await hre.ethers.getSigners())[0];
+    const signers = await hre.ethers.getSigners();
+    for (const signer of signers) {
+      await getTokensFromFaucet(signer.address);
+    }
+    organizer = signers[0];
   });
 
   beforeEach(async function () {
@@ -53,96 +58,95 @@ describe("Unit tests", function () {
     instance = await createFheInstance(hre, await prizeManager.getAddress());
   });
 
-  describe("Prize", () =>
-    it("should simulate a complete prize lifecycle", async function () {
-      const [organizer, evaluator1, evaluator2, contestant1, contestant2] = await hre.ethers.getSigners();
+  it("should simulate a complete prize lifecycle", async function () {
+    const [organizer, evaluator1, evaluator2, contestant1, contestant2] = await hre.ethers.getSigners();
 
-      const tx = await prizeManager.connect(organizer).createPrize(
-        "Best Innovation Prize",
-        hre.ethers.parseEther("10"),
-        "LinearAllocation",
-        ["Creativity", "Feasibility", "Impact"],
-        [30, 30, 40]
-      );
-      const receipt = await tx.wait();
-      const prizeAddress = receipt?.logs[0].address;
+    const tx = await prizeManager.connect(organizer).createPrize(
+      "Best Innovation Prize",
+      PRIZE_AMOUNT,
+      "LinearAllocation",
+      ["Creativity", "Feasibility", "Impact"],
+      [30, 30, 40]
+    );
+    const receipt = await tx.wait();
+    const prizeAddress = receipt?.logs[0].address;
 
-      if (typeof prizeAddress !== 'string') {
-        throw new Error('Failed to get prize address');
-      }
+    if (typeof prizeAddress !== 'string') {
+      throw new Error('Failed to get prize address');
+    }
 
-      const prizeContract = await hre.ethers.getContractAt("PrizeContract", prizeAddress);
+    const prizeContract = await hre.ethers.getContractAt("PrizeContract", prizeAddress);
 
-      expect(await prizeContract.description()).to.equal("Best Innovation Prize");
-      expect(await prizeContract.monetaryRewardPool()).to.equal(hre.ethers.parseEther("10"));
-      expect(await prizeContract.strategy()).to.equal(await allocationStrategy.getAddress());
+    expect(await prizeContract.description()).to.equal("Best Innovation Prize");
+    expect(await prizeContract.monetaryRewardPool()).to.equal(PRIZE_AMOUNT);
+    expect(await prizeContract.strategy()).to.equal(await allocationStrategy.getAddress());
 
-      await prizeContract.connect(organizer).fundPrize({ value: hre.ethers.parseEther("10") });
+    await prizeContract.connect(organizer).fundPrize({ value: PRIZE_AMOUNT, gasLimit: 1000000 });
 
-      // Add evaluators
-      await prizeContract.connect(organizer).addEvaluators([evaluator1.address, evaluator2.address]);
-      expect(await prizeContract.hasRole(await prizeContract.EVALUATOR_ROLE(), evaluator1.address)).to.be.true;
-      expect(await prizeContract.hasRole(await prizeContract.EVALUATOR_ROLE(), evaluator2.address)).to.be.true;
+    // Add evaluators
+    await prizeContract.connect(organizer).addEvaluators([evaluator1.address, evaluator2.address]);
+    expect(await prizeContract.hasRole(await prizeContract.EVALUATOR_ROLE(), evaluator1.address)).to.be.true;
+    expect(await prizeContract.hasRole(await prizeContract.EVALUATOR_ROLE(), evaluator2.address)).to.be.true;
 
-      await prizeContract.connect(organizer).moveToNextState();
-      expect(await prizeContract.state()).to.equal(PrizeState.Open);
+    await prizeContract.connect(organizer).moveToNextState();
+    expect(await prizeContract.state()).to.equal(PrizeState.Open);
 
-      // Submit contributions
-      await prizeContract.connect(contestant1).submitContribution("Contestant 1 Innovation");
-      await prizeContract.connect(contestant2).submitContribution("Contestant 2 Innovation");
+    // Submit contributions
+    await prizeContract.connect(contestant1).submitContribution("Contestant 1 Innovation");
+    await prizeContract.connect(contestant2).submitContribution("Contestant 2 Innovation");
 
-      const contribution1 = await prizeContract.contributions(contestant1.address);
-      const contribution2 = await prizeContract.contributions(contestant2.address);
-      expect(contribution1.description).to.equal("Contestant 1 Innovation");
-      expect(contribution2.description).to.equal("Contestant 2 Innovation");
+    const contribution1 = await prizeContract.contributions(contestant1.address);
+    const contribution2 = await prizeContract.contributions(contestant2.address);
+    expect(contribution1.description).to.equal("Contestant 1 Innovation");
+    expect(contribution2.description).to.equal("Contestant 2 Innovation");
 
-      await prizeContract.connect(organizer).moveToNextState();
-      expect(await prizeContract.state()).to.equal(PrizeState.Evaluating);
+    await prizeContract.connect(organizer).moveToNextState();
+    expect(await prizeContract.state()).to.equal(PrizeState.Evaluating);
 
-      await prizeContract.connect(evaluator1).assignScores(
-        [contestant1.address, contestant2.address],
-        [[80, 70, 90], [75, 85, 80]]
-      );
-      await prizeContract.connect(evaluator2).assignScores(
-        [contestant1.address, contestant2.address],
-        [[85, 75, 95], [70, 80, 85]]
-      );
-      await prizeContract.connect(organizer).moveToNextState();
-      expect(await prizeContract.state()).to.equal(PrizeState.Rewarding);
+    await prizeContract.connect(evaluator1).assignScores(
+      [contestant1.address, contestant2.address],
+      [[80, 70, 90], [75, 85, 80]]
+    );
+    await prizeContract.connect(evaluator2).assignScores(
+      [contestant1.address, contestant2.address],
+      [[85, 75, 95], [70, 80, 85]]
+    );
+    await prizeContract.connect(organizer).moveToNextState();
+    expect(await prizeContract.state()).to.equal(PrizeState.Rewarding);
 
-      // Add this line to compute and allocate rewards
-      await prizeContract.connect(organizer).computeScoresAndAllocateRewards(0, 2);
+    // Add this line to compute and allocate rewards
+    await prizeContract.connect(organizer).computeScoresAndAllocateRewards(0, 2);
 
-      await prizeContract.connect(organizer).moveToNextState();
-      expect(await prizeContract.state()).to.equal(PrizeState.Closed);
+    await prizeContract.connect(organizer).moveToNextState();
+    expect(await prizeContract.state()).to.equal(PrizeState.Closed);
 
-      const contestant1BalanceBefore = await hre.ethers.provider.getBalance(contestant1.address);
-      await prizeContract.connect(contestant1).claimReward();
-      const contestant1BalanceAfter = await hre.ethers.provider.getBalance(contestant1.address);
-      expect(contestant1BalanceAfter).to.be.gt(contestant1BalanceBefore);
+    const contestant1BalanceBefore = await hre.ethers.provider.getBalance(contestant1.address);
+    await prizeContract.connect(contestant1).claimReward();
+    const contestant1BalanceAfter = await hre.ethers.provider.getBalance(contestant1.address);
+    expect(contestant1BalanceAfter).to.be.gt(contestant1BalanceBefore);
 
-      const contestant2BalanceBefore = await hre.ethers.provider.getBalance(contestant2.address);
-      await prizeContract.connect(contestant2).claimReward();
-      const contestant2BalanceAfter = await hre.ethers.provider.getBalance(contestant2.address);
-      expect(contestant2BalanceAfter).to.be.gt(contestant2BalanceBefore);
+    const contestant2BalanceBefore = await hre.ethers.provider.getBalance(contestant2.address);
+    await prizeContract.connect(contestant2).claimReward();
+    const contestant2BalanceAfter = await hre.ethers.provider.getBalance(contestant2.address);
+    expect(contestant2BalanceAfter).to.be.gt(contestant2BalanceBefore);
 
-      // Verify contract balance is close to zero
-      const contractBalance = await hre.ethers.provider.getBalance(prizeAddress);
-      expect(contractBalance).to.be.closeTo(hre.ethers.parseEther("0"), hre.ethers.parseEther("0.0001"));
+    // Verify contract balance is close to zero
+    const contractBalance = await hre.ethers.provider.getBalance(prizeAddress);
+    expect(contractBalance).to.be.closeTo(hre.ethers.parseEther("0"), hre.ethers.parseEther("0.0001"));
 
-      // Verify rewards can't be claimed twice
-      await expect(prizeContract.connect(contestant1).claimReward()).to.be.revertedWith("Reward already claimed");
-      await expect(prizeContract.connect(contestant2).claimReward()).to.be.revertedWith("Reward already claimed");
-    })
-  );
-
+    // Verify rewards can't be claimed twice
+    await expect(prizeContract.connect(contestant1).claimReward()).to.be.revertedWith("Reward already claimed");
+    await expect(prizeContract.connect(contestant2).claimReward()).to.be.revertedWith("Reward already claimed");
+  });
 
   it("should allow cancellation and fund withdrawal", async function () {
     const [organizer, evaluator1, contestant1] = await hre.ethers.getSigners();
 
+    const halfPrizeAmount = PRIZE_AMOUNT / 2n; // Using BigInt division
+
     const tx = await prizeManager.connect(organizer).createPrize(
       "Cancellable Prize",
-      hre.ethers.parseEther("5"),
+      halfPrizeAmount, // Using half of the prize amount for this test
       "LinearAllocation",
       ["Quality"],
       [100]
@@ -156,7 +160,7 @@ describe("Unit tests", function () {
 
     const prizeContract = await hre.ethers.getContractAt("PrizeContract", prizeAddress);
 
-    await prizeContract.connect(organizer).fundPrize({ value: hre.ethers.parseEther("5") });
+    await prizeContract.connect(organizer).fundPrize({ value: halfPrizeAmount, gasLimit: 1000000 });
 
     await prizeContract.connect(organizer).addEvaluators([evaluator1.address]);
     await prizeContract.connect(organizer).moveToNextState();
@@ -189,13 +193,12 @@ describe("Unit tests", function () {
       .to.be.revertedWith("No funds to withdraw");
   });
 
-
   it("should not allow reward allocation if not all contestants are scored", async function () {
     const [organizer, evaluator1, contestant1, contestant2, contestant3] = await hre.ethers.getSigners();
 
     const tx = await prizeManager.connect(organizer).createPrize(
       "Partial Scoring Test Prize",
-      hre.ethers.parseEther("10"),
+      PRIZE_AMOUNT,
       "LinearAllocation",
       ["Quality", "Innovation"],
       [50, 50]
@@ -210,7 +213,7 @@ describe("Unit tests", function () {
     const prizeContract = await hre.ethers.getContractAt("PrizeContract", prizeAddress);
 
     // Fund the prize
-    await prizeContract.connect(organizer).fundPrize({ value: hre.ethers.parseEther("10") });
+    await prizeContract.connect(organizer).fundPrize({ value: PRIZE_AMOUNT, gasLimit: 1000000 });
 
     await prizeContract.connect(organizer).addEvaluators([evaluator1.address]);
     await prizeContract.connect(organizer).moveToNextState();
@@ -264,7 +267,7 @@ describe("Unit tests", function () {
 
     const tx = await prizeManager.connect(organizer).createPrize(
       "Batch Processing Prize",
-      hre.ethers.parseEther("10"),
+      PRIZE_AMOUNT,
       "LinearAllocation",
       ["Quality", "Innovation", "Feasibility"],
       [40, 30, 30]
@@ -278,7 +281,7 @@ describe("Unit tests", function () {
 
     const prizeContract = await hre.ethers.getContractAt("PrizeContract", prizeAddress);
 
-    await prizeContract.connect(organizer).fundPrize({ value: hre.ethers.parseEther("10") });
+    await prizeContract.connect(organizer).fundPrize({ value: PRIZE_AMOUNT, gasLimit: 1000000 });
 
     await prizeContract.connect(organizer).addEvaluators([evaluator1.address]);
     await prizeContract.connect(organizer).moveToNextState();
@@ -316,7 +319,7 @@ describe("Unit tests", function () {
 
     // Check contract balance before claiming rewards
     const contractBalanceBeforeClaims = await hre.ethers.provider.getBalance(prizeAddress);
-    console.log(`Contract balance before claims: ${hre.ethers.formatEther(contractBalanceBeforeClaims)} ETH`);
+    // console.log(`Contract balance before claims: ${hre.ethers.formatEther(contractBalanceBeforeClaims)} ETH`);
 
     // Calculate total rewards allocated
     let totalRewardsAllocated = hre.ethers.parseEther("0");
@@ -324,7 +327,7 @@ describe("Unit tests", function () {
       const contribution = await prizeContract.contributions(contestants[i].address);
       totalRewardsAllocated = totalRewardsAllocated + contribution.reward;
     }
-    console.log(`Total rewards allocated: ${hre.ethers.formatEther(totalRewardsAllocated)} ETH`);
+    // console.log(`Total rewards allocated: ${hre.ethers.formatEther(totalRewardsAllocated)} ETH`);
 
     expect(contractBalanceBeforeClaims).to.be.gte(totalRewardsAllocated, "Contract balance insufficient for all rewards");
 
