@@ -1,13 +1,16 @@
 // Plugins
 // Tasks
-import "./tasks";
 import "@nomicfoundation/hardhat-toolbox";
-import {config as dotenvConfig} from "dotenv";
+import { config as dotenvConfig } from "dotenv";
 import "fhenix-hardhat-docker";
 import "fhenix-hardhat-plugin";
 import "hardhat-deploy";
-import {HardhatUserConfig} from "hardhat/config";
-import {resolve} from "path";
+import "hardhat-tracer";
+import { HardhatUserConfig } from "hardhat/config";
+import { resolve } from "path";
+import "./tasks";
+// import "hardhat-gas-reporter";
+// import "hardhat-contract-sizer";
 
 // DOTENV_CONFIG_PATH is used to specify the path to the .env file for example in the CI
 const dotenvConfigPath: string = process.env.DOTENV_CONFIG_PATH || "./.env";
@@ -17,8 +20,8 @@ const TESTNET_CHAIN_ID = 42069;
 const TESTNET_RPC_URL = "https://api.testnet.fhenix.zone:7747";
 
 const testnetConfig = {
-    chainId: TESTNET_CHAIN_ID,
-    url: TESTNET_RPC_URL,
+  chainId: TESTNET_CHAIN_ID,
+  url: TESTNET_RPC_URL,
 }
 
 
@@ -40,8 +43,13 @@ if (!keys) {
 
 
 const config: HardhatUserConfig = {
-  // solidity: "0.8.25",
-  solidity:{version:  "0.8.25", settings: {optimizer: {enabled: true, runs: 1}}},
+  solidity: {
+    version: "0.8.25",
+    settings: {
+      optimizer: { enabled: true, runs: 100 },
+      debug: { revertStrings: "debug" }
+    }
+  },
   // Optional: defaultNetwork is already being set to "localfhenix" by fhenix-hardhat-plugin
   defaultNetwork: "localfhenix",
   networks: {
@@ -66,9 +74,16 @@ const config: HardhatUserConfig = {
     outDir: "types",
     target: "ethers-v6",
   },
-  mocha: {
-    timeout: 40_000
-  },
+  // mocha: {
+  //   timeout: 40_000
+  // },
+  contractSizer: {
+    alphaSort: true,
+    disambiguatePaths: false,
+    runOnCompile: true,
+    strict: true,
+    only: [':ERC20$'],
+  }
 };
 
 export default config;

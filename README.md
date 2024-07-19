@@ -33,6 +33,12 @@ pnpm test
 
 Refer to `test/Prize.ts` for comprehensive usage examples.
 
+
+## Limitations
+
+- No support for contestant disqualification
+- Organizer introduces centralization risk - it's possible to replace some parts of it with social choice
+
 ## License
 
 MIT License. See [LICENSE](LICENSE) file.

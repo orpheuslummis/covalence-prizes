@@ -18,5 +18,15 @@
   },
   "exclude": ["node_modules"],
   "files": ["./hardhat.config.ts"],
-  "include": ["src/**/*", "tasks/**/*", "test/**/*", "deploy/**/*", "types/", "tmp/test_counter"]
+  "include": [
+    "src/**/*",
+    "tasks/**/*",
+    "test/**/*",
+    "deploy/**/*",
+    "types/",
+    "tmp/test_counter",
+    "etc/BasicFHE.ts",
+    "etc/GasTests.ts",
+    "etc/Prize.ts"
+  ]
 }

@@ -1,278 +1,261 @@
-// PrizeContract.sol
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.13 <0.9.0;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@fhenixprotocol/contracts/FHE.sol";
 import {Permissioned, Permission} from "@fhenixprotocol/contracts/access/Permissioned.sol";
-import {IAllocationStrategy} from "./interfaces/IAllocationStrategy.sol";
+import {IAllocationStrategy} from "./IAllocationStrategy.sol";
 
-contract PrizeContract is AccessControl {
-  struct Contribution {
-    address contestant;
-    string description;
-    uint256[] scores;
-    uint256 reward;
-    bool claimed;
-  }
+// import {Console} from "@fhenixprotocol/contracts/utils/debug/Console.sol";
 
-  enum State {
-    Setup,
-    Open,
-    Evaluating,
-    Rewarding,
-    Closed,
-    Cancelled
-  }
-
-  bytes32 public constant EVALUATOR_ROLE = keccak256("EVALUATOR_ROLE");
-
-  address public organizer;
-  string public description;
-  uint256 public monetaryRewardPool;
-  State public state;
-  string[] public criteriaNames;
-  uint256[] public criteriaWeights;
-  address[] public evaluators;
-  mapping(address => Contribution) public contributions;
-  address[] public contributionList;
-
-  IAllocationStrategy public strategy;
-  uint256 public constant MAX_BATCH_SIZE = 100;
-
-  event StateChanged(State oldState, State newState);
-  event ContributionAdded(address contestant, string description);
-  event ScoresAssigned(address[] contestants);
-  event RewardAllocated(address contestant, uint256 reward);
-  event EvaluatorAdded(address evaluator);
-  event PrizeFunded(address funder, uint256 amount);
-  event PrizeCancelled();
-  event RewardClaimed(address contestant, uint256 amount);
-
-  modifier onlyOrganizer() {
-    require(msg.sender == organizer, "Not authorized");
-    _;
-  }
-
-  modifier onlyEvaluator() {
-    require(hasRole(EVALUATOR_ROLE, msg.sender), "Not an evaluator");
-    _;
-  }
-
-  modifier inState(State _state) {
-    require(state == _state, "Invalid state");
-    _;
-  }
-
-  constructor(
-    address _organizer,
-    string memory _description,
-    uint256 _totalRewardPool,
-    address _strategy,
-    string[] memory _criteriaNames,
-    uint256[] memory _criteriaWeights
-  ) {
-    require(
-      _criteriaNames.length == _criteriaWeights.length,
-      "Mismatching lengths"
-    );
-
-    organizer = _organizer;
-    description = _description;
-    monetaryRewardPool = _totalRewardPool;
-    strategy = IAllocationStrategy(_strategy);
-    criteriaNames = _criteriaNames;
-    criteriaWeights = _criteriaWeights;
-    state = State.Setup;
-    _grantRole(DEFAULT_ADMIN_ROLE, organizer);
-  }
-
-  function addEvaluators(
-    address[] memory evaluatorsToAdd
-  ) public onlyOrganizer inState(State.Setup) {
-    require(
-      evaluatorsToAdd.length <= MAX_BATCH_SIZE,
-      "Batch size exceeds maximum"
-    );
-    for (uint256 i = 0; i < evaluatorsToAdd.length; i++) {
-      require(
-        !hasRole(EVALUATOR_ROLE, evaluatorsToAdd[i]),
-        "Evaluator already exists"
-      );
-      grantRole(EVALUATOR_ROLE, evaluatorsToAdd[i]);
-      evaluators.push(evaluatorsToAdd[i]);
-      emit EvaluatorAdded(evaluatorsToAdd[i]);
-    }
-  }
-
-  function fundPrize() public payable onlyOrganizer inState(State.Setup) {
-    require(
-      msg.value == monetaryRewardPool,
-      "Sent amount must equal total reward pool"
-    );
-    emit PrizeFunded(msg.sender, msg.value);
-  }
-
-  function submitContribution(
-    string memory _description
-  ) public inState(State.Open) {
-    require(
-      contributions[msg.sender].contestant == address(0),
-      "Only one contribution per contestant permitted"
-    );
-    Contribution storage newContribution = contributions[msg.sender];
-    newContribution.contestant = msg.sender;
-    newContribution.description = _description;
-    contributionList.push(msg.sender);
-    emit ContributionAdded(msg.sender, _description);
-  }
-
-  function assignScores(
-    address[] calldata contestants,
-    uint256[][] calldata scores
-  ) public onlyEvaluator inState(State.Evaluating) {
-    require(contestants.length == scores.length, "Mismatch in input arrays");
-    require(contestants.length <= MAX_BATCH_SIZE, "Batch size exceeds maximum");
-
-    for (uint256 i = 0; i < contestants.length; i++) {
-      require(
-        contributions[contestants[i]].contestant != address(0),
-        "Invalid contestant"
-      );
-      require(
-        scores[i].length == criteriaNames.length,
-        "Invalid number of scores"
-      );
-
-      Contribution storage contribution = contributions[contestants[i]];
-      contribution.scores = scores[i];
+contract PrizeContract is AccessControl, Permissioned {
+    struct Contribution {
+        address contestant;
+        string description;
+        euint32 aggregatedScore;
+        uint256 evaluationCount;
+        euint32 reward;
+        bool claimed;
     }
 
-    emit ScoresAssigned(contestants);
-  }
-
-  function computeScoresAndAllocateRewards(
-    uint256 startIndex,
-    uint256 batchSize
-  ) public onlyOrganizer inState(State.Rewarding) {
-    require(batchSize <= MAX_BATCH_SIZE, "Batch size exceeds maximum");
-    uint256 endIndex = startIndex + batchSize;
-    if (endIndex > contributionList.length) {
-      endIndex = contributionList.length;
+    enum State {
+        Setup,
+        Open,
+        Evaluating,
+        Rewarding,
+        Closed,
+        Cancelled
     }
 
-    address[] memory contestantsBatch = new address[](endIndex - startIndex);
-    uint256[] memory scoresBatch = new uint256[](endIndex - startIndex);
+    bytes32 public constant EVALUATOR_ROLE = keccak256("EVALUATOR_ROLE");
 
-    for (uint256 i = startIndex; i < endIndex; i++) {
-      address contestant = contributionList[i];
-      contestantsBatch[i - startIndex] = contestant;
-      // Calculate weighted sum of scores
-      uint256 weightedScore = 0;
-      for (uint256 j = 0; j < criteriaWeights.length; j++) {
-        weightedScore +=
-          contributions[contestant].scores[j] *
-          criteriaWeights[j];
-      }
-      scoresBatch[i - startIndex] = weightedScore;
+    address public organizer;
+    string public description;
+    uint256 public monetaryRewardPool;
+    State public state;
+    address[] public evaluators;
+    string[] public criteriaNames;
+    uint32[] public criteriaWeights;
+    mapping(address => bool) private hasSubmittedWeights;
+    mapping(address => Contribution) public contributions;
+    address[] public contributionList;
+    mapping(address => mapping(address => bool)) private evaluatorContestantScored;
+
+    IAllocationStrategy public strategy;
+    uint256 public constant MAX_BATCH_SIZE = 100; // TBD
+
+    event StateChanged(State oldState, State newState);
+    event ContributionAdded(address contestant, string description);
+    event ScoresAssigned(address[] contestants);
+    event RewardAllocated(address contestant);
+    event EvaluatorAdded(address evaluator);
+    event PrizeFunded(address funder);
+    event PrizeCancelled();
+    event RewardClaimed(address contestant);
+    event StrategyUpdated(address newStrategy);
+    event CriteriaWeightsAssigned();
+
+    modifier onlyOrganizer() {
+        require(msg.sender == organizer, "Not authorized");
+        _;
     }
 
-    // Calculate the portion of the reward pool for this batch
-    uint256 batchRewardPool = (monetaryRewardPool * (endIndex - startIndex)) /
-      contributionList.length;
-
-    uint256[] memory rewardsBatch = strategy.computeAndAllocate(
-      contestantsBatch,
-      batchRewardPool,
-      scoresBatch
-    );
-
-    for (uint256 i = startIndex; i < endIndex; i++) {
-      contributions[contributionList[i]].reward = rewardsBatch[i - startIndex];
-      emit RewardAllocated(contributionList[i], rewardsBatch[i - startIndex]);
+    modifier onlyEvaluator() {
+        require(hasRole(EVALUATOR_ROLE, msg.sender), "Not an evaluator");
+        _;
     }
-  }
 
-  function claimReward() public inState(State.Closed) {
-    Contribution storage contribution = contributions[msg.sender];
-    require(contribution.contestant != address(0), "No contribution found");
-    require(!contribution.claimed, "Reward already claimed");
-    require(contribution.reward > 0, "No reward available");
-    require(
-      address(this).balance >= contribution.reward,
-      "Insufficient contract balance"
-    );
-
-    contribution.claimed = true;
-    uint256 reward = contribution.reward;
-    contribution.reward = 0;
-
-    (bool success, ) = msg.sender.call{value: reward}("");
-    require(success, "Transfer failed");
-
-    emit RewardClaimed(msg.sender, reward);
-  }
-
-  function cancelPrize() public onlyOrganizer {
-    require(
-      state != State.Closed && state != State.Cancelled,
-      "Prize already closed or cancelled"
-    );
-    changeState(State.Cancelled);
-    emit PrizeCancelled();
-  }
-
-  function withdrawFunds() public onlyOrganizer inState(State.Cancelled) {
-    uint256 balance = address(this).balance;
-    require(balance > 0, "No funds to withdraw");
-    (bool success, ) = organizer.call{value: balance}("");
-    require(success, "Transfer failed");
-  }
-
-  function moveToNextState() public onlyOrganizer {
-    require(uint(state) < uint(State.Closed), "Cannot move to next state");
-    if (state == State.Setup) {
-      require(
-        address(this).balance >= monetaryRewardPool,
-        "Contract not fully funded"
-      );
+    modifier inState(State _state) {
+        require(state == _state, "Invalid state");
+        _;
     }
-    if (state == State.Evaluating) {
-      require(
-        allContestantsScored(),
-        "All contestants must be scored before moving to Rewarding"
-      );
-    }
-    if (state == State.Rewarding) {
-      require(
-        allRewardsAllocated(),
-        "All rewards must be allocated before closing"
-      );
-    }
-    changeState(State(uint(state) + 1));
-  }
 
-  function allRewardsAllocated() internal view returns (bool) {
-    for (uint256 i = 0; i < contributionList.length; i++) {
-      if (contributions[contributionList[i]].reward == 0) {
-        return false;
-      }
-    }
-    return true;
-  }
+    constructor(
+        address _organizer,
+        string memory _description,
+        uint256 _totalRewardPool,
+        address _strategy,
+        string[] memory _criteriaNames
+    ) payable {
+        organizer = _organizer;
+        description = _description;
+        monetaryRewardPool = _totalRewardPool;
+        strategy = IAllocationStrategy(_strategy);
+        criteriaNames = _criteriaNames;
+        state = State.Setup;
+        _grantRole(DEFAULT_ADMIN_ROLE, organizer);
 
-  function allContestantsScored() internal view returns (bool) {
-    for (uint256 i = 0; i < contributionList.length; i++) {
-      if (contributions[contributionList[i]].scores.length == 0) {
-        return false;
-      }
+        criteriaWeights = new uint32[](criteriaNames.length);
     }
-    return true;
-  }
 
-  function changeState(State newState) private {
-    State oldState = state;
-    state = newState;
-    emit StateChanged(oldState, newState);
-  }
+    function addEvaluators(address[] memory _evaluators) public onlyOrganizer {
+        for (uint256 i = 0; i < _evaluators.length; i++) {
+            _grantRole(EVALUATOR_ROLE, _evaluators[i]);
+            evaluators.push(_evaluators[i]);
+            emit EvaluatorAdded(_evaluators[i]);
+        }
+    }
+
+    function assignCriteriaWeights(uint32[] calldata weights) public onlyOrganizer inState(State.Setup) {
+        require(weights.length == criteriaNames.length, "Mismatch in number of weights");
+
+        for (uint256 i = 0; i < weights.length; i++) {
+            criteriaWeights[i] = weights[i];
+        }
+
+        emit CriteriaWeightsAssigned();
+    }
+
+    function fundPrize() public payable onlyOrganizer {
+        require(msg.value == monetaryRewardPool, "Must send exact prize amount");
+        require(state == State.Setup, "Can only fund during setup");
+
+        monetaryRewardPool = msg.value;
+        state = State.Open;
+        emit PrizeFunded(msg.sender);
+    }
+
+    function submitContribution(string memory _description) public inState(State.Open) {
+        require(contributions[msg.sender].contestant == address(0), "Only one contribution per contestant permitted");
+        contributions[msg.sender] = Contribution({
+            contestant: msg.sender,
+            description: _description,
+            aggregatedScore: FHE.asEuint32(0),
+            reward: FHE.asEuint32(0),
+            evaluationCount: 0,
+            claimed: false
+        });
+        contributionList.push(msg.sender);
+        emit ContributionAdded(msg.sender, _description);
+    }
+
+    function assignScores(
+        address[] calldata contestants,
+        inEuint32[][] calldata encryptedScores
+    ) public onlyEvaluator inState(State.Evaluating) {
+        require(contestants.length == encryptedScores.length, "Mismatch in input arrays");
+        require(contestants.length <= MAX_BATCH_SIZE, "Batch size exceeds maximum");
+
+        for (uint256 i = 0; i < contestants.length; i++) {
+            require(contributions[contestants[i]].contestant != address(0), "Invalid contestant");
+            require(encryptedScores[i].length == criteriaNames.length, "Invalid number of scores");
+            require(
+                !evaluatorContestantScored[msg.sender][contestants[i]],
+                "Contestant already scored by this evaluator"
+            );
+
+            euint32 weightedScore = FHE.asEuint32(0);
+            for (uint256 j = 0; j < encryptedScores[i].length; j++) {
+                weightedScore = FHE.add(
+                    weightedScore,
+                    FHE.mul(FHE.asEuint32(encryptedScores[i][j]), FHE.asEuint32(criteriaWeights[j]))
+                );
+            }
+
+            contributions[contestants[i]].aggregatedScore = FHE.add(
+                contributions[contestants[i]].aggregatedScore,
+                weightedScore
+            );
+            contributions[contestants[i]].evaluationCount++;
+            evaluatorContestantScored[msg.sender][contestants[i]] = true;
+        }
+
+        emit ScoresAssigned(contestants);
+    }
+
+    function allocateRewards() public onlyOrganizer inState(State.Rewarding) {
+        address[] memory contestantsBatch = new address[](contributionList.length);
+        euint32[] memory scoresBatch = new euint32[](contributionList.length);
+        uint256[] memory evaluationCounts = new uint256[](contributionList.length);
+
+        for (uint256 i = 0; i < contributionList.length; i++) {
+            address contestant = contributionList[i];
+            contestantsBatch[i] = contestant;
+            scoresBatch[i] = contributions[contestant].aggregatedScore;
+            evaluationCounts[i] = contributions[contestant].evaluationCount;
+        }
+
+        euint32[] memory rewardsBatch = strategy.allocateRewards(contestantsBatch, scoresBatch, evaluationCounts);
+
+        for (uint256 i = 0; i < contestantsBatch.length; i++) {
+            contributions[contestantsBatch[i]].reward = rewardsBatch[i];
+            emit RewardAllocated(contestantsBatch[i]);
+        }
+    }
+
+    function cancelPrize() public onlyOrganizer {
+        require(state != State.Closed, "Prize already closed");
+        state = State.Cancelled;
+        emit PrizeCancelled();
+        emit StateChanged(State.Cancelled, state);
+    }
+
+    function moveToNextState() public onlyOrganizer {
+        State newState;
+
+        if (state == State.Setup) {
+            newState = State.Open;
+        } else if (state == State.Open) {
+            newState = State.Evaluating;
+        } else if (state == State.Evaluating) {
+            require(allContestantsScored(), "Not all contestants have been scored");
+            newState = State.Rewarding;
+        } else if (state == State.Rewarding) {
+            require(allRewardsAllocated(), "Not all rewards have been allocated");
+            newState = State.Closed;
+        } else {
+            revert("Cannot move to next state");
+        }
+
+        State oldState = state;
+        state = newState;
+        emit StateChanged(oldState, newState);
+    }
+
+    function allRewardsAllocated() internal view returns (bool) {
+        for (uint256 i = 0; i < contributionList.length; i++) {
+            ebool hasReward = FHE.gt(contributions[contributionList[i]].reward, FHE.asEuint32(0));
+            if (!FHE.decrypt(hasReward)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function allContestantsScored() internal view returns (bool) {
+        for (uint256 i = 0; i < contributionList.length; i++) {
+            if (contributions[contributionList[i]].evaluationCount == 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function getContestantCount() public view returns (uint256) {
+        return contributionList.length;
+    }
+
+    function getEvaluatorCount() public view returns (uint256) {
+        return evaluators.length;
+    }
+
+    function getCurrentState() public view returns (State) {
+        return state;
+    }
+
+    function claimReward() public inState(State.Closed) {
+        Contribution storage contribution = contributions[msg.sender];
+        require(contribution.contestant != address(0), "No contribution submitted");
+        require(!contribution.claimed, "Reward already claimed");
+
+        euint32 encryptedReward = contribution.reward;
+        uint256 decryptedReward = uint256(FHE.decrypt(encryptedReward));
+        require(decryptedReward > 0, "No reward to claim");
+
+        contribution.reward = FHE.asEuint32(0);
+        contribution.claimed = true;
+        payable(msg.sender).transfer(decryptedReward);
+
+        emit RewardClaimed(msg.sender);
+    }
 }
