@@ -11,9 +11,6 @@ importers:
       fhenixjs:
         specifier: ^0.3.0
         version: 0.3.0
-      hardhat-tracer:
-        specifier: ^3.0.3
-        version: 3.0.3(chai@4.4.1)(hardhat@2.22.6(ts-node@10.9.2(@types/node@20.11.19)(typescript@5.3.3))(typescript@5.3.3))
     devDependencies:
       '@fhenixprotocol/contracts':
         specifier: 0.2.1
@@ -84,9 +81,6 @@ importers:
       hardhat-deploy:
         specifier: ^0.11.45
         version: 0.11.45
-      hardhat-gas-reporter:
-        specifier: ^1.0.10
-        version: 1.0.10(hardhat@2.22.6(ts-node@10.9.2(@types/node@20.11.19)(typescript@5.3.3))(typescript@5.3.3))
       mocha:
         specifier: ^10.3.0
         version: 10.3.0
@@ -1274,12 +1268,6 @@ packages:
     resolution: {integrity: sha512-02N4+So/fZrzJ88ci54GqwVA3Zrf0C9duuTyGt0CFRIh/CdNwbnTgkXkRfojOMLBQ+6t+lBIkgbsOtqMvNwikA==}
     peerDependencies:
       hardhat: ^2.0.2
-
-  hardhat-tracer@3.0.3:
-    resolution: {integrity: sha512-Uto+JQGayzZRnwdUyM1Un0zmFth+j3jkijHxls75BCTEBHXvAilUO20UloT+b2DYWVCcKn5GRuRpxjSQEV4QYg==}
-    peerDependencies:
-      chai: 4.x
-      hardhat: '>=2.22.5 <3.x'
 
   hardhat@2.22.6:
     resolution: {integrity: sha512-abFEnd9QACwEtSvZZGSmzvw7N3zhQN1cDKz5SLHAupfG24qTHofCjqvD5kT5Wwsq5XOL0ON1Mq5rr4v0XX5ciw==}
@@ -3809,19 +3797,6 @@ snapshots:
       - '@codechecks/client'
       - bufferutil
       - debug
-      - utf-8-validate
-
-  hardhat-tracer@3.0.3(chai@4.4.1)(hardhat@2.22.6(ts-node@10.9.2(@types/node@20.11.19)(typescript@5.3.3))(typescript@5.3.3)):
-    dependencies:
-      chai: 4.4.1
-      chalk: 4.1.2
-      debug: 4.3.4(supports-color@8.1.1)
-      ethers: 5.7.2
-      hardhat: 2.22.6(ts-node@10.9.2(@types/node@20.11.19)(typescript@5.3.3))(typescript@5.3.3)
-      semver: 7.6.2
-    transitivePeerDependencies:
-      - bufferutil
-      - supports-color
       - utf-8-validate
 
   hardhat@2.22.6(ts-node@10.9.2(@types/node@20.11.19)(typescript@5.3.3))(typescript@5.3.3):

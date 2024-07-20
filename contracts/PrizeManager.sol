@@ -2,11 +2,10 @@
 pragma solidity ^0.8.0;
 
 import "@fhenixprotocol/contracts/FHE.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "./PrizeContract.sol";
 import "./StrategyRegistry.sol";
 
-contract PrizeManager is Ownable {
+contract PrizeManager {
     struct Prize {
         address prizeAddress;
         string description;
@@ -24,136 +23,59 @@ contract PrizeManager is Ownable {
         string description,
         uint256 totalRewardPool,
         string allocationStrategy,
-        string[] criteriaNames,
-        uint32[] criteriaWeights
+        string[] criteriaNames
     );
     event PrizeDeactivated(address indexed organizer, address prizeAddress);
-    event StrategyRegistryUpdated(address newRegistryAddress);
+    event StrategyAddressRetrieved(string allocationStrategy, address strategyAddress);
 
-    error InvalidTotalRewardPool();
-    error EmptyDescription();
-    error MismatchedCriteriaAndWeights();
+    error InvalidInput();
     error InvalidAllocationStrategy();
-    error InsufficientFunds();
     error PrizeNotFound();
-    error PrizeAlreadyDeactivated();
+    error Unauthorized();
 
-    constructor(address registryAddress) Ownable(msg.sender) {
+    constructor(address registryAddress) {
         strategyRegistry = StrategyRegistry(registryAddress);
-    }
-
-    function validatePrizeInputs(
-        string memory description,
-        uint256 totalRewardPool,
-        string[] memory criteriaNames,
-        uint32[] memory criteriaWeights,
-        uint256 value
-    ) public pure {
-        if (totalRewardPool == 0) revert InvalidTotalRewardPool();
-        if (bytes(description).length == 0) revert EmptyDescription();
-        if (criteriaNames.length != criteriaWeights.length) revert MismatchedCriteriaAndWeights();
-        if (value < totalRewardPool) revert InsufficientFunds();
-    }
-
-    function getAndValidateStrategy(string memory allocationStrategy) public view returns (address) {
-        address allocationStrategyAddress = strategyRegistry.getStrategyAddress(allocationStrategy);
-        if (allocationStrategyAddress == address(0)) revert InvalidAllocationStrategy();
-        return allocationStrategyAddress;
-    }
-
-    function deployPrizeContract(
-        string memory description,
-        uint256 totalRewardPool,
-        address allocationStrategyAddress,
-        string[] memory criteriaNames
-    ) public payable returns (address) {
-        PrizeContract newPrize = new PrizeContract{value: totalRewardPool}(
-            msg.sender,
-            description,
-            totalRewardPool,
-            allocationStrategyAddress,
-            criteriaNames
-        );
-        return address(newPrize);
     }
 
     function createPrize(
         string memory description,
         uint256 totalRewardPool,
         string memory allocationStrategy,
-        string[] memory criteriaNames,
-        uint32[] memory criteriaWeights
+        string[] memory criteriaNames
     ) public payable returns (address) {
-        validatePrizeInputs(description, totalRewardPool, criteriaNames, criteriaWeights, msg.value);
+        if (totalRewardPool == 0 || bytes(description).length == 0 || msg.value < totalRewardPool) {
+            revert InvalidInput();
+        }
 
-        address allocationStrategyAddress = getAndValidateStrategy(allocationStrategy);
+        address strategyAddress = strategyRegistry.getStrategyAddress(allocationStrategy);
+        if (strategyAddress == address(0)) revert InvalidAllocationStrategy();
+        emit StrategyAddressRetrieved(allocationStrategy, strategyAddress);
 
-        address newPrizeAddress = deployPrizeContract(
+        PrizeContract newPrize = new PrizeContract{value: totalRewardPool}(
+            msg.sender,
             description,
             totalRewardPool,
-            allocationStrategyAddress,
+            strategyAddress,
             criteriaNames
         );
-
-        PrizeContract(newPrizeAddress).assignCriteriaWeights(criteriaWeights);
+        address newPrizeAddress = address(newPrize);
 
         allPrizes.push(Prize(newPrizeAddress, description, totalRewardPool, true));
         organizerPrizeIndices[msg.sender].push(allPrizes.length - 1);
 
-        emit PrizeCreated(
-            msg.sender,
-            newPrizeAddress,
-            description,
-            totalRewardPool,
-            allocationStrategy,
-            criteriaNames,
-            criteriaWeights
-        );
-
+        emit PrizeCreated(msg.sender, newPrizeAddress, description, totalRewardPool, allocationStrategy, criteriaNames);
         return newPrizeAddress;
     }
 
     function deactivatePrize(address prizeAddress) public {
         uint256 prizeIndex = findPrizeIndex(prizeAddress);
-        if (prizeIndex == type(uint256).max) revert PrizeNotFound();
-        if (!allPrizes[prizeIndex].active) revert PrizeAlreadyDeactivated();
-
-        require(msg.sender == PrizeContract(prizeAddress).organizer(), "Not the organizer");
+        if (!allPrizes[prizeIndex].active || msg.sender != PrizeContract(prizeAddress).organizer()) {
+            revert Unauthorized();
+        }
 
         allPrizes[prizeIndex].active = false;
         emit PrizeDeactivated(msg.sender, prizeAddress);
     }
-
-    function getPrizesByOrganizer(address organizer) public view returns (Prize[] memory) {
-        uint256[] memory indices = organizerPrizeIndices[organizer];
-        Prize[] memory organizerPrizes = new Prize[](indices.length);
-        for (uint i = 0; i < indices.length; i++) {
-            organizerPrizes[i] = allPrizes[indices[i]];
-        }
-        return organizerPrizes;
-    }
-
-    // function getAllActivePrizes() public view returns (Prize[] memory) {
-    //     uint256 activeCount = 0;
-    //     for (uint i = 0; i < allPrizes.length; i++) {
-    //         if (allPrizes[i].active) activeCount++;
-    //     }
-
-    //     Prize[] memory activePrizes = new Prize[](activeCount);
-    //     uint256 index = 0;
-    //     for (uint i = 0; i < allPrizes.length; i++) {
-    //         if (allPrizes[i].active) {
-    //             activePrizes[index] = allPrizes[i];
-    //             index++;
-    //         }
-    //     }
-    //     return activePrizes;
-    // }
-
-    // function updateStrategyRegistry(address newRegistryAddress) public onlyOwner {
-    //     strategyRegistry = StrategyRegistry(newRegistryAddress);
-    //     emit StrategyRegistryUpdated(newRegistryAddress);
-    // }
 
     function findPrizeIndex(address prizeAddress) internal view returns (uint256) {
         for (uint i = 0; i < allPrizes.length; i++) {
@@ -161,6 +83,6 @@ contract PrizeManager is Ownable {
                 return i;
             }
         }
-        return type(uint256).max;
+        revert PrizeNotFound();
     }
 }

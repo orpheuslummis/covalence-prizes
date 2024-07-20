@@ -1,29 +1,27 @@
 // Plugins
 // Tasks
 import "@nomicfoundation/hardhat-toolbox";
+import "@nomicfoundation/hardhat-verify";
 import { config as dotenvConfig } from "dotenv";
 import "fhenix-hardhat-docker";
 import "fhenix-hardhat-plugin";
 import "hardhat-deploy";
-import "hardhat-tracer";
 import { HardhatUserConfig } from "hardhat/config";
 import { resolve } from "path";
 import "./tasks";
-// import "hardhat-gas-reporter";
-// import "hardhat-contract-sizer";
 
 // DOTENV_CONFIG_PATH is used to specify the path to the .env file for example in the CI
 const dotenvConfigPath: string = process.env.DOTENV_CONFIG_PATH || "./.env";
 dotenvConfig({ path: resolve(__dirname, dotenvConfigPath) });
 
-const TESTNET_CHAIN_ID = 42069;
-const TESTNET_RPC_URL = "https://api.testnet.fhenix.zone:7747";
+const TESTNET_CHAIN_ID = 8008135;
+// const TESTNET_RPC_URL = "https://api.testnet.fhenix.zone:7747";
+const TESTNET_RPC_URL = "https://api.helium.fhenix.zone";
 
-const testnetConfig = {
+const testnetConfig: any = {
   chainId: TESTNET_CHAIN_ID,
   url: TESTNET_RPC_URL,
 }
-
 
 // Select either private keys or mnemonic from .env file or environment variables
 const keys = process.env.KEY;
@@ -46,7 +44,7 @@ const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.25",
     settings: {
-      optimizer: { enabled: true, runs: 100 },
+      optimizer: { enabled: true, runs: 200 },
       debug: { revertStrings: "debug" }
     }
   },
@@ -77,13 +75,36 @@ const config: HardhatUserConfig = {
   // mocha: {
   //   timeout: 40_000
   // },
-  contractSizer: {
-    alphaSort: true,
-    disambiguatePaths: false,
-    runOnCompile: true,
-    strict: true,
-    only: [':ERC20$'],
-  }
+  // contractSizer: {
+  //   alphaSort: true,
+  //   disambiguatePaths: false,
+  //   runOnCompile: true,
+  //   strict: true,
+  //   only: [':ERC20$'],
+  // }
+
+  // tracer: {
+  //   tasks: ["deploy", "task:createPrize"],
+  // },
+  etherscan: {
+    apiKey: {
+      // Is not required by blockscout. Can be any non-empty string
+      testnet: "abc"
+    },
+    customChains: [
+      {
+        network: "testnet",
+        chainId: TESTNET_CHAIN_ID,
+        urls: {
+          apiURL: "https://explorer.helium.fhenix.zone/api",
+          browserURL: "https://explorer.helium.fhenix.zone/",
+        }
+      }
+    ]
+  },
+  sourcify: {
+    enabled: false
+  },
 };
 
 export default config;

@@ -1,3 +1,3 @@
-export * from "./addCount";
-export * from "./getCount";
+export * from "./createPrize";
+export * from "./generateAccounts";
 export * from "./getFunds";

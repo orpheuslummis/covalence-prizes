@@ -6,8 +6,6 @@ import "@fhenixprotocol/contracts/FHE.sol";
 import {Permissioned, Permission} from "@fhenixprotocol/contracts/access/Permissioned.sol";
 import {IAllocationStrategy} from "./IAllocationStrategy.sol";
 
-// import {Console} from "@fhenixprotocol/contracts/utils/debug/Console.sol";
-
 contract PrizeContract is AccessControl, Permissioned {
     struct Contribution {
         address contestant;
@@ -54,6 +52,10 @@ contract PrizeContract is AccessControl, Permissioned {
     event RewardClaimed(address contestant);
     event StrategyUpdated(address newStrategy);
     event CriteriaWeightsAssigned();
+    event PrizeInitialized(address organizer, string description, uint256 rewardPool, address strategy);
+    event ContestantScored(address evaluator, address contestant);
+    event RewardsCalculationStarted(uint256 contestantCount);
+    event RewardsCalculationCompleted();
 
     modifier onlyOrganizer() {
         require(msg.sender == organizer, "Not authorized");
@@ -85,7 +87,12 @@ contract PrizeContract is AccessControl, Permissioned {
         state = State.Setup;
         _grantRole(DEFAULT_ADMIN_ROLE, organizer);
 
-        criteriaWeights = new uint32[](criteriaNames.length);
+        criteriaWeights = new uint32[](_criteriaNames.length);
+        for (uint256 i = 0; i < _criteriaNames.length; i++) {
+            criteriaWeights[i] = 0;
+        }
+
+        emit PrizeInitialized(_organizer, _description, _totalRewardPool, _strategy);
     }
 
     function addEvaluators(address[] memory _evaluators) public onlyOrganizer {
@@ -158,12 +165,16 @@ contract PrizeContract is AccessControl, Permissioned {
             );
             contributions[contestants[i]].evaluationCount++;
             evaluatorContestantScored[msg.sender][contestants[i]] = true;
+
+            emit ContestantScored(msg.sender, contestants[i]);
         }
 
         emit ScoresAssigned(contestants);
     }
 
     function allocateRewards() public onlyOrganizer inState(State.Rewarding) {
+        emit RewardsCalculationStarted(contributionList.length);
+
         address[] memory contestantsBatch = new address[](contributionList.length);
         euint32[] memory scoresBatch = new euint32[](contributionList.length);
         uint256[] memory evaluationCounts = new uint256[](contributionList.length);
@@ -181,6 +192,8 @@ contract PrizeContract is AccessControl, Permissioned {
             contributions[contestantsBatch[i]].reward = rewardsBatch[i];
             emit RewardAllocated(contestantsBatch[i]);
         }
+
+        emit RewardsCalculationCompleted();
     }
 
     function cancelPrize() public onlyOrganizer {
