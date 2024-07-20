@@ -1,4 +1,3 @@
-// NOTE: we run this on testnet, local devnet doesn't work.
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { expect } from "chai";
 import dotenv from 'dotenv';
@@ -14,16 +13,17 @@ dotenv.config();
 
 enum PrizeState { Setup, Open, Evaluating, Rewarding, Closed, Cancelled }
 
-const TEST_TIMEOUT = 1 * 60 * 1000; // 1 minutes
+const TEST_TIMEOUT = 1 * 60 * 1000;
+const REWARD_POOL = ethers.parseEther("0.014");
+const MINIMUM_BALANCE = parseEther("0.05");
+const MINIMUM_ORGANIZER_BALANCE = parseEther("0.2");
 
-// Add this function at the top of your file
 async function hasEnoughBalance(address: string, requiredBalance: bigint): Promise<boolean> {
-    const balance = await ethers.provider.getBalance(address);
-    return balance >= requiredBalance;
+    return await ethers.provider.getBalance(address) >= requiredBalance;
 }
 
 describe("PrizeBasic", function () {
-    this.timeout(TEST_TIMEOUT); // Set timeout for all tests in this describe block
+    this.timeout(TEST_TIMEOUT);
 
     let prizeManager: PrizeManager;
     let allocationStrategy: IAllocationStrategy;
@@ -33,52 +33,25 @@ describe("PrizeBasic", function () {
     let contestant1: SignerWithAddress, contestant2: SignerWithAddress;
     let client: FhenixClient;
 
-    const rewardPool = ethers.parseEther("0.014"); // Update this value to match the actual reward pool
-    const description = "Test Prize";
-    const criteriaNames = ["Quality", "Innovation", "Feasibility"];
-    const weights = [30, 30, 40];
-
-    const minimumBalance = parseEther("0.05"); // Minimum balance required for tests
-    const minimumOrganizerBalance = parseEther("0.2"); // Minimum balance required for organizer
-
-    before(async () => {
+    const setupAccounts = async () => {
         const [signer] = await hre.ethers.getSigners();
-        if (!signer) {
-            throw new Error("Failed to get signer. Make sure your Hardhat configuration provides at least one account.");
-        }
+        if (!signer) throw new Error("Failed to get signer.");
 
         organizer = signer;
-
-        // Check if organizer has sufficient balance
-        const organizerBalance = await ethers.provider.getBalance(organizer.address);
-        if (organizerBalance < minimumOrganizerBalance) {
-            console.warn(`Organizer ${organizer.address} has insufficient balance. Aborting all tests.`);
+        if (await ethers.provider.getBalance(organizer.address) < MINIMUM_ORGANIZER_BALANCE) {
             throw new Error("Insufficient organizer balance");
         }
 
-        // Use predefined accounts from .env
         evaluator1 = new ethers.Wallet(process.env.PRIVATE_KEY_1!, hre.ethers.provider);
         evaluator2 = new ethers.Wallet(process.env.PRIVATE_KEY_2!, hre.ethers.provider);
         contestant1 = new ethers.Wallet(process.env.PRIVATE_KEY_3!, hre.ethers.provider);
         contestant2 = new ethers.Wallet(process.env.PRIVATE_KEY_4!, hre.ethers.provider);
 
-        // Ensure all addresses exist and are funded on the testnet
-        const addresses = [
-            organizer.address,
-            evaluator1.address,
-            evaluator2.address,
-            contestant1.address,
-            contestant2.address
-        ];
+        const addresses = [organizer, evaluator1, evaluator2, contestant1, contestant2].map(a => a.address);
+        await ensureAddressesExist(addresses, organizer);
+    };
 
-        try {
-            await ensureAddressesExist(addresses, organizer);
-        } catch (error) {
-            console.warn("Warning in ensureAddressesExist:", error.message);
-        }
-    });
-
-    beforeEach(async () => {
+    const setupContracts = async () => {
         const [owner] = await hre.ethers.getSigners();
 
         strategyRegistry = await (await hre.ethers.getContractFactory("StrategyRegistry")).connect(owner).deploy();
@@ -94,23 +67,25 @@ describe("PrizeBasic", function () {
 
         fheInstance = await createFheInstance(hre, await prizeManager.getAddress());
         client = fheInstance.instance;
+    };
 
-        // Ensure all accounts have sufficient balance
-        const accounts = [evaluator1, evaluator2, contestant1, contestant2];
-        for (const account of accounts) {
-            try {
-                await transferTokensIfNeeded(organizer, account.address, minimumBalance);
-            } catch (error) {
-                console.warn(`Failed to transfer tokens to ${account.address}: ${error.message}`);
-            }
+    const ensureAccountBalances = async () => {
+        for (const account of [evaluator1, evaluator2, contestant1, contestant2]) {
+            await transferTokensIfNeeded(organizer, account.address, MINIMUM_BALANCE);
         }
+    };
+
+    before(setupAccounts);
+    beforeEach(async () => {
+        await setupContracts();
+        await ensureAccountBalances();
     });
 
     it("should complete a basic prize scenario", async function () {
         // Check if evaluators have sufficient balance before proceeding
         for (const evaluator of [evaluator1, evaluator2]) {
             const balance = await ethers.provider.getBalance(evaluator.address);
-            if (balance < minimumBalance) {
+            if (balance < MINIMUM_BALANCE) {
                 console.warn(`Evaluator ${evaluator.address} has insufficient balance. Skipping test.`);
                 this.skip();
             }
@@ -120,11 +95,11 @@ describe("PrizeBasic", function () {
         let tx;
         try {
             tx = await prizeManager.connect(organizer).createPrize(
-                description,
-                rewardPool,
+                "Test Prize",
+                REWARD_POOL,
                 "AllocationStrategyLinear",
-                criteriaNames,
-                { value: rewardPool }
+                ["Quality", "Innovation", "Feasibility"],
+                { value: REWARD_POOL }
             );
         } catch (error) {
             console.error("Error creating prize:", error);
@@ -135,7 +110,7 @@ describe("PrizeBasic", function () {
             throw error;
         }
 
-        const receipt = await tx.wait(1); // Use wait(1) instead of wait()
+        const receipt = await tx.wait(1);
         if (!receipt) {
             throw new Error("Failed to get transaction receipt");
         }
@@ -157,7 +132,6 @@ describe("PrizeBasic", function () {
         console.log("Prize contract object:", prizeContract);
         console.log("Prize contract address:", prizeContract.target);
 
-        // Try to call a view function on the contract
         try {
             const description = await prizeContract.description();
             console.log("Prize description:", description);
@@ -172,10 +146,7 @@ describe("PrizeBasic", function () {
         console.log("Organizer address:", organizer.address);
         console.log("Prize contract address:", prizeContract.target);
 
-        // Check if the organizer has the default admin role
-        console.log("Organizer has DEFAULT_ADMIN_ROLE:", await prizeContract.hasRole(await prizeContract.DEFAULT_ADMIN_ROLE(), organizer.address));
-
-        expect(await prizeContract.description()).to.equal(description);
+        expect(await prizeContract.description()).to.equal("Test Prize");
         expect(await prizeContract.state()).to.equal(PrizeState.Setup);
 
         if (!evaluator1 || !evaluator2) {
@@ -187,7 +158,6 @@ describe("PrizeBasic", function () {
         await prizeContract.connect(organizer).addEvaluators([evaluator1.address, evaluator2.address]);
         console.log("State after adding evaluators:", await prizeContract.state());
 
-        console.log("Checking evaluator roles...");
         expect(await prizeContract.hasRole(await prizeContract.EVALUATOR_ROLE(), evaluator1.address)).to.be.true;
         expect(await prizeContract.hasRole(await prizeContract.EVALUATOR_ROLE(), evaluator2.address)).to.be.true;
 
@@ -196,25 +166,23 @@ describe("PrizeBasic", function () {
         console.log("State after moving to next state:", await prizeContract.state());
 
         expect(await prizeContract.state()).to.equal(PrizeState.Open);
-        expect(await ethers.provider.getBalance(prizeAddress)).to.equal(rewardPool);
+        expect(await ethers.provider.getBalance(prizeAddress)).to.equal(REWARD_POOL);
 
         console.log("Submitting contributions...");
         for (const [index, contestant] of [contestant1, contestant2].entries()) {
             try {
                 let tx = await prizeContract.connect(contestant).submitContribution(`Contestant ${index + 1} FHE Innovation`);
-                let receipt = await tx.wait(1); // Use wait(1) instead of wait()
+                let receipt = await tx.wait(1);
                 if (!receipt) {
                     throw new Error(`Failed to get receipt for contestant ${index + 1} submission`);
                 }
                 console.log(`Contestant ${index + 1} submission gas used:`, receipt.gasUsed.toString());
 
-                // Get the fee data
                 const feeData = await contestant.provider.getFeeData();
                 if (!feeData.gasPrice) {
                     throw new Error("Unable to get gas price");
                 }
 
-                // Calculate the cost
                 const cost = receipt.gasUsed * feeData.gasPrice;
 
                 console.log(`Contestant ${index + 1} submission cost:`, ethers.formatEther(cost), "ETH");
@@ -238,7 +206,6 @@ describe("PrizeBasic", function () {
             const encryptedScores = await Promise.all(scores[i].map(cs => Promise.all(cs.map(s => client.encrypt_uint32(s)))));
             console.log("Scores encrypted");
 
-            // Connect the contract to the correct evaluator before estimating gas or sending the transaction
             const connectedPrizeContract = prizeContract.connect(evaluator);
 
             const gasEstimate = await connectedPrizeContract.assignScores.estimateGas(
@@ -247,7 +214,6 @@ describe("PrizeBasic", function () {
             );
             console.log(`Estimated gas for assignScores: ${gasEstimate.toString()}`);
 
-            // Replace the getGasPrice call with getFeeData
             const feeData = await ethers.provider.getFeeData();
             const gasPrice = feeData.gasPrice;
 
@@ -275,7 +241,7 @@ describe("PrizeBasic", function () {
                 );
                 console.log(`Transaction sent. Hash: ${tx.hash}`);
 
-                const receipt = await tx.wait(1); // Use wait(1) instead of wait()
+                const receipt = await tx.wait(1);
                 console.log(`Transaction confirmed. Gas used: ${receipt.gasUsed.toString()}`);
                 console.log(`Gas used type: ${typeof receipt.gasUsed}`);
                 console.log(`Gas price: ${receipt.gasPrice.toString()}`);
@@ -286,7 +252,7 @@ describe("PrizeBasic", function () {
                 expect(findEventInReceipt(receipt, 'ScoresAssigned')).to.not.be.undefined;
             } catch (error) {
                 console.error(`Error assigning scores for Evaluator ${i + 1}:`, error);
-                throw error; // Re-throw the error to fail the test
+                throw error;
             }
         }
 
@@ -300,7 +266,7 @@ describe("PrizeBasic", function () {
         for (const contestant of [contestant1, contestant2]) {
             const balanceBefore = await hre.ethers.provider.getBalance(contestant.address);
             const tx = await prizeContract.connect(contestant).claimReward();
-            const receipt = await tx.wait(1); // Use wait(1) instead of wait()
+            const receipt = await tx.wait(1);
             const feeData = await ethers.provider.getFeeData();
             if (!feeData.gasPrice) {
                 throw new Error("Unable to get gas price");
