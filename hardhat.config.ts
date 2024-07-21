@@ -11,7 +11,7 @@ import { resolve } from "path";
 import "./tasks";
 
 // DOTENV_CONFIG_PATH is used to specify the path to the .env file for example in the CI
-const dotenvConfigPath: string = process.env.DOTENV_CONFIG_PATH || "./.env";
+const dotenvConfigPath: string = process.env.DOTENV_CONFIG_PATH || "./.env.local";
 dotenvConfig({ path: resolve(__dirname, dotenvConfigPath) });
 
 const TESTNET_CHAIN_ID = 8008135;

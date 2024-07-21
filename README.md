@@ -17,7 +17,7 @@ Prerequisites: Node.js, pnpm, Hardhat
 ```bash
 git clone https://github.com/CovalenceNetwork/covalence-prizes.git
 cd covalence-prizes
-cp .env.example .env
+cp .env.example .env.local
 pnpm install
 pnpm compile
 pnpm test
@@ -32,7 +32,6 @@ pnpm test
 ## Usage
 
 Refer to `test/Prize.ts` for comprehensive usage examples.
-
 
 ## Limitations
 

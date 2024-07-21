@@ -1,7 +1,8 @@
 import { createHash } from 'crypto';
-import { readFileSync } from 'fs';
+import fs, { readFileSync } from 'fs';
 import { DeployFunction } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
+import path from 'path';
 
 function getContractHash(contractName: string): string {
   const content = readFileSync(`./contracts/${contractName}.sol`, 'utf8');
@@ -74,6 +75,19 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   await logDeployment("StrategyRegistry", strategyRegistry.address);
   await logDeployment("AllocationStrategyLinear", allocationStrategyLinear.address);
   await logDeployment("PrizeManager", prizeManager.address);
+
+  // Generate contract-addresses.json for webapp
+  const contractAddresses = {
+    [hre.network.config.chainId!.toString()]: {
+      StrategyRegistry: strategyRegistry.address,
+      AllocationStrategyLinear: allocationStrategyLinear.address,
+      PrizeManager: prizeManager.address,
+    }
+  };
+
+  const contractAddressesPath = path.join(__dirname, '..', 'webapp', 'contract-addresses.json');
+  fs.writeFileSync(contractAddressesPath, JSON.stringify(contractAddresses, null, 2));
+  console.log(`Contract addresses written to ${contractAddressesPath}`);
 };
 
 export { getContractHash };

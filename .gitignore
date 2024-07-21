@@ -26,3 +26,5 @@ yarn.lock
 
 /tmp
 /etc
+
+**/.env.local
