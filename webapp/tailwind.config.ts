@@ -8,13 +8,39 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      backgroundImage: {
-        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "gradient-conic":
-          "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
+      colors: {
+        primary: {
+          50: '#F3E8FF',
+          100: '#E9D5FF',
+          200: '#D8B4FE',
+          300: '#C084FC',
+          400: '#A855F7',
+          500: '#9333EA',
+          600: '#7E22CE',
+          700: '#6B21A8',
+          800: '#581C87',
+          900: '#4C1D95',
+          950: '#2D0A4E',
+        },
+        secondary: {
+          500: '#EC4899',
+          600: '#DB2777',
+        },
+      },
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'],
+      },
+      textShadow: {
+        'default': '0 2px 4px rgba(0,0,0,0.10)',
+        'lg': '0 8px 16px rgba(0,0,0,0.20)',
       },
     },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/typography'),
+    require('@tailwindcss/forms'),
+    require('tailwindcss-textshadow'), // Added this line
+  ],
 };
+
 export default config;

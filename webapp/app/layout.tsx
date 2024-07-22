@@ -1,13 +1,9 @@
-'use client';
-
 import { Inter } from "next/font/google";
-import { AppProvider } from './AppContext';
+import ClientWrapper from './components/ClientWrapper';
+import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
+import Navbar from './components/Navbar';
 import "./globals.css";
-import { validateEnv } from './utils/env';
-
-console.log('Environment variables:', process.env);
-validateEnv();
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,11 +15,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AppProvider>
-          <Layout>
-            {children}
-          </Layout>
-        </AppProvider>
+        <ErrorBoundary>
+          <ClientWrapper>
+            <Navbar />
+            <Layout>{children}</Layout>
+          </ClientWrapper>
+        </ErrorBoundary>
       </body>
     </html>
   );

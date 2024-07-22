@@ -1,48 +1,50 @@
 'use client';
 
-import React, { useState } from 'react';
-import PrizeDetails from './PrizeDetails';
+import Link from 'next/link';
+import React from 'react';
+import { Prize } from '../types';
+import List from './List';
 
-const PrizeList: React.FC<{ prizes: Prize[] }> = ({ prizes }) => {
-    const [currentPage, setCurrentPage] = useState(1);
-    const prizesPerPage = 5;
+interface PrizeListProps {
+    prizes: Prize[];
+    showActions?: boolean;
+    onPrizeSelect?: (prize: Prize) => void;
+    renderClaimReward?: (prizeId: number) => React.ReactNode;
+}
 
-    const indexOfLastPrize = currentPage * prizesPerPage;
-    const indexOfFirstPrize = indexOfLastPrize - prizesPerPage;
-    const currentPrizes = prizes.slice(indexOfFirstPrize, indexOfLastPrize);
-
-    const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
-
-    if (prizes.length === 0) {
-        return (
-            <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative" role="alert">
-                <span className="block sm:inline">No prizes available at the moment.</span>
-            </div>
-        );
-    }
+const PrizeList: React.FC<PrizeListProps> = ({ prizes, showActions = false, onPrizeSelect, renderClaimReward }) => {
+    const renderPrize = (prize: Prize) => (
+        <>
+            <h3 className="text-lg font-semibold">{prize.name}</h3>
+            <p>{prize.description}</p>
+            <p>Amount: {prize.totalRewardPool} ETH</p>
+            <p>State: <span className={`font-semibold ${prize.active ? 'text-green-500' : 'text-red-500'}`}>
+                {prize.state}
+            </span></p>
+            {showActions && (
+                <div className="mt-2">
+                    {prize.active && onPrizeSelect && (
+                        <button
+                            onClick={() => onPrizeSelect(prize)}
+                            className="mr-2 px-2 py-1 bg-blue-500 text-white rounded"
+                        >
+                            Submit Contribution
+                        </button>
+                    )}
+                    {!prize.active && !prize.claimed && renderClaimReward && renderClaimReward(prize.id)}
+                    {prize.claimed && <span className="text-gray-500">Reward Claimed</span>}
+                </div>
+            )}
+            <Link href={`/prizes/${prize.id}`} className="block mt-2 text-blue-500">View Details</Link>
+        </>
+    );
 
     return (
-        <section className="mt-8">
-            <h2 className="text-2xl font-bold mb-4">Available Prizes</h2>
-            <ul className="space-y-4">
-                {currentPrizes.map((prize) => (
-                    <li key={prize.id} className="bg-white shadow rounded-lg p-4">
-                        <PrizeDetails prize={prize} />
-                    </li>
-                ))}
-            </ul>
-            <div className="mt-4 flex justify-center">
-                {Array.from({ length: Math.ceil(prizes.length / prizesPerPage) }, (_, i) => (
-                    <button
-                        key={i}
-                        onClick={() => paginate(i + 1)}
-                        className={`mx-1 px-3 py-1 rounded ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-                    >
-                        {i + 1}
-                    </button>
-                ))}
-            </div>
-        </section>
+        <List
+            items={prizes}
+            renderItem={renderPrize}
+            emptyMessage="No prizes available. Please connect your wallet or check back later."
+        />
     );
 };
 

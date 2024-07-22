@@ -88,6 +88,19 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const contractAddressesPath = path.join(__dirname, '..', 'webapp', 'contract-addresses.json');
   fs.writeFileSync(contractAddressesPath, JSON.stringify(contractAddresses, null, 2));
   console.log(`Contract addresses written to ${contractAddressesPath}`);
+
+  // Generate ABI file for webapp
+  const PrizeManagerArtifact = await deployments.getArtifact("PrizeManager");
+  const abiDir = path.join(__dirname, '..', 'webapp', 'app', 'abi');
+  const abiPath = path.join(abiDir, 'PrizeManager.json');
+
+  // Create the directory if it doesn't exist
+  if (!fs.existsSync(abiDir)) {
+    fs.mkdirSync(abiDir, { recursive: true });
+  }
+
+  fs.writeFileSync(abiPath, JSON.stringify(PrizeManagerArtifact.abi, null, 2));
+  console.log(`PrizeManager ABI written to ${abiPath}`);
 };
 
 export { getContractHash };

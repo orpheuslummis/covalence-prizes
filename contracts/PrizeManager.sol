@@ -8,6 +8,7 @@ import "./StrategyRegistry.sol";
 contract PrizeManager {
     struct Prize {
         address prizeAddress;
+        string name;
         string description;
         uint256 totalRewardPool;
         bool active;
@@ -20,6 +21,7 @@ contract PrizeManager {
     event PrizeCreated(
         address indexed organizer,
         address prizeAddress,
+        string name,
         string description,
         uint256 totalRewardPool,
         string allocationStrategy,
@@ -38,12 +40,18 @@ contract PrizeManager {
     }
 
     function createPrize(
+        string memory name,
         string memory description,
         uint256 totalRewardPool,
         string memory allocationStrategy,
         string[] memory criteriaNames
     ) public payable returns (address) {
-        if (totalRewardPool == 0 || bytes(description).length == 0 || msg.value < totalRewardPool) {
+        if (
+            totalRewardPool == 0 ||
+            bytes(name).length == 0 ||
+            bytes(description).length == 0 ||
+            msg.value < totalRewardPool
+        ) {
             revert InvalidInput();
         }
 
@@ -53,6 +61,7 @@ contract PrizeManager {
 
         PrizeContract newPrize = new PrizeContract{value: totalRewardPool}(
             msg.sender,
+            name,
             description,
             totalRewardPool,
             strategyAddress,
@@ -60,10 +69,18 @@ contract PrizeManager {
         );
         address newPrizeAddress = address(newPrize);
 
-        allPrizes.push(Prize(newPrizeAddress, description, totalRewardPool, true));
+        allPrizes.push(Prize(newPrizeAddress, name, description, totalRewardPool, true));
         organizerPrizeIndices[msg.sender].push(allPrizes.length - 1);
 
-        emit PrizeCreated(msg.sender, newPrizeAddress, description, totalRewardPool, allocationStrategy, criteriaNames);
+        emit PrizeCreated(
+            msg.sender,
+            newPrizeAddress,
+            name,
+            description,
+            totalRewardPool,
+            allocationStrategy,
+            criteriaNames
+        );
         return newPrizeAddress;
     }
 

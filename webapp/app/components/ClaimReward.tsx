@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { usePrizeContract } from '../hooks/usePrizeContract';
+import { usePrizeManager } from '../hooks/usePrizeManager';
 
 interface ClaimRewardProps {
     prizeId: number;
 }
 
 export default function ClaimReward({ prizeId }: ClaimRewardProps) {
-    const { claimReward } = usePrizeContract();
+    const { claimReward } = usePrizeManager();
     const [isLoading, setIsLoading] = useState(false);
 
     const handleClaim = async () => {

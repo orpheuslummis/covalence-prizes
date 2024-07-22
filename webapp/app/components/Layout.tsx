@@ -1,16 +1,11 @@
 import React from 'react';
-import Navbar from './Navbar';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return (
-        <div className="flex flex-col min-h-screen">
-            <Navbar />
-            <main className="flex-grow container mx-auto px-4 py-8 flex flex-col">
+        <div className="min-h-screen bg-gradient-to-b from-purple-950 to-purple-800">
+            <main className="pt-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {children}
             </main>
-            <footer className="bg-purple-800 text-white py-2 text-center text-sm mt-auto">
-                <p>&copy; 2024 Covalence Prizes. All rights reserved.</p>
-            </footer>
         </div>
     );
 };

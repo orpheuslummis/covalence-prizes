@@ -3,32 +3,147 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 76, 29, 149;
+  --background-end-rgb: 88, 28, 135;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
-  @apply bg-purple-900 text-white;
+  background: linear-gradient(to bottom, rgb(var(--background-start-rgb)), rgb(var(--background-end-rgb)));
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+}
+
+@layer components {
+  .section-padding {
+    @apply py-24 px-6;
+  }
+  .section-title {
+    @apply text-5xl font-bold text-center mb-16 text-white text-shadow-lg;
+  }
+  .card-base {
+    @apply bg-primary-900 rounded-lg p-8 shadow-lg transition duration-300 hover:shadow-xl flex flex-col items-center h-full;
+  }
+  .button-primary {
+    @apply py-4 px-10 bg-secondary-500 hover:bg-secondary-600 text-white text-xl font-bold rounded-full transition duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg;
+  }
+  .nav-link {
+    @apply text-lg font-semibold text-white bg-purple-700 hover:bg-purple-600 transition duration-300 px-4 py-2 rounded-full;
+  }
+  .button-connect {
+    @apply bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full transition duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg text-lg;
+  }
+  .dropdown-button {
+    @apply block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-purple-100 transition duration-300;
+  }
+  .input-field {
+    @apply block w-full p-2 border rounded mt-2;
+  }
+  .submit-button {
+    @apply mt-2 px-2 py-1 bg-blue-500 text-white rounded disabled:opacity-50;
+  }
+  .feedback-success {
+    @apply p-4 mb-4 rounded bg-green-100 text-green-700;
+  }
+  .feedback-error {
+    @apply p-4 mb-4 rounded bg-red-100 text-red-700;
+  }
+  .loading-indicator {
+    @apply text-center p-4 bg-blue-100 text-blue-700 rounded;
+  }
+  .select-field {
+    @apply block w-full p-2 border rounded;
+  }
+  .button-secondary {
+    @apply px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors;
+  }
+  .button-danger {
+    @apply px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors;
+  }
+  .form-section {
+    @apply space-y-4 mt-4;
+  }
+  .form-title {
+    @apply text-xl font-semibold mb-2;
+  }
+  .weight-input {
+    @apply block w-full p-2 border rounded mt-2;
+  }
+  .add-button {
+    @apply mt-2 px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors;
+  }
+  .form-label {
+    @apply block text-sm font-medium text-gray-700;
+  }
+  .form-input {
+    @apply mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm;
+  }
+  .prize-title {
+    @apply text-lg font-semibold;
+  }
+  .prize-state {
+    @apply font-semibold;
+  }
+  .prize-state-active {
+    @apply text-green-500;
+  }
+  .prize-state-inactive {
+    @apply text-red-500;
+  }
+  .prize-action-button {
+    @apply mr-2 px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors;
+  }
+  .prize-link {
+    @apply block mt-2 text-blue-500 hover:text-blue-600 transition-colors;
+  }
+  .contestant-input {
+    @apply w-full p-2 border rounded mb-2;
+  }
+  .contestant-input-error {
+    @apply border-red-500;
+  }
+  .error-message {
+    @apply text-red-500 text-sm mb-2;
+  }
+  .score-input {
+    @apply w-full p-2 border rounded mb-2;
+  }
+  .action-input {
+    @apply w-full p-2 border rounded;
+  }
+  .action-button {
+    @apply mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors;
+  }
+}
+
+@keyframes glitter {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.glitter-effect {
+  background-image: linear-gradient(
+    45deg,
+    #9333ea 25%,
+    #a855f7 25%,
+    #a855f7 50%,
+    #9333ea 50%,
+    #9333ea 75%,
+    #a855f7 75%,
+    #a855f7 100%
+  );
+  background-size: 60px 60px;
+  animation: glitter 4s linear infinite;
 }

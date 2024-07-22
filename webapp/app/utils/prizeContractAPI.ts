@@ -1,27 +1,22 @@
 import { ethers } from 'ethers';
+import { config } from '../config';
 
-const PRIZE_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_PRIZE_CONTRACT_ADDRESS;
-const PRIZE_CONTRACT_ABI = [
-    "function getAllPrizes() view returns (tuple(uint256 id, string name, string description, uint256 amount)[])",
-    "function createPrize(string name, string description, uint256 amount) payable returns (uint256)",
-    "function submitContribution(uint256 prizeId, string contribution) returns (bool)",
-    "function assignScores(uint256 prizeId, uint256[] contributionIds, uint256[] scores) returns (bool)",
-    "function claimReward(uint256 prizeId) returns (bool)"
-];
+const PRIZE_MANAGER_ADDRESS = config.contracts.PrizeManager.address;
+const PRIZE_MANAGER_ABI = config.contracts.PrizeManager.abi;
 
-export async function getPrizeContract(signer: ethers.Signer) {
-    if (!PRIZE_CONTRACT_ADDRESS) {
-        throw new Error('Prize contract address is not defined');
+export async function getPrizeManager(signer: ethers.Signer) {
+    if (!PRIZE_MANAGER_ADDRESS) {
+        throw new Error('Prize manager address is not defined');
     }
-    return new ethers.Contract(PRIZE_CONTRACT_ADDRESS, PRIZE_CONTRACT_ABI, signer);
+    return new ethers.Contract(PRIZE_MANAGER_ADDRESS, PRIZE_MANAGER_ABI, signer);
 }
 
 export async function getAllPrizes(contract: ethers.Contract) {
     return contract.getAllPrizes();
 }
 
-export async function createPrize(contract: ethers.Contract, name: string, description: string, amount: string) {
-    const tx = await contract.createPrize(name, description, ethers.parseEther(amount), { value: ethers.parseEther(amount) });
+export async function createPrize(contract: ethers.Contract, description: string, amount: string, allocationStrategy: string, criteriaNames: string[]) {
+    const tx = await contract.createPrize(description, ethers.parseEther(amount), allocationStrategy, criteriaNames, { value: ethers.parseEther(amount) });
     return tx.wait();
 }
 

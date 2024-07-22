@@ -28,6 +28,7 @@ contract PrizeContract is AccessControl, Permissioned {
     bytes32 public constant EVALUATOR_ROLE = keccak256("EVALUATOR_ROLE");
 
     address public organizer;
+    string public name;
     string public description;
     uint256 public monetaryRewardPool;
     State public state;
@@ -52,7 +53,7 @@ contract PrizeContract is AccessControl, Permissioned {
     event RewardClaimed(address contestant);
     event StrategyUpdated(address newStrategy);
     event CriteriaWeightsAssigned();
-    event PrizeInitialized(address organizer, string description, uint256 rewardPool, address strategy);
+    event PrizeInitialized(address organizer, string name, string description, uint256 rewardPool, address strategy);
     event ContestantScored(address evaluator, address contestant);
     event RewardsCalculationStarted(uint256 contestantCount);
     event RewardsCalculationCompleted();
@@ -74,12 +75,14 @@ contract PrizeContract is AccessControl, Permissioned {
 
     constructor(
         address _organizer,
+        string memory _name,
         string memory _description,
         uint256 _totalRewardPool,
         address _strategy,
         string[] memory _criteriaNames
     ) payable {
         organizer = _organizer;
+        name = _name;
         description = _description;
         monetaryRewardPool = _totalRewardPool;
         strategy = IAllocationStrategy(_strategy);
@@ -92,7 +95,7 @@ contract PrizeContract is AccessControl, Permissioned {
             criteriaWeights[i] = 0;
         }
 
-        emit PrizeInitialized(_organizer, _description, _totalRewardPool, _strategy);
+        emit PrizeInitialized(_organizer, _name, _description, _totalRewardPool, _strategy);
     }
 
     function addEvaluators(address[] memory _evaluators) public onlyOrganizer {

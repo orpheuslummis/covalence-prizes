@@ -3,13 +3,22 @@ import { useAppContext } from '../AppContext';
 export function useRoleBasedAccess() {
     const { role } = useAppContext();
 
+    const isOrganizer = role === 'organizer';
+    const isEvaluator = role === 'evaluator';
+    const isContestant = role === 'contestant';
+
     return {
-        canCreatePrize: role === 'organizer',
-        canAssignScores: role === 'evaluator',
-        canSubmitContribution: role === 'contestant',
-        canClaimReward: role === 'contestant',
+        canCreatePrize: isOrganizer,
+        canAddEvaluators: isOrganizer,
+        canAssignCriteriaWeights: isOrganizer,
+        canMoveToNextState: isOrganizer,
+        canAssignScores: isEvaluator,
+        canSubmitContribution: isContestant,
+        canClaimReward: isContestant,
         canViewAllPrizes: true,
-        canViewOwnContributions: role === 'contestant',
-        canViewAssignedPrizes: role === 'evaluator',
+        canViewOwnContributions: isContestant,
+        canViewAssignedPrizes: isEvaluator,
+        canFundPrize: isOrganizer,
+        canAllocateRewards: isOrganizer,
     };
 }
