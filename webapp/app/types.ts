@@ -28,12 +28,33 @@ export interface Prize {
     organizer: string;
 }
 
+export interface RawPrizeData {
+    addr: string;
+    name: string;
+    description: string;
+    pool: string; // This will be a string representation of a bigint
+    status: number; // This will be a number representing the PrizeStatus enum
+    allocationStrategy: string;
+    criteriaNames: string[];
+    createdAt: string; // This will be a string representation of a timestamp
+    organizer: string;
+}
+
 export interface PrizeParams {
     name: string;
     desc: string;
     pool: bigint;
     strategy: string;
     criteria: string[];
+}
+
+export interface Contribution {
+    contestant: string;
+    description: string;
+    aggregatedScore: bigint;
+    evaluationCount: number;
+    reward: bigint;
+    claimed: boolean;
 }
 
 export interface AppContextType {
@@ -47,6 +68,9 @@ export interface AppContextType {
             address: `0x${string}`;
             abi: any;
         };
+        PrizeContract: {
+            abi: any;
+        };
         AllocationStrategyLinear: {
             address: `0x${string}`;
         };
@@ -58,13 +82,28 @@ export interface AppContextType {
         getPrize: (id: string) => Promise<Prize | null>;
         deactivatePrize: (id: string) => Promise<boolean>;
         refreshPrize: (id: string) => Promise<Prize | null>;
-        fundPrize: (id: string, amount: bigint) => Promise<boolean>;
-        assignCriteriaWeights: (id: string, weights: number[]) => Promise<boolean>;
-        moveToNextState: (id: string) => Promise<boolean>;
         getPrizeState: (id: string) => Promise<PrizeStatus | null>;
         prizeUpdateTrigger: number;
         getUserRoles: (address: string, prizeAddress: string) => Promise<string[]>;
         addEvaluators: (prizeAddress: string, evaluators: string[]) => Promise<boolean>;
+    };
+    usePrizeContract: (prizeAddress: string) => {
+        assignCriteriaWeights: (weights: number[]) => Promise<void>;
+        fundPrize: () => Promise<void>;
+        moveToNextState: () => Promise<void>;
+        addEvaluators: (evaluators: string[]) => Promise<void>;
+        submitContribution: (description: string) => Promise<void>;
+        assignScores: (contestants: string[], encryptedScores: number[][]) => Promise<void>;
+        allocateRewards: () => Promise<void>;
+        claimReward: () => Promise<void>;
+        getPrizeState: PrizeStatus | undefined;
+        getOrganizer: string | undefined;
+        getName: string | undefined;
+        getDescription: string | undefined;
+        getMonetaryRewardPool: bigint | undefined;
+        getContribution: (contestant: string) => Promise<Contribution | undefined>;
+        getCriteriaNames: string[] | undefined;
+        getCriteriaWeights: number[] | undefined;
     };
     userRoles: UserRoles;
     setUserRoles: (roles: UserRoles) => void;

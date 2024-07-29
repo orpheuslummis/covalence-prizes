@@ -4,12 +4,11 @@ import React, { ReactNode, useCallback, useEffect, useState } from 'react';
 import { useAccount, useConnect, useDisconnect, usePublicClient, useWalletClient } from 'wagmi';
 import { config } from '../config';
 import { usePrizeManager } from '../hooks/usePrizeManager';
-import { AppContext } from './AppContext';
-import { ErrorProvider } from './ErrorContext';
-import { AppContextType, Role, UserRoles } from './types';
+import { AppContext, defaultAppContext } from './AppContext';
+import { AppContextType } from './types';
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [userRoles, setUserRoles] = useState<UserRoles>(new Set());
+    const [userRoles, setUserRoles] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const account = useAccount();
     const connect = useConnect();
@@ -23,27 +22,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             try {
                 console.log('Fetching roles for address:', account.address);
                 const prizesResult = await prizeManager.getPrizes();
-                const userRoles = new Set<Role>();
+                const userRolesSet = new Set<string>();
                 if (prizesResult && prizesResult.prizes) {
                     for (const prize of prizesResult.prizes) {
                         const roles = await prizeManager.getUserRoles(account.address, prize.prizeAddress);
-                        roles.forEach(role => userRoles.add(role as Role));
+                        roles.forEach(role => userRolesSet.add(role));
                     }
                 }
-                console.log('Fetched roles:', userRoles);
-                setUserRoles(userRoles);
+                console.log('Fetched roles:', userRolesSet);
+                setUserRoles(Array.from(userRolesSet));
             } catch (error) {
                 console.error('Error fetching user roles:', error);
-                setUserRoles(new Set());
+                setUserRoles([]);
             }
         } else {
             console.log('Not connected, clearing roles');
-            setUserRoles(new Set());
+            setUserRoles([]);
         }
     }, [account.isConnected, account.address, prizeManager]);
 
     useEffect(() => {
+        let isMounted = true;
         const initializeApp = async () => {
+            if (!isMounted) return;
             setIsLoading(true);
             try {
                 if (account.isConnected) {
@@ -52,14 +53,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             } catch (error) {
                 console.error("Error initializing app:", error);
             } finally {
-                setIsLoading(false);
+                if (isMounted) setIsLoading(false);
             }
         };
 
         initializeApp();
+        return () => { isMounted = false; };
     }, [account.isConnected, account.address, fetchRoles]);
 
-    const contextValue: AppContextType = {
+    const contextValue = React.useMemo<AppContextType>(() => ({
+        ...defaultAppContext,
         account,
         connect,
         disconnect,
@@ -71,11 +74,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setUserRoles,
         isLoading,
         setIsLoading,
-    };
+    }), [account, connect, disconnect, publicClient, walletClient, prizeManager, userRoles, isLoading]);
 
-    return (
-        <ErrorProvider>
-            <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>
-        </ErrorProvider>
-    );
+    return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
 };

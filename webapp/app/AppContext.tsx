@@ -1,24 +1,18 @@
 'use client';
 
 import React, { useContext } from 'react';
-import { useAccount, useConnect, useDisconnect, usePublicClient, useWalletClient } from 'wagmi';
 import { config } from '../config';
-import { AppContextType, Role } from './types';
+import { AppContextType } from './types';
 
-const defaultAppContext: AppContextType = {
+export const defaultAppContext: AppContextType = {
     account: {
         address: undefined,
         isConnected: false,
     },
-    connect: {
-        connectAsync: async () => ({ connector: undefined }),
-        connectors: [],
-    },
-    disconnect: {
-        disconnectAsync: async () => { },
-    },
-    publicClient: undefined,
-    walletClient: undefined,
+    connect: null,
+    disconnect: null,
+    publicClient: null,
+    walletClient: null,
     contracts: config.contracts,
     prizeManager: {
         prizes: [],
@@ -27,15 +21,12 @@ const defaultAppContext: AppContextType = {
         getPrize: async () => null,
         deactivatePrize: async () => false,
         refreshPrize: async () => null,
-        fundPrize: async () => false,
-        assignCriteriaWeights: async () => false,
-        moveToNextState: async () => false,
         getPrizeState: async () => null,
         prizeUpdateTrigger: 0,
         getUserRoles: async () => [],
         addEvaluators: async () => false,
     },
-    userRoles: new Set<Role>(),
+    userRoles: [],
     setUserRoles: () => { },
     isLoading: false,
     setIsLoading: () => { },
@@ -45,27 +36,8 @@ export const AppContext = React.createContext<AppContextType>(defaultAppContext)
 
 export const useAppContext = () => {
     const context = useContext(AppContext);
-    const account = useAccount();
-    const connect = useConnect();
-    const disconnect = useDisconnect();
-    const publicClient = usePublicClient();
-    const { data: walletClient } = useWalletClient();
-
-    if (typeof window === 'undefined') {
-        return defaultAppContext;
+    if (context === undefined) {
+        throw new Error('useAppContext must be used within an AppProvider');
     }
-
-    if (!context) {
-        console.warn('useAppContext was called outside of AppProvider');
-        return defaultAppContext;
-    }
-
-    return {
-        ...context,
-        account,
-        connect,
-        disconnect,
-        publicClient,
-        walletClient,
-    };
+    return context;
 };

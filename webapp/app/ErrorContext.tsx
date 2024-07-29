@@ -1,33 +1,22 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import React, { ReactNode, createContext, useContext, useState } from 'react';
 
 interface ErrorContextType {
     error: Error | null;
-    setError: (error: Error) => void;
+    setError: (error: Error | null) => void;
     clearError: () => void;
-    handleError: (message: string, error: unknown) => void;
 }
 
 const ErrorContext = createContext<ErrorContextType | undefined>(undefined);
 
-export const ErrorProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [error, setErrorState] = useState<Error | null>(null);
+export const ErrorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const [error, setError] = useState<Error | null>(null);
 
-    const setError = useCallback((newError: Error) => {
-        console.error(newError);
-        setErrorState(newError);
-    }, []);
-
-    const clearError = useCallback(() => setErrorState(null), []);
-
-    const handleError = useCallback((message: string, error: unknown) => {
-        const errorObject = error instanceof Error ? error : new Error(message);
-        setError(errorObject);
-    }, [setError]);
+    const clearError = () => setError(null);
 
     return (
-        <ErrorContext.Provider value={{ error, setError, clearError, handleError }}>
+        <ErrorContext.Provider value={{ error, setError, clearError }}>
             {children}
         </ErrorContext.Provider>
     );

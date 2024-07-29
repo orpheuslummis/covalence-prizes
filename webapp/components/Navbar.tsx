@@ -3,11 +3,17 @@
 import { ConnectKitButton } from 'connectkit';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useScrollEffect } from '../hooks/useScrollEffect';
+import { useEffect, useState } from 'react';
 
 const Navbar: React.FC = () => {
-    const isScrolled = useScrollEffect();
+    const [isScrolled, setIsScrolled] = useState(false);
     const pathname = usePathname();
+
+    useEffect(() => {
+        const handleScroll = () => setIsScrolled(window.scrollY > 0);
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     return (
         <nav className={`navbar ${isScrolled ? 'navbar-scrolled' : 'navbar-default'}`}>
