@@ -2,7 +2,8 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./app/*"]
+      "@/*": ["./app/*"],
+      "*": ["webapp/*"]
     },
     "declaration": true,
     "declarationMap": true,
@@ -31,6 +32,7 @@
     "tmp/test_counter",
     "etc/BasicFHE.ts",
     "etc/GasTests.ts",
-    "etc/Prize.ts"
+    "etc/Prize.ts",
+    "webapp/**/*"
   ]
 }

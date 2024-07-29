@@ -38,6 +38,19 @@ Refer to `test/Prize.ts` for comprehensive usage examples.
 - No support for contestant disqualification
 - Organizer introduces centralization risk - it's possible to replace some parts of it with social choice
 
+## Development notes
+
+We're developping directly on testnet because fhenix's local devnet didn't work for us.
+
+```
+p compile && p task:deploy --network testnet
+p test
+```
+
+```
+cd webapp && p dev
+```
+
 ## License
 
-MIT License. See [LICENSE](LICENSE) file.
+MIT License. See [LICENSE](LICENSE) file.s

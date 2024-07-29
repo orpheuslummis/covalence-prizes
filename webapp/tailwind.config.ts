@@ -26,6 +26,16 @@ const config: Config = {
           500: '#EC4899',
           600: '#DB2777',
         },
+        toast: {
+          warn: '#FEF3C7',
+          warnText: '#92400E',
+          success: '#D1FAE5',
+          successText: '#065F46',
+          error: '#FEE2E2',
+          errorText: '#991B1B',
+          info: '#E0F2FE',
+          infoText: '#075985',
+        },
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
@@ -34,12 +44,24 @@ const config: Config = {
         'default': '0 2px 4px rgba(0,0,0,0.10)',
         'lg': '0 8px 16px rgba(0,0,0,0.20)',
       },
+      backgroundColor: {
+        'toast-success': '#D1FAE5',
+        'toast-error': '#FEE2E2',
+        'toast-info': '#E0F2FE',
+        'toast-warning': '#FEF3C7',
+      },
+      textColor: {
+        'toast-success': '#065F46',
+        'toast-error': '#991B1B',
+        'toast-info': '#075985',
+        'toast-warning': '#92400E',
+      },
     },
   },
   plugins: [
     require('@tailwindcss/typography'),
     require('@tailwindcss/forms'),
-    require('tailwindcss-textshadow'), // Added this line
+    require('tailwindcss-textshadow'),
   ],
 };
 

@@ -1,44 +1,23 @@
-// Plugins
-// Tasks
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-verify";
+import "@nomicfoundation/hardhat-viem";
 import { config as dotenvConfig } from "dotenv";
 import "fhenix-hardhat-docker";
 import "fhenix-hardhat-plugin";
 import "hardhat-deploy";
 import { HardhatUserConfig } from "hardhat/config";
 import { resolve } from "path";
+import { fhenixTestnet } from "./chainConfig";
 import "./tasks";
 
-// DOTENV_CONFIG_PATH is used to specify the path to the .env file for example in the CI
 const dotenvConfigPath: string = process.env.DOTENV_CONFIG_PATH || "./.env.local";
 dotenvConfig({ path: resolve(__dirname, dotenvConfigPath) });
 
-const TESTNET_CHAIN_ID = 8008135;
-// const TESTNET_RPC_URL = "https://api.testnet.fhenix.zone:7747";
-const TESTNET_RPC_URL = "https://api.helium.fhenix.zone";
-
-const testnetConfig: any = {
-  chainId: TESTNET_CHAIN_ID,
-  url: TESTNET_RPC_URL,
+// Ensure that the PRIVATE_KEY is set in your .env file
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
+if (!PRIVATE_KEY) {
+  throw new Error("Please set your PRIVATE_KEY in a .env file");
 }
-
-// Select either private keys or mnemonic from .env file or environment variables
-const keys = process.env.KEY;
-if (!keys) {
-  let mnemonic = process.env.MNEMONIC;
-  if (!mnemonic) {
-    throw new Error("No mnemonic or private key provided, please set MNEMONIC or KEY in your .env file");
-  }
-  testnetConfig['accounts'] = {
-    count: 10,
-    mnemonic,
-    path: "m/44'/60'/0'/0",
-  }
-} else {
-  testnetConfig['accounts'] = [keys];
-}
-
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -48,44 +27,18 @@ const config: HardhatUserConfig = {
       debug: { revertStrings: "debug" }
     }
   },
-  // Optional: defaultNetwork is already being set to "localfhenix" by fhenix-hardhat-plugin
-  defaultNetwork: "localfhenix",
+  defaultNetwork: "testnet",
   networks: {
-    // localfhenix: {
-    //   gas: "auto",
-    //   gasMultiplier: 1.2,
-    //   gasPrice: "auto",
-    //   timeout: 10_000,
-    //   httpHeaders: {},
-    //   url: "http://127.0.0.1:42069",
-    //   accounts: {
-    //     mnemonic:
-    //     "demand hotel mass rally sphere tiger measure sick spoon evoke fashion comfort",
-    //     path: "m/44'/60'/0'/0",
-    //     initialIndex: 0,
-    //     count: 20,
-    //   },
-    // },
-    testnet: testnetConfig,
+    testnet: {
+      chainId: fhenixTestnet.id,
+      url: fhenixTestnet.rpcUrls.default.http[0],
+      accounts: [PRIVATE_KEY],
+    },
   },
   typechain: {
     outDir: "types",
     target: "ethers-v6",
   },
-  // mocha: {
-  //   timeout: 40_000
-  // },
-  // contractSizer: {
-  //   alphaSort: true,
-  //   disambiguatePaths: false,
-  //   runOnCompile: true,
-  //   strict: true,
-  //   only: [':ERC20$'],
-  // }
-
-  // tracer: {
-  //   tasks: ["deploy", "task:createPrize"],
-  // },
   etherscan: {
     apiKey: {
       // Is not required by blockscout. Can be any non-empty string
@@ -94,7 +47,7 @@ const config: HardhatUserConfig = {
     customChains: [
       {
         network: "testnet",
-        chainId: TESTNET_CHAIN_ID,
+        chainId: fhenixTestnet.id,
         urls: {
           apiURL: "https://explorer.helium.fhenix.zone/api",
           browserURL: "https://explorer.helium.fhenix.zone/",

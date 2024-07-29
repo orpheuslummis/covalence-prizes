@@ -1,40 +1,54 @@
 'use client';
 
-import React, { ReactNode, useEffect, useState } from 'react';
+import React, { ReactNode, useCallback, useEffect, useState } from 'react';
+import { useAccount, useConnect, useDisconnect, usePublicClient, useWalletClient } from 'wagmi';
+import { config } from '../config';
+import { usePrizeManager } from '../hooks/usePrizeManager';
 import { AppContext } from './AppContext';
 import { ErrorProvider } from './ErrorContext';
-import { config } from './config';
-import { useWeb3 } from './hooks/useWeb3';
-import { AppContextType, Role } from './types';
-
-const USER_ROLE_KEY = 'userRole';
+import { AppContextType, Role, UserRoles } from './types';
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [role, setRole] = useState<Role>(null);
+    const [userRoles, setUserRoles] = useState<UserRoles>(new Set());
     const [isLoading, setIsLoading] = useState(true);
-    const web3 = useWeb3();
+    const account = useAccount();
+    const connect = useConnect();
+    const disconnect = useDisconnect();
+    const publicClient = usePublicClient();
+    const { data: walletClient } = useWalletClient();
+    const prizeManager = usePrizeManager();
+
+    const fetchRoles = useCallback(async () => {
+        if (account.isConnected && account.address) {
+            try {
+                console.log('Fetching roles for address:', account.address);
+                const prizesResult = await prizeManager.getPrizes();
+                const userRoles = new Set<Role>();
+                if (prizesResult && prizesResult.prizes) {
+                    for (const prize of prizesResult.prizes) {
+                        const roles = await prizeManager.getUserRoles(account.address, prize.prizeAddress);
+                        roles.forEach(role => userRoles.add(role as Role));
+                    }
+                }
+                console.log('Fetched roles:', userRoles);
+                setUserRoles(userRoles);
+            } catch (error) {
+                console.error('Error fetching user roles:', error);
+                setUserRoles(new Set());
+            }
+        } else {
+            console.log('Not connected, clearing roles');
+            setUserRoles(new Set());
+        }
+    }, [account.isConnected, account.address, prizeManager]);
 
     useEffect(() => {
         const initializeApp = async () => {
             setIsLoading(true);
             try {
-                const storedRole = localStorage.getItem(USER_ROLE_KEY) as Role;
-                if (storedRole) {
-                    setRole(storedRole);
+                if (account.isConnected) {
+                    await fetchRoles();
                 }
-                // Wait for Web3 initialization
-                await new Promise<void>((resolve) => {
-                    if (web3.isInitialized) {
-                        resolve();
-                    } else {
-                        const checkInterval = setInterval(() => {
-                            if (web3.isInitialized) {
-                                clearInterval(checkInterval);
-                                resolve();
-                            }
-                        }, 100);
-                    }
-                });
             } catch (error) {
                 console.error("Error initializing app:", error);
             } finally {
@@ -43,22 +57,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         };
 
         initializeApp();
-    }, [web3.isInitialized]);
-
-    const updateRole = (newRole: Role) => {
-        setRole(newRole);
-        localStorage.setItem(USER_ROLE_KEY, newRole || '');
-    };
+    }, [account.isConnected, account.address, fetchRoles]);
 
     const contextValue: AppContextType = {
-        web3,
-        role,
-        setRole: updateRole,
-        disconnect: web3.disconnect,
-        updateConnectionState: web3.updateConnectionState,
+        account,
+        connect,
+        disconnect,
+        publicClient,
+        walletClient,
+        contracts: config.contracts,
+        prizeManager,
+        userRoles,
+        setUserRoles,
         isLoading,
         setIsLoading,
-        contracts: config.contracts,
     };
 
     return (

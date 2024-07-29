@@ -1,105 +1,103 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@fhenixprotocol/contracts/FHE.sol";
 import "./PrizeContract.sol";
-import "./StrategyRegistry.sol";
+import "./IAllocationStrategy.sol";
 
 contract PrizeManager {
     struct Prize {
-        address prizeAddress;
+        address addr;
         string name;
         string description;
-        uint256 totalRewardPool;
-        bool active;
+        uint256 pool;
+        PrizeContract.State status;
+        address allocationStrategy;
+        string[] criteriaNames;
+        uint256 createdAt;
+        address organizer;
     }
 
-    StrategyRegistry public strategyRegistry;
-    Prize[] public allPrizes;
-    mapping(address => uint256[]) public organizerPrizeIndices;
-
-    event PrizeCreated(
-        address indexed organizer,
-        address prizeAddress,
-        string name,
-        string description,
-        uint256 totalRewardPool,
-        string allocationStrategy,
-        string[] criteriaNames
-    );
-    event PrizeDeactivated(address indexed organizer, address prizeAddress);
-    event StrategyAddressRetrieved(string allocationStrategy, address strategyAddress);
-
-    error InvalidInput();
-    error InvalidAllocationStrategy();
-    error PrizeNotFound();
-    error Unauthorized();
-
-    constructor(address registryAddress) {
-        strategyRegistry = StrategyRegistry(registryAddress);
+    struct PrizeParams {
+        string name;
+        string desc;
+        uint256 pool;
+        string strategy;
+        string[] criteria;
     }
 
-    function createPrize(
-        string memory name,
-        string memory description,
-        uint256 totalRewardPool,
-        string memory allocationStrategy,
-        string[] memory criteriaNames
-    ) public payable returns (address) {
-        if (
-            totalRewardPool == 0 ||
-            bytes(name).length == 0 ||
-            bytes(description).length == 0 ||
-            msg.value < totalRewardPool
-        ) {
-            revert InvalidInput();
-        }
+    mapping(string => address) private strategyAddresses;
+    address public owner;
+    Prize[] public prizes;
 
-        address strategyAddress = strategyRegistry.getStrategyAddress(allocationStrategy);
-        if (strategyAddress == address(0)) revert InvalidAllocationStrategy();
-        emit StrategyAddressRetrieved(allocationStrategy, strategyAddress);
+    event PrizeCreated(address indexed org, address addr, string name, uint256 pool);
+    event StrategyUpdated(string name, address addr);
 
-        PrizeContract newPrize = new PrizeContract{value: totalRewardPool}(
+    constructor() {
+        owner = msg.sender;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner can perform this action");
+        _;
+    }
+
+    function updateStrategy(string memory strategyName, address strategyAddress) public onlyOwner {
+        require(strategyAddress != address(0), "Invalid strategy address");
+        strategyAddresses[strategyName] = strategyAddress;
+        emit StrategyUpdated(strategyName, strategyAddress);
+    }
+
+    function createPrize(PrizeParams calldata params) external returns (address) {
+        require(params.pool > 0 && bytes(params.name).length > 0 && bytes(params.desc).length > 0, "Invalid input");
+        address stratAddr = strategyAddresses[params.strategy];
+        require(stratAddr != address(0), "Invalid strategy");
+
+        PrizeContract newPrize = new PrizeContract(
             msg.sender,
-            name,
-            description,
-            totalRewardPool,
-            strategyAddress,
-            criteriaNames
+            params.name,
+            params.desc,
+            params.pool,
+            stratAddr,
+            params.criteria
         );
-        address newPrizeAddress = address(newPrize);
+        address prizeAddr = address(newPrize);
 
-        allPrizes.push(Prize(newPrizeAddress, name, description, totalRewardPool, true));
-        organizerPrizeIndices[msg.sender].push(allPrizes.length - 1);
-
-        emit PrizeCreated(
-            msg.sender,
-            newPrizeAddress,
-            name,
-            description,
-            totalRewardPool,
-            allocationStrategy,
-            criteriaNames
+        prizes.push(
+            Prize({
+                addr: prizeAddr,
+                name: params.name,
+                description: params.desc,
+                pool: params.pool,
+                status: PrizeContract.State.Setup,
+                allocationStrategy: stratAddr,
+                criteriaNames: params.criteria,
+                createdAt: block.timestamp,
+                organizer: msg.sender
+            })
         );
-        return newPrizeAddress;
+
+        emit PrizeCreated(msg.sender, prizeAddr, params.name, params.pool);
+        return prizeAddr;
     }
 
-    function deactivatePrize(address prizeAddress) public {
-        uint256 prizeIndex = findPrizeIndex(prizeAddress);
-        if (!allPrizes[prizeIndex].active || msg.sender != PrizeContract(prizeAddress).organizer()) {
-            revert Unauthorized();
-        }
-
-        allPrizes[prizeIndex].active = false;
-        emit PrizeDeactivated(msg.sender, prizeAddress);
+    function getPrizeCount() external view returns (uint256) {
+        return prizes.length;
     }
 
-    function findPrizeIndex(address prizeAddress) internal view returns (uint256) {
-        for (uint i = 0; i < allPrizes.length; i++) {
-            if (allPrizes[i].prizeAddress == prizeAddress) {
-                return i;
+    function getPrizeDetails(uint256 idx) external view returns (Prize memory) {
+        require(idx < prizes.length, "Invalid index");
+        return prizes[idx];
+    }
+
+    function parseStringToUint256(string memory str) internal pure returns (uint256) {
+        bytes memory b = bytes(str);
+        uint256 result = 0;
+        for (uint i = 0; i < b.length; i++) {
+            uint8 c = uint8(b[i]);
+            if (c >= 48 && c <= 57) {
+                result = result * 10 + (c - 48);
             }
         }
-        revert PrizeNotFound();
+        return result;
     }
 }

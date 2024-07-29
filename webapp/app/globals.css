@@ -81,7 +81,7 @@ body {
     @apply block text-sm font-medium text-gray-700;
   }
   .form-input {
-    @apply mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm;
+    @apply mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm text-gray-900;
   }
   .prize-title {
     @apply text-lg font-semibold;
@@ -119,6 +119,175 @@ body {
   .action-button {
     @apply mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors;
   }
+  .navbar {
+    @apply fixed w-full z-50 bg-purple-950 shadow-lg transition-all duration-300;
+  }
+  .navbar-scrolled {
+    @apply py-2;
+  }
+  .navbar-default {
+    @apply py-4;
+  }
+  .navbar-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  .navbar-content {
+    @apply flex justify-between items-center;
+  }
+  .navbar-logo {
+    @apply text-2xl sm:text-3xl font-bold text-white hover:text-purple-200 transition duration-300;
+  }
+  .navbar-links {
+    @apply hidden md:flex items-center space-x-4;
+  }
+  .navbar-mobile-menu {
+    @apply md:hidden;
+  }
+  .navbar-mobile-button {
+    @apply text-white hover:text-purple-200 transition duration-300;
+  }
+  .navbar-mobile-content {
+    @apply md:hidden bg-purple-900 mt-2 py-2;
+  }
+  .navbar-mobile-links {
+    @apply px-4 space-y-2;
+  }
+  .role-selector {
+    @apply relative;
+  }
+  .role-button {
+    @apply flex items-center space-x-2 text-white hover:text-purple-200 transition duration-300;
+  }
+  .role-icon {
+    @apply text-2xl;
+  }
+  .role-text {
+    @apply text-lg hidden sm:inline;
+  }
+  .role-dropdown {
+    @apply absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10;
+  }
+  .role-option {
+    @apply block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-purple-100 transition duration-300;
+  }
+
+  .prize-container {
+    @apply container mx-auto px-4 py-8 bg-purple-50 min-h-screen;
+  }
+
+  .prize-header {
+    @apply bg-white rounded-lg shadow-md p-6 mb-6;
+  }
+
+  .prize-title {
+    @apply text-3xl font-bold text-purple-800 mb-2;
+  }
+
+  .prize-description {
+    @apply text-purple-700 mb-4;
+  }
+
+  .prize-grid {
+    @apply grid grid-cols-1 md:grid-cols-3 gap-8;
+  }
+
+  .prize-details-section {
+    @apply bg-purple-100 rounded-lg shadow-md p-6 mb-6;
+  }
+
+  .prize-details-title {
+    @apply text-2xl font-semibold mb-4 text-purple-800;
+  }
+
+  .prize-details-grid {
+    @apply grid grid-cols-2 gap-4;
+  }
+
+  .prize-detail-label {
+    @apply font-semibold text-purple-700;
+  }
+
+  .prize-detail-value {
+    @apply text-purple-900 truncate;
+  }
+
+  .prize-amount-section {
+    @apply bg-purple-100 rounded-lg shadow-md p-6 mb-6;
+  }
+
+  .prize-amount-value {
+    @apply bg-purple-200 p-6 rounded-xl text-center;
+  }
+
+  .prize-amount-text {
+    @apply text-4xl font-bold text-purple-900 mb-2;
+  }
+
+  .prize-status-indicator {
+    @apply w-4 h-4 rounded-full mr-2;
+  }
+
+  .prize-status-text {
+    @apply text-sm;
+  }
+
+  .prize-action-button {
+    @apply w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition-colors mt-4;
+  }
+
+  .prize-card {
+    @apply bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden w-full h-full flex flex-col transform hover:scale-105 hover:-translate-y-1;
+  }
+
+  .prize-card-header {
+    @apply p-6 h-48 flex flex-col justify-between relative overflow-hidden;
+  }
+
+  .prize-card-title {
+    @apply text-2xl font-bold text-white mb-2 line-clamp-2;
+  }
+
+  .prize-card-description {
+    @apply text-white text-sm line-clamp-3;
+  }
+
+  .prize-card-body {
+    @apply p-6 space-y-4 flex-grow;
+  }
+
+  .prize-card-grid {
+    @apply grid grid-cols-2 gap-4 text-sm;
+  }
+
+  .prize-card-label {
+    @apply font-semibold text-gray-500;
+  }
+
+  .prize-card-value {
+    @apply text-purple-600 truncate;
+  }
+
+  .prize-card-reward {
+    @apply bg-purple-50 p-4 rounded-xl text-center mt-auto transition-all duration-300 group-hover:bg-purple-100;
+  }
+
+  .prize-card-reward-value {
+    @apply text-purple-700 text-2xl font-bold;
+  }
+
+  .prize-card-footer {
+    @apply flex justify-between items-center text-sm;
+  }
+
+  .prize-card-status {
+    @apply px-4 py-2 rounded-full font-semibold transition-colors duration-300 hover:bg-opacity-90;
+  }
+}
+
+@layer utilities {
+  .group {
+    @apply relative;
+  }
 }
 
 @keyframes glitter {
@@ -146,4 +315,17 @@ body {
   );
   background-size: 60px 60px;
   animation: glitter 4s linear infinite;
+}
+
+/* Custom styles for centered toast */
+.toast-container {
+  @apply fixed inset-0 flex items-center justify-center pointer-events-none;
+}
+
+.Toastify__toast-container {
+  @apply w-auto max-w-md;
+}
+
+.Toastify__toast {
+  @apply m-4 pointer-events-auto;
 }

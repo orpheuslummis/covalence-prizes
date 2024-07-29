@@ -37,7 +37,6 @@ npm install fhenixjs
 
 ```typescript
 import { FhenixClient } from "fhenixjs";
-import { BrowserProvider } from "ethers";
 
 const provider = new BrowserProvider(window.ethereum);
 const client = new FhenixClient({ provider });
