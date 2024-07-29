@@ -1,19 +1,19 @@
 import Link from 'next/link';
 import React from 'react';
 import { formatEther } from 'viem';
-import { Prize, PrizeStatus } from '../app/types';
+import { Prize, State } from '../app/types';
 
 interface PrizeCardProps {
     prize: Prize;
 }
 
-const PrizeCard: React.FC<PrizeCardProps> = ({ prize }) => {
+const PrizeCard: React.FC<PrizeCardProps> = React.memo(({ prize }) => {
     const statusColors = {
-        [PrizeStatus.Setup]: 'bg-yellow-300 text-yellow-800',
-        [PrizeStatus.Open]: 'bg-green-300 text-green-800',
-        [PrizeStatus.Evaluating]: 'bg-blue-300 text-blue-800',
-        [PrizeStatus.Rewarding]: 'bg-purple-300 text-purple-800',
-        [PrizeStatus.Closed]: 'bg-gray-300 text-gray-800',
+        [State.Setup]: 'bg-yellow-300 text-yellow-800',
+        [State.Open]: 'bg-green-300 text-green-800',
+        [State.Evaluating]: 'bg-blue-300 text-blue-800',
+        [State.Rewarding]: 'bg-purple-300 text-purple-800',
+        [State.Closed]: 'bg-gray-300 text-gray-800',
     };
 
     const generateGradient = (prizeData: Prize) => {
@@ -87,13 +87,13 @@ const PrizeCard: React.FC<PrizeCardProps> = ({ prize }) => {
                             <p className="text-purple-700">{formattedCreatedDate}</p>
                         </div>
                         <div className={`prize-card-status ${statusColors[prize.status]}`}>
-                            {PrizeStatus[prize.status]}
+                            {State[prize.status]}
                         </div>
                     </div>
                 </div>
             </div>
         </Link>
     );
-};
+});
 
 export default PrizeCard;

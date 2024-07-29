@@ -1,4 +1,4 @@
-import { Address, createPublicClient, defineChain, http } from 'viem';
+import { Address, createPublicClient, defineChain, http, keccak256, toBytes } from 'viem';
 import { createConfig } from 'wagmi';
 import PrizeContractABI from './abi/PrizeContract.json';
 import PrizeManagerABI from './abi/PrizeManager.json';
@@ -53,6 +53,27 @@ if (!addresses) {
     throw new Error(`No contract addresses found for chain ID: ${chainId}`);
 }
 
+// Function to generate role hash
+const getRoleHash = (role: string) => keccak256(toBytes(role));
+
+// Extract roles from PrizeContractABI
+const extractRoles = (abi: any[]) => {
+    const roles: Record<string, string> = {};
+    abi.forEach(item => {
+        if (item.type === 'event' && item.name === 'RoleAdminChanged') {
+            item.inputs.forEach((input: any) => {
+                if (input.name === 'role' && input.internalType.startsWith('bytes32')) {
+                    const roleName = input.internalType.split(' ')[1];
+                    roles[roleName] = getRoleHash(roleName);
+                }
+            });
+        }
+    });
+    return roles;
+};
+
+const prizeContractRoles = extractRoles(PrizeContractABI);
+
 export const config = {
     env: ENV,
     contracts: {
@@ -62,6 +83,13 @@ export const config = {
         },
         PrizeContract: {
             abi: PrizeContractABI,
+            roles: {
+                ...prizeContractRoles,
+                // Fallback for roles not found in ABI
+                DEFAULT_ADMIN_ROLE: '0x0000000000000000000000000000000000000000000000000000000000000000',
+                EVALUATOR_ROLE: getRoleHash('EVALUATOR_ROLE'),
+                CONTESTANT_ROLE: getRoleHash('CONTESTANT_ROLE'),
+            }
         },
         AllocationStrategyLinear: {
             address: addresses.AllocationStrategyLinear as Address,

@@ -1,60 +1,48 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 import PrizeCard from '../components/PrizeCard';
 import { usePrizeManager } from '../hooks/usePrizeManager';
 import { useAppContext } from './AppContext';
-import { Prize, Role } from './types';
+import { Prize, UserRoles } from './types';
 
 const PRIZES_PER_PAGE = 9;
 
-const isUserActiveInPrize = (prize: Prize, userRoles: Set<Role>) => {
-  return userRoles.has('organizer') || userRoles.has('evaluator');
+const isUserActiveInPrize = (prize: Prize, userRoles: UserRoles) => {
+  return userRoles.includes('DEFAULT_ADMIN_ROLE') || userRoles.includes('EVALUATOR_ROLE');
 };
 
 export default function Home() {
-  const { prizes, getPrizes, prizeUpdateTrigger } = usePrizeManager();
-  const { userRoles } = useAppContext();
-
+  const { getPrizes } = usePrizeManager();
+  const { userRoles, prizeManager } = useAppContext();
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchPrizes = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const result = await getPrizes(currentPage, PRIZES_PER_PAGE);
-      if (result) {
-        setTotalPages(Math.ceil(result.totalCount / PRIZES_PER_PAGE));
-      } else {
-        setTotalPages(1);
-      }
-    } catch (error) {
-      console.error('Error fetching prizes:', error);
-      setError('Failed to fetch prizes. Please try again later.');
-      setTotalPages(1);
-    }
-    setIsLoading(false);
-  };
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['prizes', currentPage],
+    queryFn: () => getPrizes(currentPage, PRIZES_PER_PAGE),
+    keepPreviousData: true,
+  });
 
-  useEffect(() => {
-    fetchPrizes();
-  }, [currentPage, prizeUpdateTrigger]);
+  const prizes = data?.prizes ?? [];
+  const totalCount = data?.totalCount ?? 0;
 
-  const paginatedPrizes = useMemo(() => {
-    if (!prizes) return [];
-    return [...prizes]
-      .sort((a, b) => {
-        const aActive = isUserActiveInPrize(a, userRoles);
-        const bActive = isUserActiveInPrize(b, userRoles);
-        if (aActive && !bActive) return -1;
-        if (!aActive && bActive) return 1;
-        return 0;
-      })
-      .slice((currentPage - 1) * PRIZES_PER_PAGE, currentPage * PRIZES_PER_PAGE);
-  }, [prizes, userRoles, currentPage]);
+  const totalPages = useMemo(() => Math.ceil(totalCount / PRIZES_PER_PAGE), [totalCount]);
+
+  const sortedPrizes = useMemo(() =>
+    [...prizes].sort((a, b) => {
+      const aActive = isUserActiveInPrize(a, userRoles);
+      const bActive = isUserActiveInPrize(b, userRoles);
+      if (aActive && !bActive) return -1;
+      if (!aActive && bActive) return 1;
+      return 0;
+    }),
+    [prizes, userRoles]
+  );
+
+  if (error) {
+    console.error('Error fetching prizes:', error);
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -79,39 +67,36 @@ export default function Home() {
         </div>
       </div>
 
-      <div id="prizes">
-        {isLoading ? (
-          <p>Loading prizes...</p>
-        ) : error ? (
-          <p className="text-red-500">{error}</p>
-        ) : paginatedPrizes.length === 0 ? (
-          <p className="text-gray-500">No prizes available at the moment.</p>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {paginatedPrizes.map((prize) => (
-                <PrizeCard key={prize.id} prize={prize} />
-              ))}
-            </div>
-            {totalPages > 1 && (
-              <div className="mt-8 flex justify-center">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`mx-1 px-3 py-1 rounded ${currentPage === page
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                      }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      {isLoading ? (
+        <p className="text-center">Loading prizes...</p>
+      ) : (
+        <div id="prizes" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {sortedPrizes.length === 0 ? (
+            <p className="text-gray-500 col-span-full">No prizes available at the moment. (Total count: {prizeManager.prizeCount})</p>
+          ) : (
+            sortedPrizes.map((prize) => (
+              <PrizeCard key={prize.id} prize={prize} />
+            ))
+          )}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="mt-8 flex justify-center">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            <button
+              key={page}
+              onClick={() => setCurrentPage(page)}
+              className={`mx-1 px-3 py-1 rounded ${currentPage === page
+                ? "bg-blue-500 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+            >
+              {page}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

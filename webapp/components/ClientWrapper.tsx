@@ -1,13 +1,14 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ConnectKitProvider } from 'connectkit';
 import React from 'react';
-import { ToastContainer } from 'react-toastify';
+import { Toaster } from 'react-hot-toast';
 import { WagmiProvider } from 'wagmi';
 import { AppProvider } from '../app/AppContextProvider';
 import { fhenixTestnet, wagmiConfig } from '../config';
-import ErrorHandler from './ErrorHandler';
+import { ErrorProvider } from '../hooks/useError';
 import Footer from "./Footer";
 import Navbar from "./Navbar";
 
@@ -15,13 +16,15 @@ const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
             staleTime: 5 * 60 * 1000, // 5 minutes
+            retry: 2,
+            refetchOnWindowFocus: false,
         },
     },
 });
 
 const ClientWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return (
-        <ErrorHandler>
+        <ErrorProvider>
             <WagmiProvider config={wagmiConfig}>
                 <QueryClientProvider client={queryClient}>
                     <ConnectKitProvider options={{ initialChainId: fhenixTestnet.id }}>
@@ -33,24 +36,31 @@ const ClientWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                                 </main>
                             </div>
                             <Footer />
-                            <ToastContainer
-                                position="top-center"
-                                autoClose={5000}
-                                hideProgressBar={false}
-                                newestOnTop={false}
-                                closeOnClick
-                                rtl={false}
-                                pauseOnFocusLoss
-                                draggable
-                                pauseOnHover
-                                theme="light"
-                                className="toast-container"
+                            <Toaster
+                                position="top-right"
+                                toastOptions={{
+                                    className: 'bg-white text-gray-800 shadow-lg rounded-lg p-4',
+                                    duration: 5000,
+                                    success: {
+                                        iconTheme: {
+                                            primary: '#10B981',
+                                            secondary: '#ffffff',
+                                        },
+                                    },
+                                    error: {
+                                        iconTheme: {
+                                            primary: '#EF4444',
+                                            secondary: '#ffffff',
+                                        },
+                                    },
+                                }}
                             />
                         </AppProvider>
                     </ConnectKitProvider>
+                    <ReactQueryDevtools initialIsOpen={false} />
                 </QueryClientProvider>
             </WagmiProvider>
-        </ErrorHandler>
+        </ErrorProvider>
     );
 };
 

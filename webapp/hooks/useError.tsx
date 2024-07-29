@@ -1,11 +1,12 @@
 'use client';
 
-import React, { ReactNode, createContext, useContext, useState } from 'react';
+import React, { ReactNode, createContext, useContext, useMemo, useState } from 'react';
 
 interface ErrorContextType {
     error: Error | null;
     setError: (error: Error | null) => void;
     clearError: () => void;
+    handleError: (message: string, error: Error) => void;
 }
 
 const ErrorContext = createContext<ErrorContextType | undefined>(undefined);
@@ -15,8 +16,20 @@ export const ErrorProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     const clearError = () => setError(null);
 
+    const handleError = (message: string, error: Error) => {
+        console.error(message, error);
+        setError(error);
+    };
+
+    const contextValue = useMemo(() => ({
+        error,
+        setError,
+        clearError,
+        handleError
+    }), [error]);
+
     return (
-        <ErrorContext.Provider value={{ error, setError, clearError }}>
+        <ErrorContext.Provider value={contextValue}>
             {children}
         </ErrorContext.Provider>
     );

@@ -1,149 +1,190 @@
-import { Contribution, PrizeStatus } from '@/types';
+import { Role } from '@/types';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Address } from 'viem';
+import { useAccount, useBlockNumber, useReadContract, useWatchContractEvent, useWriteContract } from 'wagmi';
 import { config } from '../config';
-import { useContractInteraction } from './useContractInteraction';
 
 export const usePrizeContract = (prizeAddress: Address) => {
-    const { readContract, writeContract, createQuery, createMutation } = useContractInteraction();
+    const { address } = useAccount();
+    const queryClient = useQueryClient();
 
-    const prizeContractConfig = {
+    const prizeContractConfig = useMemo(() => ({
         address: prizeAddress,
         abi: config.contracts.PrizeContract.abi,
-    };
+    }), [prizeAddress]);
 
-    const getPrizeStateQuery = createQuery<PrizeStatus, Error>(
-        ['prizeState', prizeAddress],
-        async () => readContract<PrizeStatus>(prizeContractConfig, 'state', [])
-    );
+    const { data: prizeState, error: prizeStateError } = useReadContract({
+        ...prizeContractConfig,
+        functionName: 'state',
+    });
 
-    const getOrganizerQuery = createQuery<Address, Error>(
-        ['prizeOrganizer', prizeAddress],
-        async () => readContract<Address>(prizeContractConfig, 'organizer', [])
-    );
+    if (prizeStateError) {
+        console.error('Error fetching prize state:', prizeStateError);
+    }
 
-    const getNameQuery = createQuery<string, Error>(
-        ['prizeName', prizeAddress],
-        async () => readContract<string>(prizeContractConfig, 'name', [])
-    );
+    const { data: organizer } = useReadContract({
+        ...prizeContractConfig,
+        functionName: 'organizer',
+    });
 
-    const getDescriptionQuery = createQuery<string, Error>(
-        ['prizeDescription', prizeAddress],
-        async () => readContract<string>(prizeContractConfig, 'description', [])
-    );
+    const { data: name } = useReadContract({
+        ...prizeContractConfig,
+        functionName: 'name',
+    });
 
-    const getMonetaryRewardPoolQuery = createQuery<bigint, Error>(
-        ['prizeRewardPool', prizeAddress],
-        async () => readContract<bigint>(prizeContractConfig, 'monetaryRewardPool', [])
-    );
+    const { data: description } = useReadContract({
+        ...prizeContractConfig,
+        functionName: 'description',
+    });
 
-    const getContributionQuery = (contestant: Address) => createQuery<Contribution, Error>(
-        ['contribution', prizeAddress, contestant],
-        async () => readContract<Contribution>(prizeContractConfig, 'contributions', [contestant])
-    );
+    const { data: monetaryRewardPool } = useReadContract({
+        ...prizeContractConfig,
+        functionName: 'monetaryRewardPool',
+    });
 
-    const getCriteriaNamesQuery = createQuery<string[], Error>(
-        ['criteriaNames', prizeAddress],
-        async () => readContract<string[]>(prizeContractConfig, 'getCriteriaNames', [])
-    );
+    const { data: criteriaNames } = useReadContract({
+        ...prizeContractConfig,
+        functionName: 'criteriaNames',
+    });
 
-    const getCriteriaWeightsQuery = createQuery<number[], Error>(
-        ['criteriaWeights', prizeAddress],
-        async () => readContract<number[]>(prizeContractConfig, 'getCriteriaWeights', [])
-    );
+    const { data: criteriaWeights } = useReadContract({
+        ...prizeContractConfig,
+        functionName: 'criteriaWeights',
+    });
 
-    const assignCriteriaWeightsMutation = createMutation<{ weights: number[] }, void>(
-        async ({ weights }) => {
-            await writeContract(prizeContractConfig, 'assignCriteriaWeights', [weights]);
+    const { data: createdAt } = useReadContract({
+        ...prizeContractConfig,
+        functionName: 'createdAt',
+    });
+
+    const { data: strategy } = useReadContract({
+        ...prizeContractConfig,
+        functionName: 'strategy',
+    });
+
+    const getContribution = useCallback((contestant: Address) =>
+        useReadContract({
+            ...prizeContractConfig,
+            functionName: 'contributions',
+            args: [contestant],
+        }),
+        [prizeContractConfig]);
+
+    const { data: userRoles, isLoading: isLoadingUserRoles } = useReadContract({
+        ...prizeContractConfig,
+        functionName: 'getRoles',
+        args: [address],
+        query: {
+            enabled: !!address,
         },
-        "Failed to assign criteria weights",
-        ['prize', prizeAddress]
-    );
+    });
 
-    const fundPrizeMutation = createMutation<void, void>(
-        async () => {
-            await writeContract(prizeContractConfig, 'fundPrize', []);
+    const { writeContract, writeContractAsync } = useWriteContract({
+        mutation: {
+            onSuccess: () => {
+                queryClient.invalidateQueries({ queryKey: ['prizeContract', prizeAddress] });
+            },
         },
-        "Failed to fund prize",
-        ['prize', prizeAddress]
+    });
+
+    const assignCriteriaWeights = useCallback(
+        (args: any[]) => writeContract({ ...prizeContractConfig, functionName: 'assignCriteriaWeights', args }),
+        [writeContract, prizeContractConfig]
     );
 
-    const moveToNextStateMutation = createMutation<void, void>(
-        async () => {
-            await writeContract(prizeContractConfig, 'moveToNextState', []);
-        },
-        "Failed to move prize to next state",
-        ['prize', prizeAddress]
+    const fundPrize = useCallback(
+        (args: any[]) => writeContract({ ...prizeContractConfig, functionName: 'fundPrize', args }),
+        [writeContract, prizeContractConfig]
     );
 
-    const addEvaluatorsMutation = createMutation<{ evaluators: string[] }, void>(
-        async ({ evaluators }) => {
-            await writeContract(prizeContractConfig, 'addEvaluators', [evaluators]);
-        },
-        "Failed to add evaluators",
-        ['prize', prizeAddress]
+    const moveToNextState = useCallback(
+        (args: any[]) => writeContract({ ...prizeContractConfig, functionName: 'moveToNextState', args }),
+        [writeContract, prizeContractConfig]
     );
 
-    const submitContributionMutation = createMutation<{ description: string }, void>(
-        async ({ description }) => {
-            await writeContract(prizeContractConfig, 'submitContribution', [description]);
-        },
-        "Failed to submit contribution",
-        ['prize', prizeAddress]
+    const addEvaluators = useCallback(
+        (args: any[]) => writeContract({ ...prizeContractConfig, functionName: 'addEvaluators', args }),
+        [writeContract, prizeContractConfig]
     );
 
-    const assignScoresMutation = createMutation<{ contestants: string[], encryptedScores: number[][] }, void>(
-        async ({ contestants, encryptedScores }) => {
-            await writeContract(prizeContractConfig, 'assignScores', [contestants, encryptedScores]);
-        },
-        "Failed to assign scores",
-        ['prize', prizeAddress]
+    const submitContribution = useCallback(
+        (args: any[]) => writeContract({ ...prizeContractConfig, functionName: 'submitContribution', args }),
+        [writeContract, prizeContractConfig]
     );
 
-    const allocateRewardsMutation = createMutation<void, void>(
-        async () => {
-            await writeContract(prizeContractConfig, 'allocateRewards', []);
-        },
-        "Failed to allocate rewards",
-        ['prize', prizeAddress]
+    const assignScores = useCallback(
+        (args: any[]) => writeContract({ ...prizeContractConfig, functionName: 'assignScores', args }),
+        [writeContract, prizeContractConfig]
     );
 
-    const claimRewardMutation = createMutation<void, void>(
-        async () => {
-            await writeContract(prizeContractConfig, 'claimReward', []);
-        },
-        "Failed to claim reward",
-        ['prize', prizeAddress]
+    const allocateRewards = useCallback(
+        (args: any[]) => writeContract({ ...prizeContractConfig, functionName: 'allocateRewards', args }),
+        [writeContract, prizeContractConfig]
     );
 
-    const hasRole = async (role: Role) => {
+    const claimReward = useCallback(
+        (args: any[]) => writeContract({ ...prizeContractConfig, functionName: 'claimReward', args }),
+        [writeContract, prizeContractConfig]
+    );
+
+    const hasRole = useCallback(async (role: Role): Promise<boolean> => {
         if (!address) return false;
-        return readContract<boolean>(prizeContractConfig, 'hasRole', [role, address]);
-    };
+        const { data } = await useReadContract({
+            ...prizeContractConfig,
+            functionName: 'hasRole',
+            args: [config.contracts.PrizeContract.roles[role], address],
+        });
+        return data ?? false;
+    }, [address, prizeContractConfig]);
 
-    const canSubmit = () => hasRole('CONTESTANT_ROLE');
-    const canManagePrize = () => hasRole('DEFAULT_ADMIN_ROLE');
-    const canEvaluate = () => hasRole('EVALUATOR_ROLE');
+    const canPerformRole = useCallback((role: Role): boolean =>
+        userRoles?.includes(config.contracts.PrizeContract.roles[role]) ?? false,
+        [userRoles]);
+
+    useWatchContractEvent({
+        ...prizeContractConfig,
+        eventName: 'StateChanged',
+        listener: (logs) => {
+            queryClient.invalidateQueries({ queryKey: ['prizeContract', prizeAddress] });
+        },
+        onError: (error) => {
+            console.error('Error watching contract event:', error);
+        },
+    });
+
+    const { data: blockNumber } = useBlockNumber({ watch: true });
+
+    useEffect(() => {
+        if (blockNumber) {
+            queryClient.invalidateQueries({ queryKey: ['prizeContract', prizeAddress] });
+        }
+    }, [blockNumber, queryClient, prizeAddress]);
 
     return {
-        assignCriteriaWeights: assignCriteriaWeightsMutation.mutate,
-        fundPrize: fundPrizeMutation.mutate,
-        moveToNextState: moveToNextStateMutation.mutate,
-        addEvaluators: addEvaluatorsMutation.mutate,
-        submitContribution: submitContributionMutation.mutate,
-        assignScores: assignScoresMutation.mutate,
-        allocateRewards: allocateRewardsMutation.mutate,
-        claimReward: claimRewardMutation.mutate,
-        getPrizeState: getPrizeStateQuery.data,
-        getOrganizer: getOrganizerQuery.data,
-        getName: getNameQuery.data,
-        getDescription: getDescriptionQuery.data,
-        getMonetaryRewardPool: getMonetaryRewardPoolQuery.data,
-        getContribution: getContributionQuery,
-        getCriteriaNames: getCriteriaNamesQuery.data,
-        getCriteriaWeights: getCriteriaWeightsQuery.data,
+        assignCriteriaWeights,
+        fundPrize,
+        moveToNextState,
+        addEvaluators,
+        submitContribution,
+        assignScores,
+        allocateRewards,
+        claimReward,
+        getPrizeState: prizeState,
+        getOrganizer: organizer,
+        getName: name ?? '',
+        description,
+        monetaryRewardPool,
+        getContribution,
+        criteriaNames,
+        criteriaWeights: criteriaWeights ?? [],
+        createdAt: createdAt,
+        strategy: strategy,
+        userRoles: userRoles ?? [],
+        isLoadingUserRoles,
         hasRole,
-        canSubmit,
-        canManagePrize,
-        canEvaluate,
+        canSubmit: () => canPerformRole('CONTESTANT_ROLE'),
+        canManagePrize: () => canPerformRole('DEFAULT_ADMIN_ROLE'),
+        canEvaluate: () => canPerformRole('EVALUATOR_ROLE'),
     };
 };

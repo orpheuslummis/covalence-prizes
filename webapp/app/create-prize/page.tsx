@@ -2,18 +2,23 @@
 
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
-import { toast } from 'react-toastify';
-import { useAccount } from 'wagmi';
+import { toast } from 'react-hot-toast';
+import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { config, isValidAmount } from '../../config';
+import { useError } from '../../hooks/useError';
 import { usePrizeManager } from '../../hooks/usePrizeManager';
-import { useError } from '../ErrorContext';
 
 const { allocationStrategies } = config;
 
 export default function CreatePrizePage() {
     const router = useRouter();
-    const { createPrize } = usePrizeManager();
+    const { createPrize, getPrizes } = usePrizeManager();
     const { handleError } = useError();
+    const [transactionHash, setTransactionHash] = useState<`0x${string}` | undefined>(undefined);
+
+    const { data: transactionReceipt, isError, isLoading, isSuccess } = useWaitForTransactionReceipt({
+        hash: transactionHash,
+    })
 
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -28,14 +33,44 @@ export default function CreatePrizePage() {
     useEffect(() => {
         setIsUserConnected(isConnected);
         if (!isConnected) {
-            toast.warn('Please connect your wallet to create a prize.');
+            toast.error('Please connect your wallet to create a prize.');
         }
     }, [isConnected]);
+
+    useEffect(() => {
+        if (isSuccess && transactionReceipt) {
+            handleTransactionSuccess();
+        } else if (isError) {
+            toast.error('Transaction failed. Please try again.');
+        }
+    }, [isSuccess, isError, transactionReceipt]);
+
+    const handleTransactionSuccess = async () => {
+        toast.success('Prize created successfully');
+        try {
+            const prizesResult = await getPrizes(1, 1); // Fetch only the latest prize
+            if (prizesResult && prizesResult.prizes && prizesResult.prizes.length > 0) {
+                const createdPrize = prizesResult.prizes[0]; // The latest prize should be the first one
+                if (createdPrize && createdPrize.id) {
+                    router.push(`/prize/${createdPrize.id}`);
+                } else {
+                    throw new Error('Failed to retrieve the created prize');
+                }
+            } else {
+                throw new Error('Failed to fetch the created prize');
+            }
+        } catch (error) {
+            console.error('Error after transaction success:', error);
+            toast.error('Prize created, but there was an error loading the details.');
+            // Fallback: redirect to the prizes list page
+            router.push('/prizes');
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!isUserConnected) {
-            toast.warn('Please connect your wallet to create a prize.');
+            toast.error('Please connect your wallet to create a prize.');
             return;
         }
         setIsSubmitting(true);
@@ -44,29 +79,28 @@ export default function CreatePrizePage() {
             // Validate individual fields
             if (!name.trim()) throw new Error('Name is required');
             if (!description.trim()) throw new Error('Description is required');
-            console.log('Total Reward Pool:', totalRewardPool);
-            console.log('Is Valid Amount:', isValidAmount(totalRewardPool));
             if (!isValidAmount(totalRewardPool)) throw new Error('Invalid reward pool amount');
             if (!allocationStrategy.trim()) throw new Error('Allocation strategy is required');
             if (criteriaNames.some(name => !name.trim())) throw new Error('All criteria names must be filled');
 
-            const createdPrize = await createPrize(
-                name.trim(),
-                description.trim(),
-                totalRewardPool,
-                allocationStrategy.trim(),
-                criteriaNames.filter(name => name.trim())
-            );
+            const hash = await createPrize.mutateAsync({
+                name: name.trim(),
+                desc: description.trim(),
+                pool: totalRewardPool, // Pass the string value directly
+                strategy: allocationStrategy.trim(),
+                criteria: criteriaNames.filter(name => name.trim())
+            });
 
-            if (createdPrize) {
-                console.log('Prize created successfully. Initial state:', createdPrize.state);
-                router.push(`/prize/${createdPrize.id}`);
-            } else {
-                throw new Error('Failed to create prize: No prize data returned');
+            if (!hash) {
+                throw new Error('Transaction failed to initiate');
             }
+
+            setTransactionHash(hash);
+            toast.success('Transaction submitted. Waiting for confirmation...');
         } catch (error) {
             console.error('Detailed error in handleSubmit:', error);
-            handleError('Error creating prize', error);
+            handleError('Error creating prize', error as Error);
+            toast.error('Failed to create prize. Please try again.');
         } finally {
             setIsSubmitting(false);
         }

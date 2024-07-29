@@ -1,8 +1,35 @@
 'use client';
 
 import React, { useContext } from 'react';
+import { Address } from 'viem';
 import { config } from '../config';
-import { AppContextType } from './types';
+import { Prize, PrizeParams, Role } from './types';
+
+export interface AppContextType {
+    account: {
+        address: Address | undefined,
+        isConnected: boolean,
+    },
+    connect: (() => Promise<void>) | null,
+    disconnect: (() => Promise<void>) | null,
+    publicClient: any | null,
+    walletClient: any | null,
+    contracts: typeof config.contracts,
+    prizeManager: {
+        createPrize: (params: PrizeParams) => Promise<void>,
+        getPrizes: (page: number, perPage: number) => Promise<{ prizes: Prize[], totalCount: number }>,
+        getPrize: (id: string | number) => Promise<Prize | null>,
+        updateStrategy: (params: { strategyName: string; strategyAddress: Address }) => Promise<void>,
+        isLoading: boolean,
+        getOwner: Address | undefined,
+        prizeCount: number,
+    },
+    userRoles: Role[],
+    setUserRoles: React.Dispatch<React.SetStateAction<Role[]>>,
+    isLoading: boolean,
+    setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
+    prizes: Prize[],
+};
 
 export const defaultAppContext: AppContextType = {
     account: {
@@ -15,21 +42,19 @@ export const defaultAppContext: AppContextType = {
     walletClient: null,
     contracts: config.contracts,
     prizeManager: {
-        prizes: [],
-        createPrize: async () => null,
+        createPrize: async () => { },
         getPrizes: async () => ({ prizes: [], totalCount: 0 }),
         getPrize: async () => null,
-        deactivatePrize: async () => false,
-        refreshPrize: async () => null,
-        getPrizeState: async () => null,
-        prizeUpdateTrigger: 0,
-        getUserRoles: async () => [],
-        addEvaluators: async () => false,
+        updateStrategy: async () => { },
+        isLoading: false,
+        getOwner: undefined,
+        prizeCount: 0,
     },
     userRoles: [],
     setUserRoles: () => { },
     isLoading: false,
     setIsLoading: () => { },
+    prizes: [],
 };
 
 export const AppContext = React.createContext<AppContextType>(defaultAppContext);

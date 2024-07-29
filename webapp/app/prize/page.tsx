@@ -3,8 +3,6 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { usePrizeManager } from '../../hooks/usePrizeManager';
-import { useRoleBasedAccess } from '../../hooks/useRoleBasedAccess';
-import { useWeb3 } from '../../hooks/useWeb3';
 import { Prize } from '../types';
 
 export default function PrizePage() {
@@ -12,7 +10,7 @@ export default function PrizePage() {
     const router = useRouter();
     const { isConnected, address } = useWeb3();
     const { getPrize, refreshPrize, moveToNextState } = usePrizeManager();
-    const { canManagePrize, canEvaluate } = useRoleBasedAccess();
+    const { canManagePrize, canEvaluate } = usePrizeContract();
     const [prize, setPrize] = useState<Prize | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);

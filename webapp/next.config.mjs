@@ -6,6 +6,14 @@ const nextConfig = {
     NEXT_PUBLIC_CHAIN_ID: process.env.NEXT_PUBLIC_CHAIN_ID,
     NEXT_PUBLIC_PRIZE_MANAGER_ADDRESS: process.env.NEXT_PUBLIC_PRIZE_MANAGER_ADDRESS,
   },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.infrastructureLogging = {
+        level: 'error',
+      };
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

@@ -284,10 +284,18 @@ body {
   }
 }
 
-@layer utilities {
-  .group {
-    @apply relative;
-  }
+.prize-action-button {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background-color: #9333ea; /* Adjust color as needed */
+  color: white;
+  text-decoration: none;
+  border-radius: 0.25rem;
+  transition: background-color 0.3s ease;
+}
+
+.prize-action-button:hover {
+  background-color: #7e22ce; /* Darker shade for hover */
 }
 
 @keyframes glitter {
@@ -317,15 +325,13 @@ body {
   animation: glitter 4s linear infinite;
 }
 
-/* Custom styles for centered toast */
-.toast-container {
-  @apply fixed inset-0 flex items-center justify-center pointer-events-none;
+/* Custom styles for react-hot-toast */
+.react-hot-toast {
+  font-family: "Inter", sans-serif;
 }
 
-.Toastify__toast-container {
-  @apply w-auto max-w-md;
-}
-
-.Toastify__toast {
-  @apply m-4 pointer-events-auto;
+.react-hot-toast > div {
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }

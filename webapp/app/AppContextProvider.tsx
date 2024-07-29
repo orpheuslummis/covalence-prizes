@@ -1,80 +1,56 @@
 'use client';
 
-import React, { ReactNode, useCallback, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import React, { ReactNode, useState } from 'react';
 import { useAccount, useConnect, useDisconnect, usePublicClient, useWalletClient } from 'wagmi';
 import { config } from '../config';
+import { useError } from '../hooks/useError';
 import { usePrizeManager } from '../hooks/usePrizeManager';
 import { AppContext, defaultAppContext } from './AppContext';
-import { AppContextType } from './types';
+import { AppContextType, Role } from './types';
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [userRoles, setUserRoles] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [userRoles, setUserRoles] = useState<Role[]>([]);
     const account = useAccount();
-    const connect = useConnect();
-    const disconnect = useDisconnect();
+    const { connect } = useConnect();
+    const { disconnect } = useDisconnect();
     const publicClient = usePublicClient();
     const { data: walletClient } = useWalletClient();
-    const prizeManager = usePrizeManager();
+    const { getPrizes, ...otherPrizeManagerFunctions } = usePrizeManager();
+    const { handleError } = useError();
 
-    const fetchRoles = useCallback(async () => {
-        if (account.isConnected && account.address) {
-            try {
-                console.log('Fetching roles for address:', account.address);
-                const prizesResult = await prizeManager.getPrizes();
-                const userRolesSet = new Set<string>();
-                if (prizesResult && prizesResult.prizes) {
-                    for (const prize of prizesResult.prizes) {
-                        const roles = await prizeManager.getUserRoles(account.address, prize.prizeAddress);
-                        roles.forEach(role => userRolesSet.add(role));
-                    }
-                }
-                console.log('Fetched roles:', userRolesSet);
-                setUserRoles(Array.from(userRolesSet));
-            } catch (error) {
-                console.error('Error fetching user roles:', error);
-                setUserRoles([]);
-            }
-        } else {
-            console.log('Not connected, clearing roles');
-            setUserRoles([]);
-        }
-    }, [account.isConnected, account.address, prizeManager]);
-
-    useEffect(() => {
-        let isMounted = true;
-        const initializeApp = async () => {
-            if (!isMounted) return;
-            setIsLoading(true);
-            try {
-                if (account.isConnected) {
-                    await fetchRoles();
-                }
-            } catch (error) {
-                console.error("Error initializing app:", error);
-            } finally {
-                if (isMounted) setIsLoading(false);
-            }
-        };
-
-        initializeApp();
-        return () => { isMounted = false; };
-    }, [account.isConnected, account.address, fetchRoles]);
+    const { data: prizesData } = useQuery({
+        queryKey: ['initialPrizes'],
+        queryFn: () => getPrizes(1, 10),
+        onError: (error) => handleError('Error fetching prizes', error as Error),
+    });
 
     const contextValue = React.useMemo<AppContextType>(() => ({
         ...defaultAppContext,
         account,
-        connect,
-        disconnect,
+        connect: connect as (() => Promise<void>) | null,
+        disconnect: disconnect as (() => Promise<void>) | null,
         publicClient,
         walletClient,
         contracts: config.contracts,
-        prizeManager,
-        userRoles,
-        setUserRoles,
+        prizeManager: {
+            ...otherPrizeManagerFunctions,
+            getPrizes,
+            deactivatePrize: async () => false, // Implement if needed
+            refreshPrize: async (id: string) => otherPrizeManagerFunctions.getPrize(id),
+            getPrizeState: async (id: string) => {
+                const prize = await otherPrizeManagerFunctions.getPrize(id);
+                return prize ? prize.status : null;
+            },
+            prizeUpdateTrigger: 0, // Implement if needed
+        },
         isLoading,
         setIsLoading,
-    }), [account, connect, disconnect, publicClient, walletClient, prizeManager, userRoles, isLoading]);
+        userRoles,
+        setUserRoles,
+        prizes: prizesData?.prizes || [],
+    }), [account, connect, disconnect, publicClient, walletClient, otherPrizeManagerFunctions, getPrizes, isLoading, userRoles, prizesData]);
 
     return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
 };
