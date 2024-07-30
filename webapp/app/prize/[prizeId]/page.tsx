@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { formatEther } from 'viem';
+import { useAccount } from 'wagmi';
 import { usePrizeContract } from '../../../hooks/usePrizeContract';
 import { usePrizeManager } from '../../../hooks/usePrizeManager';
 import { State } from '../../types';
@@ -10,12 +11,16 @@ import { State } from '../../types';
 export default function PrizePage() {
     const { prizeId } = useParams();
     const { getPrize } = usePrizeManager();
-    const { data: prize, isLoading, error } = getPrize(prizeId as string);
-    const { canSubmit, canManagePrize, canEvaluate } = usePrizeContract(prize?.prizeAddress as `0x${string}`);
+    const { data: prize, isLoading: isPrizeLoading, error: prizeError } = getPrize(prizeId as string);
+    const { roles, isLoadingRoles } = usePrizeContract(prize?.prizeAddress as `0x${string}`);
+    const { address, isConnected } = useAccount();
 
-    if (isLoading) return <div className="text-center py-10 text-purple-100">Loading...</div>;
-    if (error) return <div className="text-center py-10 text-red-300">Error: {error.message}</div>;
+    if (isPrizeLoading || isLoadingRoles) return <div className="text-center py-10 text-purple-100">Loading...</div>;
+    if (prizeError) return <div className="text-center py-10 text-red-300">Error: {prizeError.message}</div>;
     if (!prize) return <div className="text-center py-10 text-purple-100">Prize not found</div>;
+
+    console.log('Prize details:', prize);
+    console.log('User roles:', roles);
 
     return (
         <div className="prize-container">
@@ -24,7 +29,34 @@ export default function PrizePage() {
                 <p className="prize-description">{prize.description}</p>
             </div>
 
-            <div className="prize-grid">
+            {isConnected && (
+                <div className="mt-4 bg-purple-100 p-4 rounded-lg">
+                    <div className="flex justify-between items-center">
+                        {roles.canSubmit && (
+                            <Link href={`/prize/${prizeId}/submit`} className="prize-action-button flex-1 text-center mx-2">
+                                Create Submission
+                            </Link>
+                        )}
+                        {roles.canManagePrize && (
+                            <Link href={`/prize/${prizeId}/manage`} className="prize-action-button flex-1 text-center mx-2">
+                                Manage Prize
+                            </Link>
+                        )}
+                        {roles.canEvaluate && (
+                            <Link href={`/prize/${prizeId}/evaluate`} className="prize-action-button flex-1 text-center mx-2">
+                                Evaluate Submissions
+                            </Link>
+                        )}
+                    </div>
+                </div>
+            )}
+            {!isConnected && (
+                <div className="mt-4 text-center text-purple-600 bg-purple-100 p-4 rounded-lg">
+                    Connect your wallet to interact with this prize.
+                </div>
+            )}
+
+            <div className="prize-grid mt-8">
                 <div className="md:col-span-2">
                     <PrizeDetails
                         organizer={prize.organizer}
@@ -32,31 +64,12 @@ export default function PrizePage() {
                         strategy={prize.allocationStrategy}
                         prizeAddress={prize.prizeAddress}
                     />
+                    <EvaluationCriteria criteria={prize.criteriaNames || []} />
                 </div>
                 <div>
                     <PrizeAmount amount={prize.pool} />
                     <PrizeInPageStatus currentState={prize.status} />
                 </div>
-            </div>
-
-            <EvaluationCriteria criteria={prize.criteriaNames || []} />
-
-            <div className="mt-8 flex flex-wrap gap-4">
-                {canSubmit() && (
-                    <Link href={`/prize/${prizeId}/submit`} className="prize-action-button">
-                        Create Submission
-                    </Link>
-                )}
-                {canManagePrize() && (
-                    <Link href={`/prize/${prizeId}/manage`} className="prize-action-button">
-                        Manage Prize
-                    </Link>
-                )}
-                {canEvaluate() && (
-                    <Link href={`/prize/${prizeId}/evaluate`} className="prize-action-button">
-                        Evaluate Submissions
-                    </Link>
-                )}
             </div>
         </div>
     );
@@ -104,7 +117,7 @@ function PrizeDetails({ organizer, createdAt, strategy, prizeAddress }: {
 
 function EvaluationCriteria({ criteria }: { criteria: string[] }) {
     return (
-        <div className="prize-details-section mt-8">
+        <div className="prize-details-section mt-6">
             <h2 className="prize-details-title">Evaluation Criteria</h2>
             {criteria && criteria.length > 0 ? (
                 <ul className="list-disc pl-5">

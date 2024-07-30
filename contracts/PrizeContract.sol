@@ -25,7 +25,6 @@ contract PrizeContract is AccessControlEnumerable, Permissioned {
     }
 
     bytes32 public constant EVALUATOR_ROLE = keccak256("EVALUATOR");
-    bytes32 public constant CONTESTANT_ROLE = keccak256("CONTESTANT");
 
     address public organizer;
     string public name;
@@ -112,7 +111,7 @@ contract PrizeContract is AccessControlEnumerable, Permissioned {
         emit StateChanged(State.Setup, State.Open);
     }
 
-    function submitContribution(string memory _description) public onlyRole(CONTESTANT_ROLE) inState(State.Open) {
+    function submitContribution(string memory _description) public inState(State.Open) {
         require(contributions[msg.sender].contestant == address(0), "Only one contribution per contestant permitted");
         contributions[msg.sender] = Contribution({
             contestant: msg.sender,

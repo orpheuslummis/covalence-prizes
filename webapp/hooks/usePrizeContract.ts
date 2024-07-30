@@ -1,18 +1,49 @@
-import { Role } from '@/types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Address } from 'viem';
 import { useAccount, useBlockNumber, useReadContract, useWatchContractEvent, useWriteContract } from 'wagmi';
 import { config } from '../config';
 
-export const usePrizeContract = (prizeAddress: Address) => {
-    const { address } = useAccount();
+export const usePrizeContract = (prizeAddress?: Address) => {
+    const { address: connectedAddress } = useAccount();
     const queryClient = useQueryClient();
+
+    const { data: blockNumber } = useBlockNumber({ watch: true });
 
     const prizeContractConfig = useMemo(() => ({
         address: prizeAddress,
         abi: config.contracts.PrizeContract.abi,
     }), [prizeAddress]);
+
+    console.log('Prize Address:', prizeAddress);
+    console.log('Connected Address:', connectedAddress);
+
+    const { data: hasAdminRole } = useReadContract({
+        ...prizeContractConfig,
+        functionName: 'hasRole',
+        args: [config.contracts.PrizeContract.roles['DEFAULT_ADMIN_ROLE'], connectedAddress],
+        enabled: !!prizeAddress && !!connectedAddress,
+    });
+
+    const { data: hasEvaluatorRole } = useReadContract({
+        ...prizeContractConfig,
+        functionName: 'hasRole',
+        args: [config.contracts.PrizeContract.roles['EVALUATOR_ROLE'], connectedAddress],
+        enabled: !!prizeAddress && !!connectedAddress,
+    });
+
+    console.log('Admin Role:', hasAdminRole);
+    console.log('Evaluator Role:', hasEvaluatorRole);
+
+    const isLoadingRoles = hasAdminRole === undefined || hasEvaluatorRole === undefined;
+
+    const roles = useMemo(() => ({
+        canSubmit: true,
+        canManagePrize: hasAdminRole === true,
+        canEvaluate: hasEvaluatorRole === true,
+    }), [hasAdminRole, hasEvaluatorRole]);
+
+    console.log('Calculated Roles:', roles);
 
     const { data: prizeState, error: prizeStateError } = useReadContract({
         ...prizeContractConfig,
@@ -71,15 +102,6 @@ export const usePrizeContract = (prizeAddress: Address) => {
         }),
         [prizeContractConfig]);
 
-    const { data: userRoles, isLoading: isLoadingUserRoles } = useReadContract({
-        ...prizeContractConfig,
-        functionName: 'getRoles',
-        args: [address],
-        query: {
-            enabled: !!address,
-        },
-    });
-
     const { writeContract, writeContractAsync } = useWriteContract({
         mutation: {
             onSuccess: () => {
@@ -128,20 +150,6 @@ export const usePrizeContract = (prizeAddress: Address) => {
         [writeContract, prizeContractConfig]
     );
 
-    const hasRole = useCallback(async (role: Role): Promise<boolean> => {
-        if (!address) return false;
-        const { data } = await useReadContract({
-            ...prizeContractConfig,
-            functionName: 'hasRole',
-            args: [config.contracts.PrizeContract.roles[role], address],
-        });
-        return data ?? false;
-    }, [address, prizeContractConfig]);
-
-    const canPerformRole = useCallback((role: Role): boolean =>
-        userRoles?.includes(config.contracts.PrizeContract.roles[role]) ?? false,
-        [userRoles]);
-
     useWatchContractEvent({
         ...prizeContractConfig,
         eventName: 'StateChanged',
@@ -152,8 +160,6 @@ export const usePrizeContract = (prizeAddress: Address) => {
             console.error('Error watching contract event:', error);
         },
     });
-
-    const { data: blockNumber } = useBlockNumber({ watch: true });
 
     useEffect(() => {
         if (blockNumber) {
@@ -180,11 +186,7 @@ export const usePrizeContract = (prizeAddress: Address) => {
         criteriaWeights: criteriaWeights ?? [],
         createdAt: createdAt,
         strategy: strategy,
-        userRoles: userRoles ?? [],
-        isLoadingUserRoles,
-        hasRole,
-        canSubmit: () => canPerformRole('CONTESTANT_ROLE'),
-        canManagePrize: () => canPerformRole('DEFAULT_ADMIN_ROLE'),
-        canEvaluate: () => canPerformRole('EVALUATOR_ROLE'),
+        roles,
+        isLoadingRoles,
     };
 };
