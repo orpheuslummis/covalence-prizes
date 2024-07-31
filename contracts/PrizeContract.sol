@@ -33,10 +33,12 @@ contract PrizeContract is AccessControlEnumerable, Permissioned {
     State public state;
     string[] public criteriaNames;
     uint32[] public criteriaWeights;
-    mapping(address => Contribution) public contributions;
-    address[] public contributionList;
     mapping(address => mapping(address => bool)) private evaluatorContestantScored;
     uint256 public createdAt;
+    uint256 public contributionCount;
+    mapping(address => Contribution) public contributions;
+    address[] public contributionList;
+    mapping(uint256 => address) public contributionIndexToAddress;
 
     IAllocationStrategy public strategy;
     uint256 public constant MAX_BATCH_SIZE = 100; // TBD
@@ -44,8 +46,6 @@ contract PrizeContract is AccessControlEnumerable, Permissioned {
     event StateChanged(State oldState, State newState);
     event ContributionAdded(address contestant, string description);
     event ScoresAssigned(address[] contestants);
-    event RewardAllocated(address contestant);
-    event EvaluatorAdded(address evaluator);
     event PrizeFunded(address funder);
     event RewardClaimed(address contestant);
     event CriteriaWeightsAssigned();
@@ -87,7 +87,6 @@ contract PrizeContract is AccessControlEnumerable, Permissioned {
     function addEvaluators(address[] memory _evaluators) public onlyRole(DEFAULT_ADMIN_ROLE) {
         for (uint256 i = 0; i < _evaluators.length; i++) {
             grantRole(EVALUATOR_ROLE, _evaluators[i]);
-            emit EvaluatorAdded(_evaluators[i]);
         }
     }
 
@@ -121,8 +120,49 @@ contract PrizeContract is AccessControlEnumerable, Permissioned {
             evaluationCount: 0,
             claimed: false
         });
+        contributionIndexToAddress[contributionCount] = msg.sender;
+        contributionCount++;
         contributionList.push(msg.sender);
         emit ContributionAdded(msg.sender, _description);
+    }
+
+    function getContributions(
+        uint256 startIndex,
+        uint256 batchSize
+    )
+        public
+        view
+        returns (
+            address[] memory contestants,
+            string[] memory descriptions,
+            uint256[] memory evaluationCounts,
+            bool[] memory claimedStatuses
+        )
+    {
+        require(startIndex < contributionCount, "Start index out of bounds");
+        uint256 endIndex = startIndex + batchSize;
+        if (endIndex > contributionCount) {
+            endIndex = contributionCount;
+        }
+        uint256 size = endIndex - startIndex;
+
+        contestants = new address[](size);
+        descriptions = new string[](size);
+        evaluationCounts = new uint256[](size);
+        claimedStatuses = new bool[](size);
+
+        for (uint256 i = 0; i < size; i++) {
+            address contestant = contributionIndexToAddress[startIndex + i];
+            Contribution storage contribution = contributions[contestant];
+            contestants[i] = contestant;
+            descriptions[i] = contribution.description;
+            evaluationCounts[i] = contribution.evaluationCount;
+            claimedStatuses[i] = contribution.claimed;
+        }
+    }
+
+    function getContributionCount() public view returns (uint256) {
+        return contributionCount;
     }
 
     function assignScores(
@@ -180,7 +220,6 @@ contract PrizeContract is AccessControlEnumerable, Permissioned {
 
         for (uint256 i = 0; i < contestantsBatch.length; i++) {
             contributions[contestantsBatch[i]].reward = rewardsBatch[i];
-            emit RewardAllocated(contestantsBatch[i]);
         }
     }
 

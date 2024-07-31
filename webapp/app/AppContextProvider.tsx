@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import React, { ReactNode, useState } from 'react';
+import React, { ReactNode, useCallback, useMemo, useState } from 'react';
 import { useAccount, useConnect, useDisconnect, usePublicClient, useWalletClient } from 'wagmi';
 import { config } from '../config';
 import { useError } from '../hooks/useError';
@@ -26,31 +26,56 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         onError: (error) => handleError('Error fetching prizes', error as Error),
     });
 
-    const contextValue = React.useMemo<AppContextType>(() => ({
+    const memoizedConnect = useCallback(() => connect() as Promise<void>, [connect]);
+    const memoizedDisconnect = useCallback(() => disconnect() as Promise<void>, [disconnect]);
+
+    const memoizedDeactivatePrize = useCallback(async () => false, []);
+    const memoizedRefreshPrize = useCallback(
+        async (id: string) => otherPrizeManagerFunctions.getPrize(id),
+        [otherPrizeManagerFunctions]
+    );
+    const memoizedGetPrizeState = useCallback(
+        async (id: string) => {
+            const prize = await otherPrizeManagerFunctions.getPrize(id);
+            return prize ? prize.status : null;
+        },
+        [otherPrizeManagerFunctions]
+    );
+
+    const contextValue = useMemo<AppContextType>(() => ({
         ...defaultAppContext,
         account,
-        connect: connect as (() => Promise<void>) | null,
-        disconnect: disconnect as (() => Promise<void>) | null,
+        connect: memoizedConnect,
+        disconnect: memoizedDisconnect,
         publicClient,
         walletClient,
         contracts: config.contracts,
         prizeManager: {
             ...otherPrizeManagerFunctions,
             getPrizes,
-            deactivatePrize: async () => false, // Implement if needed
-            refreshPrize: async (id: string) => otherPrizeManagerFunctions.getPrize(id),
-            getPrizeState: async (id: string) => {
-                const prize = await otherPrizeManagerFunctions.getPrize(id);
-                return prize ? prize.status : null;
-            },
-            prizeUpdateTrigger: 0, // Implement if needed
+            deactivatePrize: memoizedDeactivatePrize,
+            refreshPrize: memoizedRefreshPrize,
+            getPrizeState: memoizedGetPrizeState,
+            prizeUpdateTrigger: 0, // Consider removing if not needed
         },
         isLoading,
-        setIsLoading,
         userRoles,
-        setUserRoles,
         prizes: prizesData?.prizes || [],
-    }), [account, connect, disconnect, publicClient, walletClient, otherPrizeManagerFunctions, getPrizes, isLoading, userRoles, prizesData]);
+    }), [
+        account,
+        memoizedConnect,
+        memoizedDisconnect,
+        publicClient,
+        walletClient,
+        otherPrizeManagerFunctions,
+        getPrizes,
+        memoizedDeactivatePrize,
+        memoizedRefreshPrize,
+        memoizedGetPrizeState,
+        isLoading,
+        userRoles,
+        prizesData
+    ]);
 
     return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
 };

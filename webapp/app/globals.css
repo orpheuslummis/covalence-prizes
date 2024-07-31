@@ -232,7 +232,31 @@ body {
   }
 
   .prize-action-button {
-    @apply w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition-colors mt-4;
+    @apply w-full text-white py-2 px-4 rounded-md transition-colors mt-4;
+  }
+
+  .prize-action-button--green {
+    background-color: theme("colors.green.500");
+  }
+
+  .prize-action-button--green:hover {
+    background-color: theme("colors.green.600");
+  }
+
+  .prize-action-button--blue {
+    background-color: theme("colors.blue.500");
+  }
+
+  .prize-action-button--blue:hover {
+    background-color: theme("colors.blue.600");
+  }
+
+  .prize-action-button--purple {
+    background-color: theme("colors.purple.500");
+  }
+
+  .prize-action-button--purple:hover {
+    background-color: theme("colors.purple.600");
   }
 
   .prize-card {

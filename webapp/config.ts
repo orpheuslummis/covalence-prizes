@@ -4,6 +4,8 @@ import PrizeContractABI from './abi/PrizeContract.json';
 import PrizeManagerABI from './abi/PrizeManager.json';
 import contractAddresses from './contract-addresses.json';
 
+export type PrizeContractAbi = typeof PrizeContractABI;
+
 const ENV = {
     TESTNET_RPC_URL: process.env.NEXT_PUBLIC_TESTNET_RPC_URL || "https://api.helium.fhenix.zone",
     CHAIN_ID: process.env.NEXT_PUBLIC_CHAIN_ID || '8008135',

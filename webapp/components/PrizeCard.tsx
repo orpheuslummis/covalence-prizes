@@ -2,12 +2,16 @@ import Link from 'next/link';
 import React from 'react';
 import { formatEther } from 'viem';
 import { Prize, State } from '../app/types';
+import { shortenAddress } from '../config';
+import { usePrizeContract } from '../hooks/usePrizeContract';
 
 interface PrizeCardProps {
     prize: Prize;
 }
 
 const PrizeCard: React.FC<PrizeCardProps> = React.memo(({ prize }) => {
+    const { currentState, monetaryRewardPool, getName, getOrganizer } = usePrizeContract(prize.prizeAddress as `0x${string}`);
+
     const statusColors = {
         [State.Setup]: 'bg-yellow-300 text-yellow-800',
         [State.Open]: 'bg-green-300 text-green-800',
@@ -36,7 +40,7 @@ const PrizeCard: React.FC<PrizeCardProps> = React.memo(({ prize }) => {
         background: generateGradient(prize),
     };
 
-    const formattedReward = prize.pool ? parseFloat(formatEther(prize.pool)) : 0;
+    const formattedReward = monetaryRewardPool ? parseFloat(formatEther(monetaryRewardPool)) : 0;
     const formattedCreatedDate = new Date(prize.createdAt).toISOString().split('T')[0];
 
     const formatCriteria = (criteria: string[]) => {
@@ -53,7 +57,7 @@ const PrizeCard: React.FC<PrizeCardProps> = React.memo(({ prize }) => {
             <div className="prize-card">
                 <div className="prize-card-header" style={gradientStyle}>
                     <div className="relative z-10">
-                        <h2 className="prize-card-title">{prize.name}</h2>
+                        <h2 className="prize-card-title">{getName || prize.name}</h2>
                         <p className="prize-card-description">{prize.description}</p>
                     </div>
                     <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
@@ -63,7 +67,7 @@ const PrizeCard: React.FC<PrizeCardProps> = React.memo(({ prize }) => {
                     <div className="prize-card-grid">
                         <div>
                             <p className="prize-card-label">Organizer</p>
-                            <p className="prize-card-value">{prize.organizer || 'Not specified'}</p>
+                            <p className="prize-card-value">{getOrganizer ? shortenAddress(getOrganizer) : 'Not specified'}</p>
                         </div>
                         <div>
                             <p className="prize-card-label">Strategy</p>
@@ -86,8 +90,8 @@ const PrizeCard: React.FC<PrizeCardProps> = React.memo(({ prize }) => {
                             <p className="prize-card-label">Created</p>
                             <p className="text-purple-700">{formattedCreatedDate}</p>
                         </div>
-                        <div className={`prize-card-status ${statusColors[prize.status]}`}>
-                            {State[prize.status]}
+                        <div className={`prize-card-status ${statusColors[currentState]}`}>
+                            {State[currentState]}
                         </div>
                     </div>
                 </div>
