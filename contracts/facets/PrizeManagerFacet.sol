@@ -10,25 +10,23 @@ import "../libraries/LibDiamond.sol";
 contract PrizeManagerFacet is AccessControlEnumerable, IPrizeManager {
     bytes32 public constant PRIZE_MANAGER_ROLE = keccak256("PRIZE_MANAGER_ROLE");
 
-    modifier onlyPrizeManager() {
-        require(hasRole(PRIZE_MANAGER_ROLE, msg.sender), "Caller is not a prize manager");
-        _;
-    }
-
     function initialize(address _admin) external {
         require(getRoleMemberCount(DEFAULT_ADMIN_ROLE) == 0, "Already initialized");
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         _setRoleAdmin(PRIZE_MANAGER_ROLE, DEFAULT_ADMIN_ROLE);
     }
 
-    function updateStrategy(string memory strategyName, address strategyAddress) external override onlyPrizeManager {
+    function updateStrategy(
+        string memory strategyName,
+        address strategyAddress
+    ) external override onlyRole(PRIZE_MANAGER_ROLE) {
         require(strategyAddress != address(0), "Invalid strategy address");
         AppStorage storage s = LibAppStorage.diamondStorage();
         s.strategy = IAllocationStrategy(strategyAddress);
         emit StrategyUpdated(strategyName, strategyAddress);
     }
 
-    function createPrize(PrizeParams memory params) external override onlyPrizeManager returns (address) {
+    function createPrize(PrizeParams memory params) external override returns (address) {
         require(
             params.pool > 0 && bytes(params.name).length > 0 && bytes(params.description).length > 0,
             "Invalid input"
@@ -99,7 +97,7 @@ contract PrizeManagerFacet is AccessControlEnumerable, IPrizeManager {
         address contributionContract,
         address evaluationContract,
         address rewardContract
-    ) external override onlyPrizeManager {
+    ) external override onlyRole(PRIZE_MANAGER_ROLE) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         s.prizeContributionContract = contributionContract;
         s.prizeEvaluationContract = evaluationContract;

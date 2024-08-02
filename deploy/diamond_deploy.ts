@@ -220,8 +220,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
     // Deploy facets
     console.log('Deploying facets');
-    const FacetNames = ['DiamondLoupeFacet', 'OwnershipFacet', 'PrizeManagerFacet', 'PrizeCoreFacet', 'PrizeContributionFacet', 'PrizeRewardFacet'];
+    const FacetNames = ['DiamondLoupeFacet', 'PrizeManagerFacet', 'PrizeCoreFacet', 'PrizeContributionFacet', 'PrizeRewardFacet', 'PrizeEvaluationFacet'];
     const cut = [];
+    const existingSelectors = new Map();
+
     for (const FacetName of FacetNames) {
         console.log(`\nProcessing ${FacetName}:`);
         const facet = await deploy(FacetName, {
@@ -230,29 +232,51 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         });
         const artifact = await hre.artifacts.readArtifact(FacetName);
         const { selectors, selectorToFuncMap } = getSelectors(hre, artifact.abi, FacetName);
-        console.log(`Found ${selectors.length} selectors for ${FacetName}:`, selectors);
-        if (selectors.length > 0) {
+
+        console.log(`Selectors for ${FacetName}:`, selectors);
+        console.log(`Selector to Function Map for ${FacetName}:`, selectorToFuncMap);
+
+        const uniqueSelectors = [];
+        const duplicateSelectors = [];
+
+        for (const selector of selectors) {
+            if (existingSelectors.has(selector)) {
+                duplicateSelectors.push({
+                    selector,
+                    currentFacet: FacetName,
+                    currentFunction: selectorToFuncMap[selector],
+                    existingFacet: existingSelectors.get(selector).facet,
+                    existingFunction: existingSelectors.get(selector).func
+                });
+            } else {
+                uniqueSelectors.push(selector);
+                existingSelectors.set(selector, { facet: FacetName, func: selectorToFuncMap[selector] });
+            }
+        }
+
+        console.log(`Found ${uniqueSelectors.length} unique selectors for ${FacetName}`);
+        if (duplicateSelectors.length > 0) {
+            console.log(`Found ${duplicateSelectors.length} duplicate selectors for ${FacetName}:`);
+            duplicateSelectors.forEach(dup => {
+                console.log(`  Selector ${dup.selector} (${dup.currentFunction}) already exists in ${dup.existingFacet} (${dup.existingFunction})`);
+            });
+        }
+
+        if (uniqueSelectors.length > 0) {
             cut.push({
                 facetAddress: facet.address,
                 action: FacetCutAction.Add,
-                functionSelectors: selectors
+                functionSelectors: uniqueSelectors
             });
-            console.log(`Added ${FacetName} to cut with ${selectors.length} selectors`);
+            console.log(`Added ${FacetName} to cut with ${uniqueSelectors.length} unique selectors`);
         } else {
-            console.warn(`No valid selectors found for ${FacetName}`);
+            console.warn(`No unique selectors found for ${FacetName}`);
         }
     }
 
-    console.log('\nFinal Diamond Cut:');
-    cut.forEach((facetCut, index) => {
-        console.log(`Facet ${index + 1}:`);
-        console.log(`  Address: ${facetCut.facetAddress}`);
-        console.log(`  Action: ${FacetCutAction[facetCut.action]}`);
-        console.log(`  Selectors: ${facetCut.functionSelectors.join(', ')}`);
-    });
+    console.log('\nFinal Diamond Cut:', JSON.stringify(cut, null, 2));
 
-    // Upgrade diamond with facets
-    console.log('Diamond Cut:', JSON.stringify(cut, null, 2));
+    console.log('\nFinal Diamond Cut:', JSON.stringify(cut, null, 2));
     const publicClient = await hre.viem.getPublicClient();
     const walletClient = await hre.viem.getWalletClient(deployer as `0x${string}`);
     const diamondCutAbi = (await hre.artifacts.readArtifact('IDiamondCut')).abi;
@@ -323,6 +347,18 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     };
     await generateContractAddresses(hre.network.config, contracts);
     await generateABIFiles(hre, ['Diamond', 'DiamondCutFacet', 'DiamondInit', ...FacetNames]);
+
+    await verifyDiamond(hre, diamond.address);
+
+    async function verifyDiamond(hre: HardhatRuntimeEnvironment, diamondAddress: string) {
+        const DiamondLoupeFacet = await hre.ethers.getContractAt('DiamondLoupeFacet', diamondAddress);
+        const facets = await DiamondLoupeFacet.facets();
+        console.log('Registered facets and selectors:');
+        for (const facet of facets) {
+            console.log(`Facet address: ${facet.facetAddress}`);
+            console.log('Selectors:', facet.functionSelectors);
+        }
+    }
 };
 
 export default func;
