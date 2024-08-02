@@ -88,16 +88,22 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const network = hre.network.config;
   console.log(`Deploying to network: ${hre.network.name} (Chain ID: ${network.chainId})`);
 
-  const publicClient = createPublicClient({
-    chain: {
-      id: network.chainId,
-      name: hre.network.name,
-      network: hre.network.name,
-      nativeCurrency: { name: 'FHE', symbol: 'FHE', decimals: 18 },
-      rpcUrls: { default: { http: [network.url] } },
-    },
-    transport: http(),
-  });
+  let publicClient;
+  if (hre.network.name === "hardhat") {
+    // Use Hardhat's built-in provider for local development
+    publicClient = await hre.viem.getPublicClient();
+  } else {
+    publicClient = createPublicClient({
+      chain: {
+        id: network.chainId!,
+        name: hre.network.name,
+        network: hre.network.name,
+        nativeCurrency: { name: 'FHE', symbol: 'FHE', decimals: 18 },
+        rpcUrls: { default: { http: [network.url!] } },
+      },
+      transport: http(),
+    });
+  }
 
   const account = privateKeyToAccount(`0x${process.env.PRIVATE_KEY}`);
   const walletClient = createWalletClient({

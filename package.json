@@ -1,7 +1,7 @@
 {
-  "name": "fhenix-hardhat-example",
+  "name": "covalence-prizes",
   "version": "1.0.0",
-  "description": "An example repository to get you started with Fhenix development",
+  "description": "",
   "scripts": {
     "test": "hardhat test",
     "clean": "rimraf ./artifacts ./cache ./coverage ./types ./coverage.json ./deployments/localfhenix",
@@ -13,18 +13,16 @@
     "localfhenix:start": "hardhat localfhenix:start",
     "localfhenix:stop": "hardhat localfhenix:stop",
     "faucet": "hardhat task:fhenix:usefaucet",
-    "task:gen_accounts": "hardhat task:generateAccounts"
+    "task:gen_accounts": "hardhat task:generateAccounts",
+    "script:diamond_deploy": "hardhat run scripts/diamond_deploy.ts",
+    "script:diamond_deploy:localhost": "hardhat run scripts/diamond_deploy.ts --network localhost"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fhenixprotocol/fhenix-hardhat-example.git"
+    "url": "git+https://github.com/CovalenceNetwork/covalence-prizes/"
   },
-  "author": "Fhenix",
+  "author": "Covalence Labs",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/fhenixprotocol/fhenix-hardhat-example/issues"
-  },
-  "homepage": "https://github.com/fhenixprotocol/fhenix-hardhat-example#readme",
   "devDependencies": {
     "@fhenixprotocol/contracts": "0.2.1",
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.6",
@@ -62,6 +60,9 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.0.6",
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "ethers": "^6.13.2",
     "fhenixjs": "^0.3.0",
     "viem": "^2.18.2"
   },

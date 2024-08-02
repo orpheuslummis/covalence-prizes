@@ -13,7 +13,6 @@ import "./tasks";
 const dotenvConfigPath: string = process.env.DOTENV_CONFIG_PATH || "./.env.local";
 dotenvConfig({ path: resolve(__dirname, dotenvConfigPath) });
 
-// Ensure that the PRIVATE_KEY is set in your .env file
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 if (!PRIVATE_KEY) {
   throw new Error("Please set your PRIVATE_KEY in a .env file");
@@ -27,7 +26,7 @@ const config: HardhatUserConfig = {
       debug: { revertStrings: "debug" }
     }
   },
-  defaultNetwork: "testnet",
+  defaultNetwork: "localhost",
   networks: {
     testnet: {
       chainId: fhenixTestnet.id,
@@ -35,13 +34,15 @@ const config: HardhatUserConfig = {
       accounts: [PRIVATE_KEY],
     },
   },
+  namedAccounts: {
+    deployer: 0,
+  },
   typechain: {
     outDir: "types",
     target: "ethers-v6",
   },
   etherscan: {
     apiKey: {
-      // Is not required by blockscout. Can be any non-empty string
       testnet: "abc"
     },
     customChains: [
