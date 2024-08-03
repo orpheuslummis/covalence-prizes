@@ -4,6 +4,12 @@
     "inputs": [
       {
         "indexed": true,
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
         "internalType": "address",
         "name": "evaluator",
         "type": "address"
@@ -20,6 +26,11 @@
   },
   {
     "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
       {
         "internalType": "address[]",
         "name": "contestants",
@@ -46,6 +57,11 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
         "internalType": "address",
         "name": "contestant",
         "type": "address"
@@ -64,6 +80,11 @@
   },
   {
     "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
       {
         "internalType": "address",
         "name": "evaluator",

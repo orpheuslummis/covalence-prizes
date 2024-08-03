@@ -4,9 +4,9 @@
     "inputs": [
       {
         "indexed": true,
-        "internalType": "address",
-        "name": "prizeAddress",
-        "type": "address"
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
       },
       {
         "indexed": false,
@@ -41,9 +41,9 @@
       },
       {
         "indexed": true,
-        "internalType": "address",
-        "name": "prizeAddress",
-        "type": "address"
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
       },
       {
         "indexed": false,
@@ -65,10 +65,10 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
-        "internalType": "string",
-        "name": "name",
-        "type": "string"
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
       },
       {
         "indexed": true,
@@ -113,17 +113,12 @@
             "type": "uint256"
           },
           {
-            "internalType": "string",
-            "name": "strategy",
-            "type": "string"
-          },
-          {
             "internalType": "string[]",
             "name": "criteria",
             "type": "string[]"
           }
         ],
-        "internalType": "struct IPrizeManager.PrizeParams",
+        "internalType": "struct PrizeManagerFacet.PrizeParams",
         "name": "params",
         "type": "tuple"
       }
@@ -131,9 +126,9 @@
     "name": "createPrize",
     "outputs": [
       {
-        "internalType": "address",
+        "internalType": "uint256",
         "name": "",
-        "type": "address"
+        "type": "uint256"
       }
     ],
     "stateMutability": "nonpayable",
@@ -155,9 +150,9 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "prizeAddr",
-        "type": "address"
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
       }
     ],
     "name": "getPrizeDetails",
@@ -165,8 +160,13 @@
       {
         "components": [
           {
+            "internalType": "uint256",
+            "name": "id",
+            "type": "uint256"
+          },
+          {
             "internalType": "address",
-            "name": "addr",
+            "name": "organizer",
             "type": "address"
           },
           {
@@ -181,18 +181,13 @@
           },
           {
             "internalType": "uint256",
-            "name": "pool",
+            "name": "monetaryRewardPool",
             "type": "uint256"
           },
           {
             "internalType": "enum IPrizeCore.State",
-            "name": "status",
+            "name": "state",
             "type": "uint8"
-          },
-          {
-            "internalType": "address",
-            "name": "allocationStrategy",
-            "type": "address"
           },
           {
             "internalType": "string[]",
@@ -200,17 +195,27 @@
             "type": "string[]"
           },
           {
+            "internalType": "uint32[]",
+            "name": "criteriaWeights",
+            "type": "uint32[]"
+          },
+          {
             "internalType": "uint256",
             "name": "createdAt",
             "type": "uint256"
           },
           {
-            "internalType": "address",
-            "name": "organizer",
+            "internalType": "contract IAllocationStrategy",
+            "name": "strategy",
             "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "contributionCount",
+            "type": "uint256"
           }
         ],
-        "internalType": "struct IPrizeManager.PrizeDetails",
+        "internalType": "struct PrizeManagerFacet.PrizeDetails",
         "name": "",
         "type": "tuple"
       }
@@ -225,8 +230,13 @@
       {
         "components": [
           {
+            "internalType": "uint256",
+            "name": "id",
+            "type": "uint256"
+          },
+          {
             "internalType": "address",
-            "name": "addr",
+            "name": "organizer",
             "type": "address"
           },
           {
@@ -241,18 +251,13 @@
           },
           {
             "internalType": "uint256",
-            "name": "pool",
+            "name": "monetaryRewardPool",
             "type": "uint256"
           },
           {
             "internalType": "enum IPrizeCore.State",
-            "name": "status",
+            "name": "state",
             "type": "uint8"
-          },
-          {
-            "internalType": "address",
-            "name": "allocationStrategy",
-            "type": "address"
           },
           {
             "internalType": "string[]",
@@ -260,17 +265,27 @@
             "type": "string[]"
           },
           {
+            "internalType": "uint32[]",
+            "name": "criteriaWeights",
+            "type": "uint32[]"
+          },
+          {
             "internalType": "uint256",
             "name": "createdAt",
             "type": "uint256"
           },
           {
-            "internalType": "address",
-            "name": "organizer",
+            "internalType": "contract IAllocationStrategy",
+            "name": "strategy",
             "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "contributionCount",
+            "type": "uint256"
           }
         ],
-        "internalType": "struct IPrizeManager.PrizeDetails[]",
+        "internalType": "struct PrizeManagerFacet.PrizeDetails[]",
         "name": "",
         "type": "tuple[]"
       }
@@ -281,9 +296,9 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "prizeAddr",
-        "type": "address"
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
       },
       {
         "internalType": "address",
@@ -302,24 +317,6 @@
       }
     ],
     "name": "setPrizeContracts",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "strategyName",
-        "type": "string"
-      },
-      {
-        "internalType": "address",
-        "name": "strategyAddress",
-        "type": "address"
-      }
-    ],
-    "name": "updateStrategy",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

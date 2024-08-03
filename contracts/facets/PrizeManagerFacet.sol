@@ -3,78 +3,91 @@ pragma solidity ^0.8.0;
 
 import "../libraries/LibAppStorage.sol";
 import "../interfaces/IAllocationStrategy.sol";
-import "../interfaces/IPrizeManager.sol";
 import "../interfaces/IPrizeCore.sol";
 import "../libraries/LibDiamond.sol";
 import "./PrizeACLFacet.sol";
 
-contract PrizeManagerFacet is IPrizeManager {
+contract PrizeManagerFacet {
     bytes32 public constant PRIZE_MANAGER_ROLE = keccak256("PRIZE_MANAGER_ROLE");
+
+    struct PrizeParams {
+        string name;
+        string description;
+        uint256 pool;
+        string[] criteria;
+    }
+
+    struct PrizeDetails {
+        uint256 id;
+        address organizer;
+        string name;
+        string description;
+        uint256 monetaryRewardPool;
+        IPrizeCore.State state;
+        string[] criteriaNames;
+        uint32[] criteriaWeights;
+        uint256 createdAt;
+        IAllocationStrategy strategy;
+        uint256 contributionCount;
+    }
+
+    event PrizeCreated(address indexed organizer, uint256 indexed prizeId, string name, uint256 pool);
+    event StrategyUpdated(uint256 indexed prizeId, address indexed strategyAddress);
+    event PrizeContractsSet(
+        uint256 indexed prizeId,
+        address contributionContract,
+        address evaluationContract,
+        address rewardContract
+    );
 
     modifier onlyRole(bytes32 role) {
         require(PrizeACLFacet(address(this)).hasRole(role, msg.sender), "Caller does not have the required role");
         _;
     }
 
-    function updateStrategy(string memory strategyName, address strategyAddress) external onlyRole(PRIZE_MANAGER_ROLE) {
-        require(strategyAddress != address(0), "Invalid strategy address");
-        AppStorage storage s = LibAppStorage.diamondStorage();
-        s.strategy = IAllocationStrategy(strategyAddress);
-        emit StrategyUpdated(strategyName, strategyAddress);
-    }
-
-    function createPrize(PrizeParams memory params) external returns (address) {
+    function createPrize(PrizeParams memory params) external returns (uint256) {
         validatePrizeParams(params);
         AppStorage storage s = LibAppStorage.diamondStorage();
+        uint256 prizeId = s.prizeCount++;
 
-        uint256 prizeIndex = s.prizeCount++;
-        address prizeAddr = address(this);
+        PrizeInfo storage newPrize = s.prizes[prizeId];
+        newPrize.organizer = msg.sender;
+        newPrize.name = params.name;
+        newPrize.description = params.description;
+        newPrize.monetaryRewardPool = params.pool;
+        newPrize.state = IPrizeCore.State.Setup;
+        newPrize.criteriaNames = params.criteria;
+        newPrize.criteriaWeights = new uint32[](params.criteria.length);
+        newPrize.createdAt = block.timestamp;
+        newPrize.strategy = IAllocationStrategy(address(0));
+        newPrize.contributionCount = 0;
 
-        s.prizes[prizeIndex] = PrizeInfo({
-            organizer: msg.sender,
-            name: params.name,
-            description: params.description,
-            monetaryRewardPool: params.pool,
-            state: IPrizeCore.State.Setup,
-            criteriaNames: params.criteria,
-            criteriaWeights: new uint32[](params.criteria.length),
-            createdAt: block.timestamp,
-            strategy: IAllocationStrategy(address(0))
-        });
-
-        emit PrizeCreated(msg.sender, prizeAddr, params.name, params.pool, prizeIndex);
-        return prizeAddr;
-    }
-
-    function validatePrizeParams(PrizeParams memory params) internal pure {
-        require(params.pool > 0, "Invalid pool amount");
-        require(bytes(params.name).length > 0, "Name cannot be empty");
-        require(bytes(params.description).length > 0, "Description cannot be empty");
-        require(params.criteria.length > 0, "At least one criterion is required");
-    }
-
-    function getPrizeDetails(address prizeAddr) external view returns (PrizeDetails memory) {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-        require(prizeAddr == address(this), "Invalid prize address");
-
-        PrizeInfo storage prize = s.prizes[s.prizeCount - 1]; // Get the latest prize
-
-        return
-            PrizeDetails({
-                addr: prizeAddr,
-                name: prize.name,
-                description: prize.description,
-                pool: prize.monetaryRewardPool,
-                status: prize.state,
-                allocationStrategy: address(prize.strategy),
-                criteriaNames: prize.criteriaNames,
-                createdAt: prize.createdAt,
-                organizer: prize.organizer
-            });
+        emit PrizeCreated(msg.sender, prizeId, params.name, params.pool);
+        return prizeId;
     }
 
     function getPrizeCount() external view returns (uint256) {
         return LibAppStorage.diamondStorage().prizeCount;
+    }
+
+    function getPrizeDetails(uint256 prizeId) external view returns (PrizeDetails memory) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        PrizeInfo storage prize = s.prizes[prizeId];
+
+        return
+            PrizeDetails({
+                id: prizeId,
+                organizer: prize.organizer,
+                name: prize.name,
+                description: prize.description,
+                monetaryRewardPool: prize.monetaryRewardPool,
+                state: prize.state,
+                criteriaNames: prize.criteriaNames,
+                criteriaWeights: prize.criteriaWeights,
+                createdAt: prize.createdAt,
+                strategy: prize.strategy,
+                contributionCount: prize.contributionCount
+            });
     }
 
     function getPrizes() external view returns (PrizeDetails[] memory) {
@@ -83,30 +96,43 @@ contract PrizeManagerFacet is IPrizeManager {
         for (uint256 i = 0; i < s.prizeCount; i++) {
             PrizeInfo storage prize = s.prizes[i];
             prizeDetails[i] = PrizeDetails({
-                addr: address(this),
+                id: i,
+                organizer: prize.organizer,
                 name: prize.name,
                 description: prize.description,
-                pool: prize.monetaryRewardPool,
-                status: prize.state,
-                allocationStrategy: address(s.strategy),
-                criteriaNames: s.criteriaNames,
-                createdAt: s.createdAt,
-                organizer: prize.organizer
+                monetaryRewardPool: prize.monetaryRewardPool,
+                state: prize.state,
+                criteriaNames: prize.criteriaNames,
+                criteriaWeights: prize.criteriaWeights,
+                createdAt: prize.createdAt,
+                strategy: prize.strategy,
+                contributionCount: prize.contributionCount
             });
         }
         return prizeDetails;
     }
 
     function setPrizeContracts(
-        address prizeAddr,
+        uint256 prizeId,
         address contributionContract,
         address evaluationContract,
         address rewardContract
     ) external onlyRole(PRIZE_MANAGER_ROLE) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        s.prizeContributionContract = contributionContract;
-        s.prizeEvaluationContract = evaluationContract;
-        s.prizeRewardContract = rewardContract;
-        emit PrizeContractsSet(prizeAddr, contributionContract, evaluationContract, rewardContract);
+        require(prizeId < s.prizeCount, "Invalid prize ID");
+
+        s.prizeContributions[prizeId].contributionContract = contributionContract;
+        s.prizeContributions[prizeId].evaluationContract = evaluationContract;
+        s.prizeContributions[prizeId].rewardContract = rewardContract;
+
+        emit PrizeContractsSet(prizeId, contributionContract, evaluationContract, rewardContract);
+    }
+
+    // Internal functions
+    function validatePrizeParams(PrizeParams memory params) internal pure {
+        require(params.pool > 0, "Invalid pool amount");
+        require(bytes(params.name).length > 0, "Name cannot be empty");
+        require(bytes(params.description).length > 0, "Description cannot be empty");
+        require(params.criteria.length > 0, "At least one criterion is required");
     }
 }

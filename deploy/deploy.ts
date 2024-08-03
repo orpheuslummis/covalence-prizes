@@ -82,6 +82,27 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         selectors.forEach(s => console.log(`  ${s.selector}: ${s.name}`));
     }
 
+    // Add this function to check contract size
+    async function checkContractSize(contractName: string) {
+        const artifact = await hre.artifacts.readArtifact(contractName);
+        const bytecode = artifact.bytecode;
+        const sizeInBytes = bytecode.length / 2 - 1;
+        const sizeInKB = sizeInBytes / 1024;
+        console.log(`${contractName} size: ${sizeInKB.toFixed(2)} KB`);
+        if (sizeInKB > 24) {
+            console.warn(`Warning: ${contractName} is larger than 24KB (${sizeInKB.toFixed(2)} KB)`);
+        }
+    }
+
+    // Check sizes of all facets and main contracts
+    console.log('\nChecking contract sizes:');
+    await checkContractSize('DiamondCutFacet');
+    await checkContractSize('Diamond');
+    await checkContractSize('DiamondInit');
+    for (const FacetName of FacetNames) {
+        await checkContractSize(FacetName);
+    }
+
     // Upgrade diamond with facets
     console.log('Diamond Cut:');
     cut.forEach((facetCut, index) => {

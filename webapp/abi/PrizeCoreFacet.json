@@ -4,6 +4,12 @@
     "inputs": [
       {
         "indexed": true,
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
         "internalType": "address",
         "name": "strategyAddress",
         "type": "address"
@@ -15,6 +21,12 @@
   {
     "anonymous": false,
     "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
       {
         "indexed": false,
         "internalType": "uint32[]",
@@ -29,6 +41,12 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
         "indexed": false,
         "internalType": "address[]",
         "name": "evaluators",
@@ -42,6 +60,12 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
         "indexed": false,
         "internalType": "address[]",
         "name": "evaluators",
@@ -54,6 +78,12 @@
   {
     "anonymous": false,
     "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
       {
         "indexed": true,
         "internalType": "address",
@@ -80,6 +110,12 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
         "indexed": false,
         "internalType": "enum IPrizeCore.State",
         "name": "oldState",
@@ -98,6 +134,11 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
         "internalType": "address[]",
         "name": "_evaluators",
         "type": "address[]"
@@ -111,6 +152,11 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
         "internalType": "uint32[]",
         "name": "weights",
         "type": "uint32[]"
@@ -122,14 +168,26 @@
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      }
+    ],
     "name": "fundPrize",
     "outputs": [],
     "stateMutability": "payable",
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      }
+    ],
     "name": "getAllocationStrategy",
     "outputs": [
       {
@@ -142,7 +200,13 @@
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      }
+    ],
     "name": "getCriteriaNames",
     "outputs": [
       {
@@ -155,7 +219,13 @@
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      }
+    ],
     "name": "getCriteriaWeights",
     "outputs": [
       {
@@ -168,7 +238,13 @@
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      }
+    ],
     "name": "getDescription",
     "outputs": [
       {
@@ -181,7 +257,13 @@
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      }
+    ],
     "name": "getMonetaryRewardPool",
     "outputs": [
       {
@@ -194,7 +276,13 @@
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      }
+    ],
     "name": "getName",
     "outputs": [
       {
@@ -207,7 +295,13 @@
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      }
+    ],
     "name": "getOrganizer",
     "outputs": [
       {
@@ -220,60 +314,13 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "getPrizeDetails",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "organizer",
-        "type": "address"
-      },
-      {
-        "internalType": "string",
-        "name": "name",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "description",
-        "type": "string"
-      },
+    "inputs": [
       {
         "internalType": "uint256",
-        "name": "monetaryRewardPool",
+        "name": "prizeId",
         "type": "uint256"
-      },
-      {
-        "internalType": "enum IPrizeCore.State",
-        "name": "state",
-        "type": "uint8"
-      },
-      {
-        "internalType": "string[]",
-        "name": "criteriaNames",
-        "type": "string[]"
-      },
-      {
-        "internalType": "uint32[]",
-        "name": "criteriaWeights",
-        "type": "uint32[]"
-      },
-      {
-        "internalType": "uint256",
-        "name": "contributionCount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "contract IAllocationStrategy",
-        "name": "allocationStrategy",
-        "type": "address"
       }
     ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "getState",
     "outputs": [
       {
@@ -287,6 +334,11 @@
   },
   {
     "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
       {
         "internalType": "address",
         "name": "_account",
@@ -305,7 +357,13 @@
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      }
+    ],
     "name": "moveToNextState",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -313,6 +371,11 @@
   },
   {
     "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
       {
         "internalType": "address[]",
         "name": "_evaluators",
@@ -326,6 +389,11 @@
   },
   {
     "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
       {
         "internalType": "address",
         "name": "_strategyAddress",

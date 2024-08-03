@@ -30,9 +30,10 @@ struct PrizeInfo {
     uint256 createdAt;
     IAllocationStrategy strategy;
     uint256 contributionCount;
-    address prizeContributionContract;
-    address prizeEvaluationContract;
-    address prizeRewardContract;
+    mapping(address => Contribution) contributions;
+    address[] contributionList;
+    mapping(uint256 => address) contributionIndexToAddress;
+    mapping(address => mapping(address => bool)) evaluatorContestantScored;
 }
 
 struct PrizeContributions {
@@ -40,6 +41,9 @@ struct PrizeContributions {
     address[] contributionList;
     mapping(uint256 => address) contributionIndexToAddress;
     mapping(address => mapping(address => bool)) evaluatorContestantScored;
+    address contributionContract;
+    address evaluationContract;
+    address rewardContract;
 }
 
 struct Contribution {

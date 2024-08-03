@@ -14,8 +14,7 @@
     "localfhenix:stop": "hardhat localfhenix:stop",
     "faucet": "hardhat task:fhenix:usefaucet",
     "task:gen_accounts": "hardhat task:generateAccounts",
-    "script:diamond_deploy": "hardhat run scripts/diamond_deploy.ts",
-    "script:diamond_deploy:localhost": "hardhat run scripts/diamond_deploy.ts --network localhost"
+    "deploy:testnet": "hardhat deploy --network testnet"
   },
   "repository": {
     "type": "git",
