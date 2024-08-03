@@ -4,11 +4,9 @@ pragma solidity ^0.8.0;
 import "@fhenixprotocol/contracts/FHE.sol";
 import "../libraries/LibAppStorage.sol";
 import "../interfaces/IPrizeCore.sol";
-import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
+import "../facets/PrizeACLFacet.sol";
 
-contract PrizeEvaluationFacet is AccessControlEnumerable {
-    bytes32 public constant EVALUATOR_ROLE = keccak256("EVALUATOR");
-
+contract PrizeEvaluationFacet {
     event ScoresAssigned(address indexed evaluator, address[] contestants);
 
     modifier onlyInState(IPrizeCore.State _state) {
@@ -16,30 +14,36 @@ contract PrizeEvaluationFacet is AccessControlEnumerable {
         _;
     }
 
+    modifier onlyRole(bytes32 role) {
+        require(PrizeACLFacet(address(this)).hasRole(role, msg.sender), "Caller does not have the required role");
+        _;
+    }
+
     function assignScores(
         address[] memory contestants,
         inEuint32[][] memory encryptedScores
-    ) external onlyRole(EVALUATOR_ROLE) onlyInState(IPrizeCore.State.Evaluating) {
+    ) external onlyRole(PrizeACLFacet(address(this)).EVALUATOR_ROLE()) onlyInState(IPrizeCore.State.Evaluating) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        require(contestants.length == encryptedScores.length, "Mismatch in input arrays");
-        require(contestants.length <= LibAppStorage.MAX_BATCH_SIZE, "Batch size exceeds maximum");
+        require(
+            contestants.length == encryptedScores.length && contestants.length <= LibAppStorage.MAX_BATCH_SIZE,
+            "Invalid input"
+        );
 
         for (uint256 i = 0; i < contestants.length; i++) {
-            require(s.contributions[contestants[i]].contestant != address(0), "Invalid contestant");
-            require(encryptedScores[i].length == s.criteriaWeights.length, "Invalid number of scores");
+            address contestant = contestants[i];
+            require(s.contributions[contestant].contestant != address(0), "Invalid contestant");
+            require(encryptedScores[i].length == s.currentPrize.criteriaWeights.length, "Invalid number of scores");
             require(
-                !s.evaluatorContestantScored[msg.sender][contestants[i]],
+                !s.evaluatorContestantScored[msg.sender][contestant],
                 "Contestant already scored by this evaluator"
             );
 
-            euint32 weightedScore = calculateWeightedScore(encryptedScores[i], s.criteriaWeights);
+            euint32 weightedScore = calculateWeightedScore(encryptedScores[i], s.currentPrize.criteriaWeights);
 
-            s.contributions[contestants[i]].aggregatedScore = FHE.add(
-                s.contributions[contestants[i]].aggregatedScore,
-                weightedScore
-            );
-            s.contributions[contestants[i]].evaluationCount++;
-            s.evaluatorContestantScored[msg.sender][contestants[i]] = true;
+            Contribution storage contribution = s.contributions[contestant];
+            contribution.aggregatedScore = FHE.add(contribution.aggregatedScore, weightedScore);
+            contribution.evaluationCount++;
+            s.evaluatorContestantScored[msg.sender][contestant] = true;
         }
 
         emit ScoresAssigned(msg.sender, contestants);

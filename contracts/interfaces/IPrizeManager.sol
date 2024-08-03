@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "../interfaces/IPrizeCore.sol";
+
 interface IPrizeManager {
     struct PrizeParams {
         string name;
@@ -15,8 +17,8 @@ interface IPrizeManager {
         string name;
         string description;
         uint256 pool;
-        uint8 status;
-        address allocationStrategy;
+        IPrizeCore.State status;
+        IAllocationStrategy allocationStrategy;
         string[] criteriaNames;
         uint256 createdAt;
         address organizer;
@@ -28,7 +30,7 @@ interface IPrizeManager {
 
     function getPrizeCount() external view returns (uint256);
 
-    function getPrizeDetails(uint256 index) external view returns (PrizeDetails memory);
+    function getPrizeDetails(address prizeAddr) external view returns (PrizeDetails memory);
 
     function getPrizes() external view returns (PrizeDetails[] memory);
 

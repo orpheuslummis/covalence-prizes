@@ -2,10 +2,9 @@
 pragma solidity ^0.8.0;
 
 import "@fhenixprotocol/contracts/FHE.sol";
-import "@openzeppelin/contracts/access/extensions/IAccessControlEnumerable.sol";
 import "./IAllocationStrategy.sol";
 
-interface IPrizeCore is IAccessControlEnumerable {
+interface IPrizeCore {
     enum State {
         Setup,
         Open,
@@ -13,8 +12,6 @@ interface IPrizeCore is IAccessControlEnumerable {
         Rewarding,
         Closed
     }
-
-    function initialize(address _admin) external;
 
     function getState() external view returns (State);
 

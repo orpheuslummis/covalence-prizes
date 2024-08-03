@@ -5,13 +5,11 @@ import "@fhenixprotocol/contracts/FHE.sol";
 import "../libraries/LibAppStorage.sol";
 import "../interfaces/IAllocationStrategy.sol";
 import "../interfaces/IPrizeCore.sol";
-import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
+import "../facets/PrizeACLFacet.sol";
 
-contract PrizeRewardFacet is AccessControlEnumerable {
-    event RewardsAllocated();
+contract PrizeRewardFacet {
+    event RewardsAllocated(uint256 contestantCount);
     event RewardClaimed(address indexed contestant, uint256 amount);
-
-    bytes32 public constant ORGANIZER_ROLE = keccak256("ORGANIZER_ROLE");
 
     modifier onlyInState(IPrizeCore.State _state) {
         require(LibAppStorage.diamondStorage().state == _state, "Invalid state");
@@ -19,7 +17,10 @@ contract PrizeRewardFacet is AccessControlEnumerable {
     }
 
     modifier onlyOrganizer() {
-        require(hasRole(ORGANIZER_ROLE, msg.sender), "Only organizer can perform this action");
+        require(
+            PrizeACLFacet(address(this)).hasRole(PrizeACLFacet(address(this)).ORGANIZER_ROLE(), msg.sender),
+            "Only organizer can perform this action"
+        );
         _;
     }
 
@@ -28,14 +29,7 @@ contract PrizeRewardFacet is AccessControlEnumerable {
         address[] memory contestants = s.contributionList;
         require(contestants.length > 0, "No contestants to allocate rewards");
 
-        euint32[] memory scores = new euint32[](contestants.length);
-        uint256[] memory evaluationCounts = new uint256[](contestants.length);
-
-        for (uint256 i = 0; i < contestants.length; i++) {
-            Contribution storage contribution = s.contributions[contestants[i]];
-            scores[i] = contribution.aggregatedScore;
-            evaluationCounts[i] = contribution.evaluationCount;
-        }
+        (euint32[] memory scores, uint256[] memory evaluationCounts) = _getContestantScores(s, contestants);
 
         euint32[] memory rewards = s.strategy.allocateRewards(contestants, scores, evaluationCounts);
 
@@ -43,7 +37,21 @@ contract PrizeRewardFacet is AccessControlEnumerable {
             s.contributions[contestants[i]].reward = rewards[i];
         }
 
-        emit RewardsAllocated();
+        emit RewardsAllocated(contestants.length);
+    }
+
+    function _getContestantScores(
+        AppStorage storage s,
+        address[] memory contestants
+    ) private view returns (euint32[] memory scores, uint256[] memory evaluationCounts) {
+        scores = new euint32[](contestants.length);
+        evaluationCounts = new uint256[](contestants.length);
+
+        for (uint256 i = 0; i < contestants.length; i++) {
+            Contribution storage contribution = s.contributions[contestants[i]];
+            scores[i] = contribution.aggregatedScore;
+            evaluationCounts[i] = contribution.evaluationCount;
+        }
     }
 
     function claimReward() external onlyInState(IPrizeCore.State.Rewarding) {

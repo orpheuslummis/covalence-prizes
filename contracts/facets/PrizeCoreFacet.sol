@@ -1,26 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
 import "@fhenixprotocol/contracts/FHE.sol";
 import "../libraries/LibAppStorage.sol";
 import "../interfaces/IPrizeCore.sol";
 import "../interfaces/IAllocationStrategy.sol";
+import "./PrizeACLFacet.sol";
 
-contract PrizeCoreFacet is IPrizeCore, AccessControlEnumerable {
-    bytes32 public constant EVALUATOR_ROLE = keccak256("EVALUATOR");
-
-    function initialize(address _admin) external override {
-        require(getRoleMemberCount(DEFAULT_ADMIN_ROLE) == 0, "Already initialized");
-        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
-        _setRoleAdmin(EVALUATOR_ROLE, DEFAULT_ADMIN_ROLE);
-    }
-
+contract PrizeCoreFacet is IPrizeCore {
     function getState() external view override returns (State) {
         return LibAppStorage.diamondStorage().state;
     }
 
-    function moveToNextState() external override onlyRole(DEFAULT_ADMIN_ROLE) {
+    function moveToNextState() external override {
+        require(
+            PrizeACLFacet(address(this)).hasRole(PrizeACLFacet(address(this)).DEFAULT_ADMIN_ROLE(), msg.sender),
+            "Caller does not have the required role"
+        );
         AppStorage storage s = LibAppStorage.diamondStorage();
         State newState;
 
@@ -35,10 +31,11 @@ contract PrizeCoreFacet is IPrizeCore, AccessControlEnumerable {
         emit StateChanged(oldState, newState);
     }
 
-    function getPrizeDetails()
+    function getPrizeDetails(
+        address prizeAddress
+    )
         external
         view
-        override
         returns (
             address organizer,
             string memory name,
@@ -52,16 +49,19 @@ contract PrizeCoreFacet is IPrizeCore, AccessControlEnumerable {
         )
     {
         AppStorage storage s = LibAppStorage.diamondStorage();
+        require(prizeAddress == address(this), "Invalid prize address");
+
+        PrizeInfo storage currentPrize = s.prizes[s.prizeCount - 1]; // Get the latest prize
         return (
-            s.organizer,
-            s.name,
-            s.description,
-            s.monetaryRewardPool,
-            s.state,
-            s.criteriaNames,
-            s.criteriaWeights,
-            s.contributionCount,
-            s.strategy
+            currentPrize.organizer,
+            currentPrize.name,
+            currentPrize.description,
+            currentPrize.monetaryRewardPool,
+            currentPrize.state,
+            currentPrize.criteriaNames,
+            currentPrize.criteriaWeights,
+            currentPrize.contributionCount,
+            currentPrize.strategy
         );
     }
 
@@ -93,25 +93,37 @@ contract PrizeCoreFacet is IPrizeCore, AccessControlEnumerable {
         return LibAppStorage.diamondStorage().strategy;
     }
 
-    function addEvaluators(address[] memory _evaluators) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+    function addEvaluators(address[] memory _evaluators) external override {
+        require(
+            PrizeACLFacet(address(this)).hasRole(PrizeACLFacet(address(this)).DEFAULT_ADMIN_ROLE(), msg.sender),
+            "Caller does not have the required role"
+        );
         for (uint256 i = 0; i < _evaluators.length; i++) {
-            grantRole(EVALUATOR_ROLE, _evaluators[i]);
+            PrizeACLFacet(address(this)).grantRole(PrizeACLFacet(address(this)).EVALUATOR_ROLE(), _evaluators[i]);
         }
         emit EvaluatorsAdded(_evaluators);
     }
 
-    function removeEvaluators(address[] memory _evaluators) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+    function removeEvaluators(address[] memory _evaluators) external override {
+        require(
+            PrizeACLFacet(address(this)).hasRole(PrizeACLFacet(address(this)).DEFAULT_ADMIN_ROLE(), msg.sender),
+            "Caller does not have the required role"
+        );
         for (uint256 i = 0; i < _evaluators.length; i++) {
-            revokeRole(EVALUATOR_ROLE, _evaluators[i]);
+            PrizeACLFacet(address(this)).revokeRole(PrizeACLFacet(address(this)).EVALUATOR_ROLE(), _evaluators[i]);
         }
         emit EvaluatorsRemoved(_evaluators);
     }
 
     function isEvaluator(address _account) external view override returns (bool) {
-        return hasRole(EVALUATOR_ROLE, _account);
+        return PrizeACLFacet(address(this)).hasRole(PrizeACLFacet(address(this)).EVALUATOR_ROLE(), _account);
     }
 
-    function assignCriteriaWeights(uint32[] calldata weights) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+    function assignCriteriaWeights(uint32[] calldata weights) external override {
+        require(
+            PrizeACLFacet(address(this)).hasRole(PrizeACLFacet(address(this)).DEFAULT_ADMIN_ROLE(), msg.sender),
+            "Caller does not have the required role"
+        );
         AppStorage storage s = LibAppStorage.diamondStorage();
         require(s.state == State.Setup, "Can only assign weights during setup");
         require(weights.length == s.criteriaNames.length, "Mismatch in number of weights");
@@ -120,7 +132,11 @@ contract PrizeCoreFacet is IPrizeCore, AccessControlEnumerable {
         emit CriteriaWeightsAssigned(weights);
     }
 
-    function fundPrize() external payable override onlyRole(DEFAULT_ADMIN_ROLE) {
+    function fundPrize() external payable override {
+        require(
+            PrizeACLFacet(address(this)).hasRole(PrizeACLFacet(address(this)).DEFAULT_ADMIN_ROLE(), msg.sender),
+            "Caller does not have the required role"
+        );
         AppStorage storage s = LibAppStorage.diamondStorage();
         require(msg.value > 0, "Must send a positive amount");
         require(s.state == State.Setup, "Can only fund during setup");
@@ -133,7 +149,11 @@ contract PrizeCoreFacet is IPrizeCore, AccessControlEnumerable {
         emit PrizeFunded(msg.sender, msg.value, s.monetaryRewardPool);
     }
 
-    function setAllocationStrategy(address _strategyAddress) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setAllocationStrategy(address _strategyAddress) external override {
+        require(
+            PrizeACLFacet(address(this)).hasRole(PrizeACLFacet(address(this)).DEFAULT_ADMIN_ROLE(), msg.sender),
+            "Caller does not have the required role"
+        );
         AppStorage storage s = LibAppStorage.diamondStorage();
         s.strategy = IAllocationStrategy(_strategyAddress);
         emit AllocationStrategySet(_strategyAddress);

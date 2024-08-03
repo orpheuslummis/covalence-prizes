@@ -1,156 +1,179 @@
-import { createHash } from 'crypto';
-import fs, { readFileSync } from 'fs';
+import { Contract, FunctionFragment } from "ethers";
+import * as fs from 'fs';
 import { DeployFunction } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import path from 'path';
-import { Address, createPublicClient, createWalletClient, http } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import { fhenixTestnet } from "../chainConfig";
+import * as path from 'path';
 
-// Helper functions
-function getContractHash(contractName: string): string {
-  const content = readFileSync(`./contracts/${contractName}.sol`, 'utf8');
-  return createHash('md5').update(content).digest('hex').slice(0, 8);
+const FacetCutAction = { Add: 0, Replace: 1, Remove: 2 };
+
+function getSelectors(contract: Contract): { selector: string; name: string }[] {
+    const signatures = Object.values(
+        contract.interface.fragments.filter(
+            (fragment) => fragment.type === "function"
+        )
+    ) as FunctionFragment[];
+
+    return signatures.reduce<{ selector: string; name: string }[]>((acc, val) => {
+        if (val.format("sighash") !== "init(bytes)") {
+            acc.push({
+                selector: val.selector,
+                name: val.name
+            });
+        }
+        return acc;
+    }, []);
 }
 
-async function checkAndGetFunds(publicClient: any, deployer: Address): Promise<boolean> {
-  const balance = await publicClient.getBalance({ address: deployer });
-  if (balance === 0n) {
-    console.log("Account has no funds. Get testnet FHE from https://faucet.fhenix.zone");
-    return false;
-  }
-  return true;
-}
+const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
+    const { deployments, getNamedAccounts, ethers } = hre;
+    const { deploy } = deployments;
+    const { deployer } = await getNamedAccounts();
 
-async function deployContract(hre: HardhatRuntimeEnvironment, contractName: string, deployer: Address, args: any[] = []) {
-  const { deployments } = hre;
-  return await deployments.deploy(`${contractName}_${getContractHash(contractName)}`, {
-    contract: contractName,
-    from: deployer,
-    args,
-    log: true,
-  });
-}
+    console.log(`Deploying to network: ${hre.network.name} (Chain ID: ${hre.network.config.chainId})`);
+    console.log(`Deployer address: ${deployer}`);
 
-async function verifyContract(hre: HardhatRuntimeEnvironment, address: string, contractPath: string) {
-  try {
-    await hre.run("verify:verify", {
-      address,
-      contract: contractPath,
+    // Deploy DiamondCutFacet
+    const DiamondCutFacet = await deploy('DiamondCutFacet', {
+        from: deployer,
+        log: true,
     });
-    console.log(`${contractPath} verified successfully`);
-  } catch (error) {
-    console.error(`Error verifying ${contractPath}:`, error);
-  }
+    console.log('DiamondCutFacet deployed:', DiamondCutFacet.address);
+
+    // Deploy Diamond
+    const Diamond = await deploy('Diamond', {
+        from: deployer,
+        args: [deployer, DiamondCutFacet.address],
+        log: true,
+    });
+    console.log('Diamond deployed:', Diamond.address);
+
+    // Deploy DiamondInit
+    const DiamondInit = await deploy('DiamondInit', {
+        from: deployer,
+        log: true,
+    });
+    console.log('DiamondInit deployed:', DiamondInit.address);
+
+    // Deploy facets
+    console.log('Deploying facets');
+    const FacetNames = [
+        'DiamondLoupeFacet',
+        'PrizeManagerFacet',
+        'PrizeCoreFacet',
+        'PrizeContributionFacet',
+        'PrizeRewardFacet',
+        'PrizeEvaluationFacet'
+    ];
+    const cut = [];
+    for (const FacetName of FacetNames) {
+        const Facet = await deploy(FacetName, {
+            from: deployer,
+            log: true,
+        });
+        console.log(`${FacetName} deployed: ${Facet.address}`);
+        const facetContract = await ethers.getContractAt(FacetName, Facet.address);
+        const selectors = getSelectors(facetContract);
+        cut.push({
+            facetAddress: Facet.address,
+            action: FacetCutAction.Add,
+            functionSelectors: selectors.map(s => s.selector)
+        });
+        console.log(`${FacetName} selectors:`);
+        selectors.forEach(s => console.log(`  ${s.selector}: ${s.name}`));
+    }
+
+    // Upgrade diamond with facets
+    console.log('Diamond Cut:');
+    cut.forEach((facetCut, index) => {
+        console.log(`Facet ${index + 1}: ${FacetNames[index]}`);
+        console.log(`  Address: ${facetCut.facetAddress}`);
+        console.log('  Function Selectors:');
+        facetCut.functionSelectors.forEach(async selector => {
+            const selectorInfo = getSelectors(await ethers.getContractAt(FacetNames[index], facetCut.facetAddress))
+                .find(s => s.selector === selector);
+            console.log(`    ${selector}: ${selectorInfo ? selectorInfo.name : 'Unknown'}`);
+        });
+    });
+    const diamondCut = await ethers.getContractAt('IDiamondCut', Diamond.address);
+
+    // Create DiamondInit call
+    const diamondInit = await ethers.getContractAt('DiamondInit', DiamondInit.address);
+    let functionCall = diamondInit.interface.encodeFunctionData('init');
+
+    // Perform diamond cut
+    const tx = await diamondCut.diamondCut(cut, DiamondInit.address, functionCall);
+    console.log('Diamond cut tx: ', tx.hash);
+    const receipt = await tx.wait();
+    if (!receipt.status) {
+        throw Error(`Diamond upgrade failed: ${tx.hash}`);
+    }
+    console.log('Completed diamond cut');
+
+    // Verify Diamond setup
+    await verifyDiamond(hre, Diamond.address);
+
+    // Generate contract addresses and ABI files
+    await generateContractAddresses(hre.network.config, deployments);
+    await generateABIFiles(hre, ['Diamond', 'DiamondInit', ...FacetNames]);
+};
+
+async function verifyDiamond(hre: HardhatRuntimeEnvironment, diamondAddress: string) {
+    const DiamondLoupeFacet = await hre.ethers.getContractAt('DiamondLoupeFacet', diamondAddress);
+    const facets = await DiamondLoupeFacet.facets();
+
+    console.log('\nVerifying Diamond Setup:');
+    console.log('Diamond Address:', diamondAddress);
+
+    for (const facet of facets) {
+        const facetName = await getFacetName(hre, facet.facetAddress);
+        const facetContract = await hre.ethers.getContractAt(facetName, facet.facetAddress);
+        console.log(`\nFacet: ${facetName}`);
+        console.log(`Address: ${facet.facetAddress}`);
+        console.log('Function Selectors:');
+        for (const selector of facet.functionSelectors) {
+            const functionFragment = facetContract.interface.getFunction(selector);
+            const functionName = functionFragment ? functionFragment.name : 'Unknown';
+            console.log(`  ${selector}: ${functionName}`);
+        }
+    }
 }
 
-async function generateContractAddresses(network: any, contracts: Record<string, { address: string }>) {
-  const contractAddresses = {
-    [network.chainId!.toString()]: Object.fromEntries(
-      Object.entries(contracts).map(([name, { address }]) => [name, address])
-    )
-  };
+async function getFacetName(hre: HardhatRuntimeEnvironment, facetAddress: string): Promise<string> {
+    const deployments = await hre.deployments.all();
+    for (const [name, deployment] of Object.entries(deployments)) {
+        if (deployment.address.toLowerCase() === facetAddress.toLowerCase()) {
+            return name;
+        }
+    }
+    return "Unknown Facet";
+}
 
-  const contractAddressesPath = path.join(__dirname, '..', 'webapp', 'contract-addresses.json');
-  fs.writeFileSync(contractAddressesPath, JSON.stringify(contractAddresses, null, 2));
-  console.log(`Contract addresses written to ${contractAddressesPath}`);
+async function generateContractAddresses(network: any, deployments: any) {
+    const contractAddresses = {
+        [network.chainId!.toString()]: Object.fromEntries(
+            Object.entries(await deployments.all()).map(([name, deployment]) => [name, deployment.address])
+        )
+    };
+
+    const contractAddressesPath = path.join(__dirname, '..', 'webapp', 'contract-addresses.json');
+    fs.writeFileSync(contractAddressesPath, JSON.stringify(contractAddresses, null, 2));
+    console.log(`Contract addresses written to ${contractAddressesPath}`);
 }
 
 async function generateABIFiles(hre: HardhatRuntimeEnvironment, contractNames: string[]) {
-  const abiDir = path.join(__dirname, '..', 'webapp', 'abi');
-  if (!fs.existsSync(abiDir)) {
-    fs.mkdirSync(abiDir, { recursive: true });
-  }
+    const abiDir = path.join(__dirname, '..', 'webapp', 'abi');
+    if (!fs.existsSync(abiDir)) {
+        fs.mkdirSync(abiDir, { recursive: true });
+    }
 
-  for (const contractName of contractNames) {
-    const artifact = await hre.artifacts.readArtifact(contractName);
-    const abiPath = path.join(abiDir, `${contractName}.json`);
-    fs.writeFileSync(abiPath, JSON.stringify(artifact.abi, null, 2));
-    console.log(`${contractName} ABI written to ${abiPath}`);
-  }
+    for (const contractName of contractNames) {
+        const artifact = await hre.artifacts.readArtifact(contractName);
+        const abiPath = path.join(abiDir, `${contractName}.json`);
+        fs.writeFileSync(abiPath, JSON.stringify(artifact.abi, null, 2));
+        console.log(`${contractName} ABI written to ${abiPath}`);
+    }
 }
 
-async function isPrizeManagerDeployed(hre: HardhatRuntimeEnvironment, address: string): Promise<boolean> {
-  try {
-    const publicClient = await hre.viem.getPublicClient({
-      chain: fhenixTestnet
-    });
-    const code = await publicClient.getCode({ address: address as `0x${string}` });
-    return code !== undefined && code !== '0x';
-  } catch (error) {
-    console.error("Error checking PrizeManager deployment:", error);
-    return false;
-  }
-}
-
-// Main deploy function
-const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const network = hre.network.config;
-  console.log(`Deploying to network: ${hre.network.name} (Chain ID: ${network.chainId})`);
-
-  let publicClient;
-  if (hre.network.name === "hardhat") {
-    // Use Hardhat's built-in provider for local development
-    publicClient = await hre.viem.getPublicClient();
-  } else {
-    publicClient = createPublicClient({
-      chain: {
-        id: network.chainId!,
-        name: hre.network.name,
-        network: hre.network.name,
-        nativeCurrency: { name: 'FHE', symbol: 'FHE', decimals: 18 },
-        rpcUrls: { default: { http: [network.url!] } },
-      },
-      transport: http(),
-    });
-  }
-
-  const account = privateKeyToAccount(`0x${process.env.PRIVATE_KEY}`);
-  const walletClient = createWalletClient({
-    account,
-    chain: publicClient.chain,
-    transport: http(),
-  });
-
-  console.log(`Deployer address: ${account.address}`);
-
-  if (!(await checkAndGetFunds(publicClient, account.address))) return;
-
-  // Deploy contracts
-  const allocationStrategyLinear = await deployContract(hre, "AllocationStrategyLinear", account.address);
-  const prizeManager = await deployContract(hre, "PrizeManager", account.address);
-
-  // Verify contracts
-  if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {
-    console.log("Verifying contracts...");
-    await verifyContract(hre, allocationStrategyLinear.address, "contracts/AllocationStrategyLinear.sol:AllocationStrategyLinear");
-    await verifyContract(hre, prizeManager.address, "contracts/PrizeManager.sol:PrizeManager");
-  }
-
-  // Check if PrizeManager is a new deployment
-  const isPrizeManagerNew = !(await isPrizeManagerDeployed(hre, prizeManager.address));
-
-  if (isPrizeManagerNew) {
-    // Set default strategy only for new deployments
-    const prizeManagerABI = (await hre.artifacts.readArtifact("PrizeManager")).abi;
-    await walletClient.writeContract({
-      address: prizeManager.address as `0x${string}`,
-      abi: prizeManagerABI,
-      functionName: 'updateStrategy',
-      args: ["AllocationStrategyLinear", allocationStrategyLinear.address as `0x${string}`],
-      chain: publicClient.chain,
-    });
-    console.log(`Default strategy set to AllocationStrategyLinear: ${allocationStrategyLinear.address}`);
-  } else {
-    console.log("PrizeManager already deployed. Skipping strategy update.");
-  }
-
-  // Generate contract addresses and ABI files
-  await generateContractAddresses(network, { PrizeManager: prizeManager, AllocationStrategyLinear: allocationStrategyLinear });
-  await generateABIFiles(hre, ["PrizeManager", "PrizeContract", "IAllocationStrategy", "AllocationStrategyLinear"]);
-};
-
-export { getContractHash };
 export default func;
-func.id = "deploy_covalence_prizes";
-func.tags = ["CovalencePrizes"];
+func.id = "deploy_diamond";
+func.tags = ["Diamond"];
