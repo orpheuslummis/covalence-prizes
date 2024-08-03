@@ -3,7 +3,6 @@ import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-verify";
 import "@nomicfoundation/hardhat-viem";
 import { config as dotenvConfig } from "dotenv";
-import "fhenix-hardhat-docker";
 import "fhenix-hardhat-plugin";
 import "hardhat-deploy";
 import { HardhatUserConfig } from "hardhat/config";
@@ -33,7 +32,7 @@ const config: HardhatUserConfig = {
       chainId: fhenixTestnet.id,
       url: fhenixTestnet.rpcUrls.default.http[0],
       accounts: [PRIVATE_KEY],
-    },
+    }
   },
   namedAccounts: {
     deployer: 0,
@@ -49,7 +48,7 @@ const config: HardhatUserConfig = {
     customChains: [
       {
         network: "testnet",
-        chainId: fhenixTestnet.id,
+        chainId: 412346,
         urls: {
           apiURL: "https://explorer.helium.fhenix.zone/api",
           browserURL: "https://explorer.helium.fhenix.zone/",

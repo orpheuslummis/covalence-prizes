@@ -1,6 +1,7 @@
-We use:
-- ethers v6
-- wagmi v2 and tanstack react query
-- Solidity >8.0 with built-in overflow checks, so we don't need SafeMath
+Notes:
+- We use ethers v6
+- We use wagmi v2 and tanstack react query
+- We use Solidity >8.0 with built-in overflow checks, so we don't need SafeMath
+- We do 'from "../types"' instead of 'from "../typechain-types"'
 
-Be careful.
+In general, be careful. Thank you! :)

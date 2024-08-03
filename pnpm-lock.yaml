@@ -69,9 +69,6 @@ importers:
       '@types/node':
         specifier: ^20.11.19
         version: 20.11.19
-      axios:
-        specifier: ^1.6.7
-        version: 1.6.7
       chai:
         specifier: ^4.3.7
         version: 4.4.1
@@ -81,9 +78,6 @@ importers:
       dotenv:
         specifier: ^16.4.5
         version: 16.4.5
-      fhenix-hardhat-docker:
-        specifier: 0.2.1
-        version: 0.2.1(hardhat@2.22.7(ts-node@10.9.2(@types/node@20.11.19)(typescript@5.3.3))(typescript@5.3.3))
       fhenix-hardhat-plugin:
         specifier: 0.2.1
         version: 0.2.1(hardhat@2.22.7(ts-node@10.9.2(@types/node@20.11.19)(typescript@5.3.3))(typescript@5.3.3))
@@ -1686,11 +1680,6 @@ packages:
 
   fb-watchman@2.0.2:
     resolution: {integrity: sha512-p5161BqbuCaSnB8jIbzQHOlpgsPmK5rJVDfDKO91Axs5NC1uu3HRQm6wt9cd9/+GtQQIO53JdGXXoyDpTAsgYA==}
-
-  fhenix-hardhat-docker@0.2.1:
-    resolution: {integrity: sha512-JhtEnsZorWW6txZWa9PnaBf1WX8dxOnVZLsJKY9T07ovsu6ntSaBrlwIFp3QUE1litRUedbvT1J8SZpc3lSEWQ==}
-    peerDependencies:
-      hardhat: ^2.0.0
 
   fhenix-hardhat-plugin@0.2.1:
     resolution: {integrity: sha512-E10QnEBjTaFLYCOfa8tzd2yxBeghm/IlLiMztSFYciBH+jX5ofCIfd4Dv5e4VayqAVncFwi6KB2auLi3UXJ5HA==}
@@ -5311,11 +5300,6 @@ snapshots:
   fb-watchman@2.0.2:
     dependencies:
       bser: 2.1.1
-
-  fhenix-hardhat-docker@0.2.1(hardhat@2.22.7(ts-node@10.9.2(@types/node@20.11.19)(typescript@5.3.3))(typescript@5.3.3)):
-    dependencies:
-      chalk: 4.1.2
-      hardhat: 2.22.7(ts-node@10.9.2(@types/node@20.11.19)(typescript@5.3.3))(typescript@5.3.3)
 
   fhenix-hardhat-plugin@0.2.1(hardhat@2.22.7(ts-node@10.9.2(@types/node@20.11.19)(typescript@5.3.3))(typescript@5.3.3)):
     dependencies:

@@ -60,6 +60,14 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     console.log(`Deploying to network: ${hre.network.name} (Chain ID: ${hre.network.config.chainId})`);
     console.log(`Deployer address: ${deployer}`);
 
+    // Add this balance check
+    const balance = await ethers.provider.getBalance(deployer);
+    console.log(`Deployer balance: ${ethers.formatEther(balance)} ETH`);
+
+    if (balance < ethers.parseEther("1")) {
+        throw new Error("Deployer account has less than 1 ETH. Please fund it before deploying.");
+    }
+
     // Deploy DiamondCutFacet
     const DiamondCutFacet = await deploy('DiamondCutFacet', {
         from: deployer,
