@@ -1,4 +1,5 @@
-import type { FhenixClient, Permission } from "fhenixjs";
+import { ethers } from "ethers";
+import { FhenixClient, Permission } from "fhenixjs";
 import { HardhatRuntimeEnvironment } from "hardhat/types/runtime";
 
 type FhenixHRE = {
@@ -13,14 +14,32 @@ export interface FheInstance {
 }
 
 export async function createFheInstance(
-  hre: HardhatRuntimeEnvironment & FhenixHRE,
+  hre: any,
   contractAddress: string
 ): Promise<FheInstance> {
-  const provider = hre.ethers.provider;
-  const signer = await hre.ethers.getSigners();
-  const instance = hre.fhenixjs as ExtendedFhenixClient;
+  // console.log("HRE object:", hre);
 
-  const permit = await instance.generatePermit(contractAddress, provider, signer[0]);
+  if (!hre._networkName) {
+    throw new Error("Network name is not available in the provided object");
+  }
+
+  const networkName = hre._networkName;
+  console.log("Network name:", networkName);
+
+  const provider = hre.provider;
+  if (!provider) {
+    throw new Error("Provider is not available in the provided object");
+  }
+
+  const signer = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
+
+  // Initialize FhenixClient
+  const instance = new FhenixClient({
+    provider,
+    signer,
+  }) as ExtendedFhenixClient;
+
+  const permit = await instance.generatePermit(contractAddress);
   const permission = instance.extractPermitPermission(permit);
 
   return {

@@ -1,7 +1,6 @@
 import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-verify";
-import "@nomicfoundation/hardhat-viem";
 import { config as dotenvConfig } from "dotenv";
 import "fhenix-hardhat-plugin";
 import "hardhat-deploy";
@@ -23,7 +22,7 @@ const config: HardhatUserConfig = {
     version: "0.8.25",
     settings: {
       optimizer: { enabled: true, runs: 200 },
-      debug: { revertStrings: "debug" }
+      // debug: { revertStrings: "debug" }
     }
   },
   defaultNetwork: "localhost",
