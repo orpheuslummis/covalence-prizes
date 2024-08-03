@@ -3,22 +3,21 @@ pragma solidity ^0.8.0;
 
 import "@fhenixprotocol/contracts/FHE.sol";
 import "../libraries/LibAppStorage.sol";
-import "../interfaces/IPrizeCore.sol";
+import "../libraries/LibPrize.sol";
 
 contract PrizeContributionFacet {
     event ContributionAdded(address contestant, string description);
 
-    modifier onlyInState(IPrizeCore.State _state) {
-        require(LibAppStorage.diamondStorage().state == _state, "Invalid state");
-        _;
-    }
-
-    function submitContribution(string memory _description) external onlyInState(IPrizeCore.State.Open) {
+    function submitContribution(uint256 prizeId, string memory _description) external {
+        require(LibPrize.isState(prizeId, LibPrize.State.Open), "Invalid state");
         AppStorage storage s = LibAppStorage.diamondStorage();
         require(bytes(_description).length > 0, "Description cannot be empty");
-        require(s.contributions[msg.sender].contestant == address(0), "Contestant has already submitted");
+        require(
+            s.prizes[prizeId].contributions[msg.sender].contestant == address(0),
+            "Contestant has already submitted"
+        );
 
-        s.contributions[msg.sender] = Contribution({
+        s.prizes[prizeId].contributions[msg.sender] = Contribution({
             contestant: msg.sender,
             description: _description,
             aggregatedScore: FHE.asEuint32(0),
@@ -27,17 +26,19 @@ contract PrizeContributionFacet {
             claimed: false
         });
 
-        s.contributionList.push(msg.sender);
-        s.contributionIndexToAddress[s.contributionCount] = msg.sender;
-        s.contributionCount++;
+        s.prizes[prizeId].contributionList.push(msg.sender);
+        s.prizes[prizeId].contributionCount++;
+        // s.contributionIndexToAddress[s.prizes[prizeId].contributionCount] = msg.sender;
 
         emit ContributionAdded(msg.sender, _description);
     }
 
     function getContribution(
+        uint256 prizeId,
         address contestant
     ) external view returns (address, string memory, euint32, uint256, euint32, bool) {
-        Contribution storage contribution = LibAppStorage.diamondStorage().contributions[contestant];
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        Contribution storage contribution = s.prizes[prizeId].contributions[contestant];
         return (
             contribution.contestant,
             contribution.description,
@@ -48,15 +49,19 @@ contract PrizeContributionFacet {
         );
     }
 
-    function getContributionList() external view returns (address[] memory) {
-        return LibAppStorage.diamondStorage().contributionList;
+    function getContributionList(uint256 prizeId) external view returns (address[] memory) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        return s.prizes[prizeId].contributionList;
     }
 
-    function getContributionCount() external view returns (uint256) {
-        return LibAppStorage.diamondStorage().contributionCount;
+    function getContributionCount(uint256 prizeId) external view returns (uint256) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        return s.prizes[prizeId].contributionCount;
     }
 
-    function getContributionByIndex(uint256 index) external view returns (address) {
-        return LibAppStorage.diamondStorage().contributionIndexToAddress[index];
+    function getContributionByIndex(uint256 prizeId, uint256 index) external view returns (address) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        require(index < s.prizes[prizeId].contributionCount, "Index out of bounds");
+        return s.prizes[prizeId].contributionList[index];
     }
 }

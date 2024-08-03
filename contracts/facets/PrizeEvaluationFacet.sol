@@ -3,38 +3,27 @@ pragma solidity ^0.8.0;
 
 import "@fhenixprotocol/contracts/FHE.sol";
 import "../libraries/LibAppStorage.sol";
-import "../interfaces/IPrizeCore.sol";
 import "../facets/PrizeACLFacet.sol";
+import "../libraries/LibPrize.sol";
 
 contract PrizeEvaluationFacet {
-    event ScoresAssigned(uint256 indexed prizeId, address indexed evaluator, address[] contestants);
-
-    modifier onlyInState(uint256 prizeId, IPrizeCore.State _state) {
-        require(LibAppStorage.diamondStorage().prizes[prizeId].state == _state, "Invalid state");
-        _;
-    }
-
-    modifier onlyRole(bytes32 role) {
-        require(PrizeACLFacet(address(this)).hasRole(role, msg.sender), "Caller does not have the required role");
-        _;
-    }
+    PrizeACLFacet acl = PrizeACLFacet(address(this));
 
     function assignScores(
         uint256 prizeId,
         address[] memory contestants,
         inEuint32[][] memory encryptedScores
-    )
-        external
-        onlyRole(PrizeACLFacet(address(this)).EVALUATOR_ROLE())
-        onlyInState(prizeId, IPrizeCore.State.Evaluating)
-    {
+    ) external {
+        require(LibPrize.isState(prizeId, LibPrize.State.Evaluating), "Invalid state");
+        require(acl.isPrizeEvaluator(prizeId, msg.sender), "Caller is not an evaluator for this prize");
         AppStorage storage s = LibAppStorage.diamondStorage();
-        PrizeInfo storage prize = s.prizes[prizeId];
+        Prize storage prize = s.prizes[prizeId];
         require(
             contestants.length == encryptedScores.length && contestants.length <= LibAppStorage.MAX_BATCH_SIZE,
             "Invalid input"
         );
 
+        uint256[] memory scoreCounts = new uint256[](contestants.length);
         for (uint256 i = 0; i < contestants.length; i++) {
             address contestant = contestants[i];
             require(prize.contributions[contestant].contestant != address(0), "Invalid contestant");
@@ -50,9 +39,11 @@ contract PrizeEvaluationFacet {
             contribution.aggregatedScore = FHE.add(contribution.aggregatedScore, weightedScore);
             contribution.evaluationCount++;
             prize.evaluatorContestantScored[msg.sender][contestant] = true;
+
+            scoreCounts[i] = encryptedScores[i].length;
         }
 
-        emit ScoresAssigned(prizeId, msg.sender, contestants);
+        emit LibPrize.ScoresAssigned(prizeId, msg.sender, contestants, scoreCounts);
     }
 
     function calculateWeightedScore(
@@ -76,5 +67,44 @@ contract PrizeEvaluationFacet {
         address contestant
     ) external view returns (bool) {
         return LibAppStorage.diamondStorage().prizes[prizeId].evaluatorContestantScored[evaluator][contestant];
+    }
+
+    function addEvaluators(uint256 prizeId, address[] memory _evaluators) external {
+        require(LibPrize.isState(prizeId, LibPrize.State.Setup), "Invalid state");
+        require(acl.isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
+        for (uint256 i = 0; i < _evaluators.length; i++) {
+            acl.addPrizeEvaluator(prizeId, _evaluators[i]);
+        }
+        emit LibPrize.EvaluatorsAdded(prizeId, _evaluators);
+    }
+
+    function removeEvaluators(uint256 prizeId, address[] memory _evaluators) external {
+        require(LibPrize.isState(prizeId, LibPrize.State.Setup), "Invalid state");
+        require(acl.isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
+        for (uint256 i = 0; i < _evaluators.length; i++) {
+            acl.removePrizeEvaluator(prizeId, _evaluators[i]);
+        }
+        emit LibPrize.EvaluatorsRemoved(prizeId, _evaluators);
+    }
+
+    function isEvaluator(uint256 prizeId, address _account) external view returns (bool) {
+        return acl.isPrizeEvaluator(prizeId, _account);
+    }
+
+    function assignCriteriaWeights(uint256 prizeId, uint32[] calldata weights) external {
+        require(LibPrize.isState(prizeId, LibPrize.State.Setup), "Invalid state");
+        require(acl.isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        Prize storage prize = s.prizes[prizeId];
+        require(weights.length == prize.criteriaNames.length, "Mismatch in number of weights");
+
+        uint32 totalWeight = 0;
+        for (uint256 i = 0; i < weights.length; i++) {
+            totalWeight += weights[i];
+        }
+        require(totalWeight == 100, "Sum of weights must equal 100");
+
+        prize.criteriaWeights = weights;
+        emit LibPrize.CriteriaWeightsAssigned(prizeId, weights);
     }
 }

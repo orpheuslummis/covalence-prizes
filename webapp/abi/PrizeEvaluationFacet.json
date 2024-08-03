@@ -9,6 +9,63 @@
         "type": "uint256"
       },
       {
+        "indexed": false,
+        "internalType": "uint32[]",
+        "name": "weights",
+        "type": "uint32[]"
+      }
+    ],
+    "name": "CriteriaWeightsAssigned",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address[]",
+        "name": "evaluators",
+        "type": "address[]"
+      }
+    ],
+    "name": "EvaluatorsAdded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address[]",
+        "name": "evaluators",
+        "type": "address[]"
+      }
+    ],
+    "name": "EvaluatorsRemoved",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
         "indexed": true,
         "internalType": "address",
         "name": "evaluator",
@@ -19,10 +76,52 @@
         "internalType": "address[]",
         "name": "contestants",
         "type": "address[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256[]",
+        "name": "scoreCounts",
+        "type": "uint256[]"
       }
     ],
     "name": "ScoresAssigned",
     "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address[]",
+        "name": "_evaluators",
+        "type": "address[]"
+      }
+    ],
+    "name": "addEvaluators",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint32[]",
+        "name": "weights",
+        "type": "uint32[]"
+      }
+    ],
+    "name": "assignCriteriaWeights",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
     "inputs": [
@@ -105,6 +204,48 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "_account",
+        "type": "address"
+      }
+    ],
+    "name": "isEvaluator",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address[]",
+        "name": "_evaluators",
+        "type": "address[]"
+      }
+    ],
+    "name": "removeEvaluators",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   }
 ]

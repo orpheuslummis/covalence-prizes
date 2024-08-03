@@ -3,61 +3,111 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "../libraries/LibAppStorage.sol";
-import "../interfaces/IERC165.sol";
-import "../interfaces/IAccessControl.sol";
-import "../interfaces/IAccessControlEnumerable.sol";
 
-contract PrizeACLFacet is IERC165, IAccessControl, IAccessControlEnumerable {
+contract PrizeACLFacet {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
-    bytes32 public constant PRIZE_MANAGER_ROLE = keccak256("PRIZE_MANAGER_ROLE");
-    bytes32 public constant ORGANIZER_ROLE = keccak256("ORGANIZER_ROLE");
-    bytes32 public constant EVALUATOR_ROLE = keccak256("EVALUATOR_ROLE");
 
-    modifier onlyRole(bytes32 role) {
-        _checkRole(role);
+    struct PrizeRoles {
+        address organizer;
+        EnumerableSet.AddressSet evaluators;
+    }
+
+    mapping(uint256 => PrizeRoles) private prizeRoles;
+
+    modifier onlyDefaultAdmin() {
+        _checkRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _;
     }
 
-    function initialize(address _admin) external {
+    modifier onlyPrizeOrganizer(uint256 prizeId) {
+        require(msg.sender == prizeRoles[prizeId].organizer, "Only prize organizer can perform this action");
+        _;
+    }
+
+    modifier onlyPrizeEvaluator(uint256 prizeId) {
+        require(prizeRoles[prizeId].evaluators.contains(msg.sender), "Only prize evaluator can perform this action");
+        _;
+    }
+
+    function initializePrizeACL(address _admin) external {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        require(!s.initialized, "ACL: Already initialized");
+        require(!s.initialized, "PrizeACL: Already initialized");
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
-
-        bytes32[3] memory rolesToSet = [PRIZE_MANAGER_ROLE, ORGANIZER_ROLE, EVALUATOR_ROLE];
-        for (uint i = 0; i < 3; i++) {
-            _setRoleAdmin(rolesToSet[i], DEFAULT_ADMIN_ROLE);
-        }
 
         s.initialized = true;
     }
 
-    function hasRole(bytes32 role, address account) public view override returns (bool) {
-        return LibAppStorage.diamondStorage().roles[role].members.contains(account);
+    function setPrizeOrganizer(uint256 prizeId, address organizer) external onlyDefaultAdmin {
+        prizeRoles[prizeId].organizer = organizer;
+        emit LibPrize.PrizeOrganizerSet(prizeId, organizer);
     }
 
-    function getRoleAdmin(bytes32 role) public view override returns (bytes32) {
-        return LibAppStorage.diamondStorage().roles[role].adminRole;
+    function addPrizeEvaluator(uint256 prizeId, address evaluator) external onlyPrizeOrganizer(prizeId) {
+        prizeRoles[prizeId].evaluators.add(evaluator);
+        emit LibPrize.PrizeEvaluatorAdded(prizeId, evaluator);
     }
 
-    function grantRole(bytes32 role, address account) public virtual override onlyRole(getRoleAdmin(role)) {
+    function removePrizeEvaluator(uint256 prizeId, address evaluator) external onlyPrizeOrganizer(prizeId) {
+        prizeRoles[prizeId].evaluators.remove(evaluator);
+        emit LibPrize.PrizeEvaluatorRemoved(prizeId, evaluator);
+    }
+
+    function isPrizeOrganizer(uint256 prizeId, address account) public view returns (bool) {
+        return prizeRoles[prizeId].organizer == account;
+    }
+
+    function isPrizeEvaluator(uint256 prizeId, address account) public view returns (bool) {
+        return prizeRoles[prizeId].evaluators.contains(account);
+    }
+
+    function getPrizeEvaluatorCount(uint256 prizeId) public view returns (uint256) {
+        return prizeRoles[prizeId].evaluators.length();
+    }
+
+    function getPrizeEvaluator(uint256 prizeId, uint256 index) public view returns (address) {
+        return prizeRoles[prizeId].evaluators.at(index);
+    }
+
+    function getRoleMember(bytes32 role, uint256 index) public view returns (address) {
+        require(role == DEFAULT_ADMIN_ROLE, "Only DEFAULT_ADMIN_ROLE is supported");
+        return LibAppStorage.diamondStorage().roles[role].members.at(index);
+    }
+
+    function getRoleMemberCount(bytes32 role) public view returns (uint256) {
+        require(role == DEFAULT_ADMIN_ROLE, "Only DEFAULT_ADMIN_ROLE is supported");
+        return LibAppStorage.diamondStorage().roles[role].members.length();
+    }
+
+    function hasRole(bytes32 role, address account) public view returns (bool) {
+        if (role == DEFAULT_ADMIN_ROLE) {
+            return LibAppStorage.diamondStorage().roles[role].members.contains(account);
+        }
+        return false;
+    }
+
+    function getRoleAdmin() public pure returns (bytes32) {
+        return DEFAULT_ADMIN_ROLE;
+    }
+
+    function grantRole(bytes32 role, address account) public virtual onlyDefaultAdmin {
+        require(role == DEFAULT_ADMIN_ROLE, "Can only grant DEFAULT_ADMIN_ROLE");
         _grantRole(role, account);
     }
 
-    function revokeRole(bytes32 role, address account) public virtual override onlyRole(getRoleAdmin(role)) {
+    function revokeRole(bytes32 role, address account) public virtual onlyDefaultAdmin {
+        require(role == DEFAULT_ADMIN_ROLE, "Can only revoke DEFAULT_ADMIN_ROLE");
         _revokeRole(role, account);
     }
 
-    function renounceRole(bytes32 role, address account) public virtual override {
+    function renounceRole(bytes32 role, address account) public virtual {
         require(account == msg.sender, "ACL: can only renounce roles for self");
         _revokeRole(role, account);
     }
 
-    function _checkRole(bytes32 role) internal view {
-        _checkRole(role, msg.sender);
-    }
+    // Internal functions
 
     function _checkRole(bytes32 role, address account) internal view {
         if (!hasRole(role, account)) {
@@ -69,7 +119,7 @@ contract PrizeACLFacet is IERC165, IAccessControl, IAccessControlEnumerable {
         AppStorage storage s = LibAppStorage.diamondStorage();
         if (!hasRole(role, account)) {
             s.roles[role].members.add(account);
-            emit RoleGranted(role, account, msg.sender);
+            emit LibPrize.RoleGranted(role, account, msg.sender);
             return true;
         }
         return false;
@@ -79,37 +129,9 @@ contract PrizeACLFacet is IERC165, IAccessControl, IAccessControlEnumerable {
         AppStorage storage s = LibAppStorage.diamondStorage();
         if (hasRole(role, account)) {
             s.roles[role].members.remove(account);
-            emit RoleRevoked(role, account, msg.sender);
+            emit LibPrize.RoleRevoked(role, account, msg.sender);
             return true;
         }
         return false;
-    }
-
-    function setRoleAdmin(bytes32 role, bytes32 adminRole) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _setRoleAdmin(role, adminRole);
-    }
-
-    function _setRoleAdmin(bytes32 role, bytes32 adminRole) internal virtual {
-        AppStorage storage s = LibAppStorage.diamondStorage();
-        bytes32 previousAdminRole = getRoleAdmin(role);
-        s.roles[role].adminRole = adminRole;
-        emit RoleAdminChanged(role, previousAdminRole, adminRole);
-    }
-
-    // IAccessControlEnumerable functions
-    function getRoleMemberCount(bytes32 role) public view override returns (uint256) {
-        return LibAppStorage.diamondStorage().roles[role].members.length();
-    }
-
-    function getRoleMember(bytes32 role, uint256 index) public view override returns (address) {
-        return LibAppStorage.diamondStorage().roles[role].members.at(index);
-    }
-
-    // IERC165 function
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return
-            interfaceId == type(IAccessControlEnumerable).interfaceId ||
-            interfaceId == type(IAccessControl).interfaceId ||
-            interfaceId == type(IERC165).interfaceId;
     }
 }

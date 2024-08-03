@@ -1,0 +1,6 @@
+We use:
+- ethers v6
+- wagmi v2 and tanstack react query
+- Solidity >8.0 with built-in overflow checks, so we don't need SafeMath
+
+Be careful.

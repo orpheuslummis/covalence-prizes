@@ -51,6 +51,11 @@ p test
 cd webapp && p dev
 ```
 
+## System notes
+
+- Diamond pattern, with AppStorage pattern
+-
+
 ## License
 
 MIT License. See [LICENSE](LICENSE) file.s

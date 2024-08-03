@@ -1,0 +1,12 @@
+- pause
+- events
+- lifecycle
+- prize as fractional nft
+- introduce non-monetary rewards
+- backend system for convenience
+- 'standalone' integrations
+- cancel or refund prize
+- pause
+- upgrade documentation
+- non-linear state transitions based on errors or disputes
+- integration of oracles

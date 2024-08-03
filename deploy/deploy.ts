@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import { DeployFunction } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import * as path from 'path';
+import { IDiamondCut } from "../types";
 
 const FacetCutAction = { Add: 0, Replace: 1, Remove: 2 };
 
@@ -22,6 +23,33 @@ function getSelectors(contract: Contract): { selector: string; name: string }[] 
         }
         return acc;
     }, []);
+}
+
+function findDuplicateSelectors(cut: IDiamondCut.FacetCutStruct[], facetNames: string[]): { [selector: string]: string[] } {
+    const selectorMap: { [selector: string]: string[] } = {};
+    const duplicates: { [selector: string]: string[] } = {};
+
+    cut.forEach((facetCut, index) => {
+        const facetName = facetNames[index];
+        facetCut.functionSelectors.forEach(selector => {
+            if (selectorMap[selector]) {
+                selectorMap[selector].push(facetName);
+                duplicates[selector] = selectorMap[selector];
+            } else {
+                selectorMap[selector] = [facetName];
+            }
+        });
+    });
+
+    return duplicates;
+}
+
+function formatDuplicatesMessage(duplicates: { [selector: string]: string[] }): string {
+    let message = "Duplicate selectors found:\n";
+    for (const [selector, facets] of Object.entries(duplicates)) {
+        message += `  Selector ${selector} is present in facets: ${facets.join(", ")}\n`;
+    }
+    return message;
 }
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
@@ -58,11 +86,14 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     console.log('Deploying facets');
     const FacetNames = [
         'DiamondLoupeFacet',
+        'PrizeACLFacet',
         'PrizeManagerFacet',
-        'PrizeCoreFacet',
         'PrizeContributionFacet',
         'PrizeRewardFacet',
-        'PrizeEvaluationFacet'
+        'PrizeEvaluationFacet',
+        'PrizeStateFacet',
+        'PrizeStrategyFacet',
+        'PrizeFundingFacet',
     ];
     const cut = [];
     for (const FacetName of FacetNames) {
@@ -103,32 +134,65 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         await checkContractSize(FacetName);
     }
 
+    // Check for duplicate selectors
+    const duplicates = findDuplicateSelectors(cut, FacetNames);
+    if (Object.keys(duplicates).length > 0) {
+        console.error(formatDuplicatesMessage(duplicates));
+        throw new Error("Duplicate selectors found. Please check the facet implementations.");
+    }
+
     // Upgrade diamond with facets
     console.log('Diamond Cut:');
     cut.forEach((facetCut, index) => {
         console.log(`Facet ${index + 1}: ${FacetNames[index]}`);
         console.log(`  Address: ${facetCut.facetAddress}`);
         console.log('  Function Selectors:');
-        facetCut.functionSelectors.forEach(async selector => {
-            const selectorInfo = getSelectors(await ethers.getContractAt(FacetNames[index], facetCut.facetAddress))
-                .find(s => s.selector === selector);
-            console.log(`    ${selector}: ${selectorInfo ? selectorInfo.name : 'Unknown'}`);
+        facetCut.functionSelectors.forEach(selector => {
+            console.log(`    ${selector}`);
         });
     });
+
     const diamondCut = await ethers.getContractAt('IDiamondCut', Diamond.address);
 
-    // Create DiamondInit call
+    // Perform diamond cut with DiamondInit
+    console.log('Performing diamond cut with DiamondInit...');
     const diamondInit = await ethers.getContractAt('DiamondInit', DiamondInit.address);
-    let functionCall = diamondInit.interface.encodeFunctionData('init');
+    let functionCall = diamondInit.interface.encodeFunctionData('init', [deployer]);
+    console.log('Encoded init function call:', functionCall);
 
-    // Perform diamond cut
-    const tx = await diamondCut.diamondCut(cut, DiamondInit.address, functionCall);
-    console.log('Diamond cut tx: ', tx.hash);
-    const receipt = await tx.wait();
-    if (!receipt.status) {
-        throw Error(`Diamond upgrade failed: ${tx.hash}`);
+    console.log('Diamond address:', Diamond.address);
+    console.log('DiamondInit address:', DiamondInit.address);
+    console.log('Number of facets to add:', cut.length);
+
+    console.log('Diamond cut parameters:');
+    console.log('cut:', JSON.stringify(cut, null, 2));
+    console.log('init address:', DiamondInit.address);
+    console.log('init calldata:', functionCall);
+
+    try {
+        let tx = await diamondCut.diamondCut(cut, DiamondInit.address, functionCall);
+        console.log('Diamond cut tx: ', tx.hash);
+        let receipt = await tx.wait();
+        if (!receipt.status) {
+            throw Error(`Diamond cut failed: ${tx.hash}`);
+        }
+        console.log('Completed diamond cut and initialization');
+
+        // Verify facets after diamond cut
+        const diamondLoupeFacet = await ethers.getContractAt('DiamondLoupeFacet', Diamond.address);
+        const facets = await diamondLoupeFacet.facets();
+        console.log('Facets after diamond cut:');
+        for (const facet of facets) {
+            console.log(`Address: ${facet.facetAddress}, Function selectors: ${facet.functionSelectors}`);
+        }
+    } catch (error) {
+        console.error('Error during diamond cut:', error);
+        // Log more details about the error
+        if (error.reason) console.error('Error reason:', error.reason);
+        if (error.code) console.error('Error code:', error.code);
+        if (error.transaction) console.error('Failed transaction:', error.transaction);
+        throw error;
     }
-    console.log('Completed diamond cut');
 
     // Verify Diamond setup
     await verifyDiamond(hre, Diamond.address);

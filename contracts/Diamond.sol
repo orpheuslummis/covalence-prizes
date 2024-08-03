@@ -1,13 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-/******************************************************************************\
-* Author: Nick Mudge <nick@perfectabstractions.com> (https://twitter.com/mudgen)
-* EIP-2535 Diamonds: https://eips.ethereum.org/EIPS/eip-2535
-*
-* Implementation of a diamond.
-/******************************************************************************/
-
 import {LibDiamond} from "./libraries/LibDiamond.sol";
 import {IDiamondCut} from "./interfaces/IDiamondCut.sol";
 import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
@@ -15,7 +8,6 @@ import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
 contract Diamond is AccessControlEnumerable {
     constructor(address _admin, address _diamondCutFacet) payable {
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
-        // LibDiamond.setContractOwner(_contractOwner);
 
         // Add the diamondCut external function from the diamondCutFacet
         IDiamondCut.FacetCut[] memory cut = new IDiamondCut.FacetCut[](1);

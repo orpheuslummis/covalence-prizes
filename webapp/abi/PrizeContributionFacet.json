@@ -21,6 +21,11 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
         "internalType": "address",
         "name": "contestant",
         "type": "address"
@@ -66,6 +71,11 @@
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
         "name": "index",
         "type": "uint256"
       }
@@ -82,7 +92,13 @@
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      }
+    ],
     "name": "getContributionCount",
     "outputs": [
       {
@@ -95,7 +111,13 @@
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      }
+    ],
     "name": "getContributionList",
     "outputs": [
       {
@@ -109,6 +131,11 @@
   },
   {
     "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
       {
         "internalType": "string",
         "name": "_description",
