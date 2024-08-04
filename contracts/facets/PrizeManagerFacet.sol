@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 import "../libraries/LibAppStorage.sol";
 import "../libraries/LibPrize.sol";
+import "../libraries/LibACL.sol";
 import "../interfaces/IAllocationStrategy.sol";
-import "./PrizeACLFacet.sol";
 
 contract PrizeManagerFacet {
     struct PrizeParams {
@@ -29,8 +29,6 @@ contract PrizeManagerFacet {
         uint256 contributionCount;
     }
 
-    PrizeACLFacet acl = PrizeACLFacet(address(this));
-
     function createPrize(PrizeParams memory params) external returns (uint256) {
         validatePrizeParams(params);
         AppStorage storage s = LibAppStorage.diamondStorage();
@@ -49,7 +47,7 @@ contract PrizeManagerFacet {
             newPrize.criteriaWeights.push(params.criteriaWeights[i]);
         }
 
-        acl.setPrizeOrganizer(prizeId, msg.sender);
+        LibACL.setPrizeOrganizer(prizeId, msg.sender);
 
         emit LibPrize.PrizeCreated(msg.sender, prizeId, params.name, params.pool);
         return prizeId;

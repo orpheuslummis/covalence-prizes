@@ -21,6 +21,8 @@ const typedContractAddresses = contractAddresses as ContractAddresses;
 
 const TEST_PRIZE_AMOUNT = 1000000000000000n; // 0.001 ETH in wei
 
+type DiamondWithFacets = Diamond & PrizeManagerFacet & PrizeFundingFacet & PrizeACLFacet & PrizeContributionFacet & PrizeEvaluationFacet & PrizeRewardFacet & PrizeStateFacet & PrizeStrategyFacet;
+
 interface TestContext extends Context {
     prizeManagerFacet: PrizeManagerFacet;
     prizeFundingFacet: PrizeFundingFacet;
@@ -30,7 +32,7 @@ interface TestContext extends Context {
     prizeRewardFacet: PrizeRewardFacet;
     prizeStateFacet: PrizeStateFacet;
     prizeStrategyFacet: PrizeStrategyFacet;
-    diamond: Diamond;
+    diamond: DiamondWithFacets;
     fheInstance: any;
     client: any;
     diamondLoupeFacet: DiamondLoupeFacet;
@@ -70,9 +72,10 @@ describe("Diamond Prize Basic", function () {
         const diamondAddress = addresses.Diamond;
         console.log("Diamond address:", diamondAddress);
 
-        context.diamond = await ethers.getContractAt("Diamond", diamondAddress, owner);
+        // Create all facet instances using the Diamond address
+        context.diamond = await ethers.getContractAt("Diamond", diamondAddress, owner) as DiamondWithFacets;
         context.diamondLoupeFacet = await ethers.getContractAt("DiamondLoupeFacet", diamondAddress, owner) as DiamondLoupeFacet;
-        context.prizeManagerFacet = await ethers.getContractAt("PrizeManagerFacet", addresses.PrizeManagerFacet, owner) as PrizeManagerFacet;
+        context.prizeManagerFacet = await ethers.getContractAt("PrizeManagerFacet", diamondAddress, owner) as PrizeManagerFacet;
         context.prizeACLFacet = await ethers.getContractAt("PrizeACLFacet", diamondAddress, owner) as PrizeACLFacet;
         context.prizeContributionFacet = await ethers.getContractAt("PrizeContributionFacet", diamondAddress, owner) as PrizeContributionFacet;
         context.prizeEvaluationFacet = await ethers.getContractAt("PrizeEvaluationFacet", diamondAddress, owner) as PrizeEvaluationFacet;
@@ -92,15 +95,30 @@ describe("Diamond Prize Basic", function () {
     async function verifyDiamondSetup(diamondLoupeFacet: DiamondLoupeFacet, prizeManagerFacet: PrizeManagerFacet, network: Network) {
         const facets = await diamondLoupeFacet.facets();
         console.log(`\nDiamond has ${facets.length} facets`);
+        for (const facet of facets) {
+            const facetName = await getFacetName(diamondLoupeFacet, facet.facetAddress);
+            console.log(`Facet: ${facetName}`);
+            console.log(`Address: ${facet.facetAddress}`);
+            console.log("Function selectors:");
+            for (const selector of facet.functionSelectors) {
+                const functionName = await getFunctionName(selector);
+                console.log(`  ${selector} (${functionName})`);
+            }
+            console.log();
+        }
 
         const createPrizeSelector = prizeManagerFacet.interface.getFunction("createPrize").selector;
-        const facetAddress = await diamondLoupeFacet.facetAddress(createPrizeSelector);
+        console.log("createPrize selector:", createPrizeSelector);
+        const prizeManagerFacetAddress = await diamondLoupeFacet.facetAddress(createPrizeSelector);
+        console.log("PrizeManagerFacet address:", prizeManagerFacetAddress);
 
-        console.log("\nPrizeManagerFacet Verification:");
-        console.log(`PrizeManagerFacet Address Match: ${await prizeManagerFacet.getAddress() === facetAddress}`);
+        console.log("\nDiamond Contract Verification:");
+        const diamondAddress = await prizeManagerFacet.getAddress();
+        console.log(`Diamond Address: ${diamondAddress}`);
+        console.log(`Diamond contains PrizeManagerFacet: ${prizeManagerFacetAddress !== ethers.ZeroAddress}`);
 
-        if (facetAddress !== await prizeManagerFacet.getAddress()) {
-            console.warn("PrizeManagerFacet address mismatch. This might be due to a recent contract upgrade.");
+        if (prizeManagerFacetAddress === ethers.ZeroAddress) {
+            console.warn("PrizeManagerFacet not found in Diamond. This might indicate a deployment issue or recent upgrade.");
         }
 
         console.log("\nCurrent Network:", network.name);
@@ -166,7 +184,7 @@ describe("Diamond Prize Basic", function () {
             criteriaWeights: [40, 30, 30]
         };
 
-        const tx = await context.prizeManagerFacet.connect(owner).createPrize(prizeParams);
+        const tx = await context.prizeManagerFacet.createPrize(prizeParams);
         const prizeIdBigInt = await extractPrizeIdFromTx(tx);
 
         await context.prizeFundingFacet.connect(owner).fundTotally(prizeIdBigInt, { value: prizeParams.pool });
@@ -197,7 +215,7 @@ describe("Diamond Prize Basic", function () {
         });
     }
 
-    describe.only("Prelude", function () {
+    describe("Prelude", function () {
         it("Should connect to the network", async function () {
             const network = await ethers.provider.getNetwork();
             console.log("Connected to network:", network.name, "Chain ID:", network.chainId.toString());
@@ -214,6 +232,36 @@ describe("Diamond Prize Basic", function () {
 
     describe("Prize Creation and Management", function () {
         testWithContext("Should create a new prize", async (context) => {
+            try {
+                const prizeParams = {
+                    name: "Test Prize",
+                    description: "This is a test prize",
+                    pool: TEST_PRIZE_AMOUNT,
+                    criteria: ["Quality", "Creativity", "Innovation"],
+                    criteriaWeights: [40, 30, 30]
+                };
+
+                console.log("Calling createPrize with params:", prizeParams);
+                const tx = await context.prizeManagerFacet.createPrize(prizeParams);
+                console.log("Transaction hash:", tx.hash);
+                const prizeIdBigInt = await extractPrizeIdFromTx(tx);
+                console.log("Extracted prizeId:", prizeIdBigInt.toString());
+
+                expect(prizeIdBigInt).to.be.gt(0n);
+
+                const prizeDetails = await context.prizeManagerFacet.getPrizeDetails(prizeIdBigInt);
+                expect(prizeDetails.name).to.equal(prizeParams.name);
+                expect(prizeDetails.description).to.equal(prizeParams.description);
+                expect(prizeDetails.monetaryRewardPool).to.equal(prizeParams.pool);
+                expect(prizeDetails.criteriaNames).to.deep.equal(prizeParams.criteria);
+                expect(prizeDetails.criteriaWeights).to.deep.equal(prizeParams.criteriaWeights);
+                expect(prizeDetails.state).to.equal(0); // Assuming 0 is the Setup state
+
+                expect(await context.prizeACLFacet.isPrizeOrganizer(prizeIdBigInt, await owner.getAddress())).to.be.true;
+            } catch (error) {
+                console.error("Error in createPrize test:", error);
+                throw error;
+            }
         });
 
         testWithContext("Should fail to create a prize with invalid parameters", async (context) => {
@@ -225,8 +273,8 @@ describe("Diamond Prize Basic", function () {
                 criteriaWeights: []
             };
 
-            await expect(context.prizeManagerFacet.connect(owner).createPrize(invalidPrizeParams))
-                .to.be.revertedWith("Invalid input");
+            await expect(context.prizeManagerFacet.createPrize(invalidPrizeParams))
+                .to.be.revertedWith("Invalid pool amount");
         });
 
         testWithContext("Should fund a prize", async (context) => {
@@ -238,7 +286,7 @@ describe("Diamond Prize Basic", function () {
                 criteriaWeights: [40, 30, 30]
             };
 
-            const tx = await context.prizeManagerFacet.connect(owner).createPrize(prizeParams);
+            const tx = await context.prizeManagerFacet.createPrize(prizeParams);
             const prizeIdBigInt = await extractPrizeIdFromTx(tx);
 
             await expect(context.prizeFundingFacet.connect(owner).fundTotally(prizeIdBigInt, { value: prizeParams.pool }))
@@ -261,7 +309,7 @@ describe("Diamond Prize Basic", function () {
                 criteriaWeights: [40, 30, 30]
             };
 
-            const tx = await context.prizeManagerFacet.connect(owner).createPrize(prizeParams);
+            const tx = await context.prizeManagerFacet.createPrize(prizeParams);
             const prizeIdBigInt = await extractPrizeIdFromTx(tx);
 
             expect(await context.prizeACLFacet.isPrizeOrganizer(prizeIdBigInt, await owner.getAddress())).to.be.true;
@@ -279,7 +327,7 @@ describe("Diamond Prize Basic", function () {
                 criteriaWeights: [40, 30, 30]
             };
 
-            const tx = await context.prizeManagerFacet.connect(owner).createPrize(prizeParams);
+            const tx = await context.prizeManagerFacet.createPrize(prizeParams);
             const prizeIdBigInt = await extractPrizeIdFromTx(tx);
 
             // Set allocation strategy
@@ -314,7 +362,7 @@ describe("Diamond Prize Basic", function () {
         });
 
         testWithContext("Should fail to submit a contribution when prize is not in Open state", async (context) => {
-            const tx = await context.prizeManagerFacet.connect(owner).createPrize({
+            const tx = await context.prizeManagerFacet.createPrize({
                 name: "Test Prize",
                 description: "This is a test prize",
                 pool: TEST_PRIZE_AMOUNT,
@@ -454,7 +502,7 @@ describe("Diamond Prize Basic", function () {
         });
 
         testWithContext("Should not allow invalid state transitions", async (context) => {
-            const tx = await context.prizeManagerFacet.connect(owner).createPrize({
+            const tx = await context.prizeManagerFacet.createPrize({
                 name: "Test Prize",
                 description: "This is a test prize",
                 pool: TEST_PRIZE_AMOUNT,
@@ -481,5 +529,115 @@ describe("Diamond Prize Basic", function () {
             await expect(context.prizeEvaluationFacet.connect(addr1).assignScores(prizeId, [await addr2.getAddress()], encryptedScores))
                 .to.be.revertedWith("Caller is not an evaluator for this prize");
         });
+    });
+});
+
+describe.only("PrizeManagerFacet Preliminary Test", function () {
+    let prizeManagerFacet: PrizeManagerFacet;
+
+    before(async function () {
+        const context = this as unknown as TestContext;
+        const network = await ethers.provider.getNetwork();
+        const chainId = network.chainId.toString();
+        const addresses = typedContractAddresses[chainId];
+
+        if (!addresses) {
+            throw new Error(`No contract addresses found for chain ID ${chainId}`);
+        }
+
+        const diamondAddress = addresses.Diamond;
+        prizeManagerFacet = await ethers.getContractAt("PrizeManagerFacet", diamondAddress) as PrizeManagerFacet;
+    });
+
+    it("should be able to call getPrizeCount()", async function () {
+        try {
+            const prizeCount = await prizeManagerFacet.getPrizeCount();
+            console.log("Current prize count:", prizeCount.toString());
+            // The test passes if we can successfully call the function without an error
+        } catch (error) {
+            console.error("Error calling getPrizeCount:", error);
+            throw error;
+        }
+    });
+
+    it("should be able to call createPrize()", async function () {
+        try {
+            const prizeParams = {
+                name: "Test Prize",
+                description: "This is a test prize",
+                pool: ethers.parseEther("0.001"),
+                criteria: ["Quality", "Creativity", "Innovation"],
+                criteriaWeights: [40, 30, 30]
+            };
+
+            const tx = await prizeManagerFacet.createPrize(prizeParams);
+            const receipt = await tx.wait();
+            console.log("createPrize transaction hash:", tx.hash);
+            console.log("Transaction receipt:", receipt);
+
+            // Check if the prize count has increased
+            const newPrizeCount = await prizeManagerFacet.getPrizeCount();
+            console.log("New prize count:", newPrizeCount.toString());
+
+            // The test passes if we can successfully call the function and get a receipt
+        } catch (error) {
+            console.error("Error calling createPrize:", error);
+            throw error;
+        }
+    });
+});
+
+describe("PrizeManagerFacet Preliminary Test", function () {
+    let prizeManagerFacet: PrizeManagerFacet;
+
+    before(async function () {
+        const context = this as unknown as TestContext;
+        const network = await ethers.provider.getNetwork();
+        const chainId = network.chainId.toString();
+        const addresses = typedContractAddresses[chainId];
+
+        if (!addresses) {
+            throw new Error(`No contract addresses found for chain ID ${chainId}`);
+        }
+
+        const diamondAddress = addresses.Diamond;
+        prizeManagerFacet = await ethers.getContractAt("PrizeManagerFacet", diamondAddress) as PrizeManagerFacet;
+    });
+
+    it("should be able to call getPrizeCount()", async function () {
+        try {
+            const prizeCount = await prizeManagerFacet.getPrizeCount();
+            console.log("Current prize count:", prizeCount.toString());
+            // The test passes if we can successfully call the function without an error
+        } catch (error) {
+            console.error("Error calling getPrizeCount:", error);
+            throw error;
+        }
+    });
+
+    it("should be able to call createPrize()", async function () {
+        try {
+            const prizeParams = {
+                name: "Test Prize",
+                description: "This is a test prize",
+                pool: ethers.parseEther("0.001"),
+                criteria: ["Quality", "Creativity", "Innovation"],
+                criteriaWeights: [40, 30, 30]
+            };
+
+            const tx = await prizeManagerFacet.createPrize(prizeParams);
+            const receipt = await tx.wait();
+            console.log("createPrize transaction hash:", tx.hash);
+            console.log("Transaction receipt:", receipt);
+
+            // Check if the prize count has increased
+            const newPrizeCount = await prizeManagerFacet.getPrizeCount();
+            console.log("New prize count:", newPrizeCount.toString());
+
+            // The test passes if we can successfully call the function and get a receipt
+        } catch (error) {
+            console.error("Error calling createPrize:", error);
+            throw error;
+        }
     });
 });

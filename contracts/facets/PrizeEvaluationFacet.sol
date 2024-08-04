@@ -3,19 +3,17 @@ pragma solidity ^0.8.0;
 
 import "@fhenixprotocol/contracts/FHE.sol";
 import "../libraries/LibAppStorage.sol";
-import "../facets/PrizeACLFacet.sol";
+import "../libraries/LibACL.sol";
 import "../libraries/LibPrize.sol";
 
 contract PrizeEvaluationFacet {
-    PrizeACLFacet acl = PrizeACLFacet(address(this));
-
     function assignScores(
         uint256 prizeId,
         address[] memory contestants,
         inEuint32[][] memory encryptedScores
     ) external {
         require(LibPrize.isState(prizeId, LibPrize.State.Evaluating), "Invalid state");
-        require(acl.isPrizeEvaluator(prizeId, msg.sender), "Caller is not an evaluator for this prize");
+        require(LibACL.isPrizeEvaluator(prizeId, msg.sender), "Caller is not an evaluator for this prize");
         AppStorage storage s = LibAppStorage.diamondStorage();
         Prize storage prize = s.prizes[prizeId];
         require(
@@ -71,29 +69,29 @@ contract PrizeEvaluationFacet {
 
     function addEvaluators(uint256 prizeId, address[] memory _evaluators) external {
         require(LibPrize.isState(prizeId, LibPrize.State.Setup), "Invalid state");
-        require(acl.isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
+        require(LibACL.isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
         for (uint256 i = 0; i < _evaluators.length; i++) {
-            acl.addPrizeEvaluator(prizeId, _evaluators[i]);
+            LibACL.addPrizeEvaluator(prizeId, _evaluators[i]);
         }
         emit LibPrize.EvaluatorsAdded(prizeId, _evaluators);
     }
 
     function removeEvaluators(uint256 prizeId, address[] memory _evaluators) external {
         require(LibPrize.isState(prizeId, LibPrize.State.Setup), "Invalid state");
-        require(acl.isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
+        require(LibACL.isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
         for (uint256 i = 0; i < _evaluators.length; i++) {
-            acl.removePrizeEvaluator(prizeId, _evaluators[i]);
+            LibACL.removePrizeEvaluator(prizeId, _evaluators[i]);
         }
         emit LibPrize.EvaluatorsRemoved(prizeId, _evaluators);
     }
 
     function isEvaluator(uint256 prizeId, address _account) external view returns (bool) {
-        return acl.isPrizeEvaluator(prizeId, _account);
+        return LibACL.isPrizeEvaluator(prizeId, _account);
     }
 
     function assignCriteriaWeights(uint256 prizeId, uint32[] calldata weights) external {
         require(LibPrize.isState(prizeId, LibPrize.State.Setup), "Invalid state");
-        require(acl.isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
+        require(LibACL.isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
         AppStorage storage s = LibAppStorage.diamondStorage();
         Prize storage prize = s.prizes[prizeId];
         require(weights.length == prize.criteriaNames.length, "Mismatch in number of weights");

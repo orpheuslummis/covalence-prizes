@@ -1,9 +1,14 @@
-import { Contract, FunctionFragment } from "ethers";
+import { Contract, ethers, FunctionFragment } from "ethers";
 import * as fs from 'fs';
-import { DeployFunction } from "hardhat-deploy/types";
+import { DeployFunction, Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import * as path from 'path';
 import { IDiamondCut } from "../types";
+
+interface NetworkConfig {
+    chainId: number;
+    // Add other properties as needed
+}
 
 const FacetCutAction = { Add: 0, Replace: 1, Remove: 2 };
 
@@ -32,11 +37,13 @@ function findDuplicateSelectors(cut: IDiamondCut.FacetCutStruct[], facetNames: s
     cut.forEach((facetCut, index) => {
         const facetName = facetNames[index];
         facetCut.functionSelectors.forEach(selector => {
-            if (selectorMap[selector]) {
-                selectorMap[selector].push(facetName);
-                duplicates[selector] = selectorMap[selector];
+            // Convert Uint8Array to hex string
+            const selectorString = ethers.hexlify(selector);
+            if (selectorMap[selectorString]) {
+                selectorMap[selectorString].push(facetName);
+                duplicates[selectorString] = selectorMap[selectorString];
             } else {
-                selectorMap[selector] = [facetName];
+                selectorMap[selectorString] = [facetName];
             }
         });
     });
@@ -54,7 +61,7 @@ function formatDuplicatesMessage(duplicates: { [selector: string]: string[] }): 
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const { deployments, getNamedAccounts, ethers } = hre;
-    const { deploy } = deployments;
+    const { deploy, get } = deployments;
     const { deployer } = await getNamedAccounts();
 
     console.log(`Deploying to network: ${hre.network.name} (Chain ID: ${hre.network.config.chainId})`);
@@ -68,6 +75,17 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         throw new Error("Deployer account has less than 1 ETH. Please fund it before deploying.");
     }
 
+    // Check if Diamond is already deployed
+    let diamondDeployment: Deployment | undefined;
+    try {
+        diamondDeployment = await get('Diamond');
+        console.log('Diamond already deployed at:', diamondDeployment.address);
+        console.log('Skipping deployment...');
+        return; // Exit the function early if Diamond is already deployed
+    } catch (error) {
+        console.log('Diamond not found, proceeding with deployment...');
+    }
+
     // Deploy DiamondCutFacet
     const DiamondCutFacet = await deploy('DiamondCutFacet', {
         from: deployer,
@@ -76,12 +94,12 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     console.log('DiamondCutFacet deployed:', DiamondCutFacet.address);
 
     // Deploy Diamond
-    const Diamond = await deploy('Diamond', {
+    diamondDeployment = await deploy('Diamond', {
         from: deployer,
         args: [deployer, DiamondCutFacet.address],
         log: true,
     });
-    console.log('Diamond deployed:', Diamond.address);
+    console.log('Diamond deployed:', diamondDeployment.address);
 
     // Deploy DiamondInit
     const DiamondInit = await deploy('DiamondInit', {
@@ -160,7 +178,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         });
     });
 
-    const diamondCut = await ethers.getContractAt('IDiamondCut', Diamond.address);
+    const diamondCut = await ethers.getContractAt('IDiamondCut', diamondDeployment.address);
 
     // Perform diamond cut with DiamondInit
     console.log('Performing diamond cut with DiamondInit...');
@@ -168,7 +186,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     let functionCall = diamondInit.interface.encodeFunctionData('init', [deployer]);
     console.log('Encoded init function call:', functionCall);
 
-    console.log('Diamond address:', Diamond.address);
+    console.log('Diamond address:', diamondDeployment.address);
     console.log('DiamondInit address:', DiamondInit.address);
     console.log('Number of facets to add:', cut.length);
 
@@ -181,13 +199,16 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         let tx = await diamondCut.diamondCut(cut, DiamondInit.address, functionCall);
         console.log('Diamond cut tx: ', tx.hash);
         let receipt = await tx.wait();
+        if (!receipt) {
+            throw Error(`Diamond cut failed: transaction ${tx.hash} was not mined`);
+        }
         if (!receipt.status) {
             throw Error(`Diamond cut failed: ${tx.hash}`);
         }
         console.log('Completed diamond cut and initialization');
 
         // Verify facets after diamond cut
-        const diamondLoupeFacet = await ethers.getContractAt('DiamondLoupeFacet', Diamond.address);
+        const diamondLoupeFacet = await ethers.getContractAt('DiamondLoupeFacet', diamondDeployment.address);
         const facets = await diamondLoupeFacet.facets();
         console.log('Facets after diamond cut:');
         for (const facet of facets) {
@@ -196,17 +217,19 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     } catch (error) {
         console.error('Error during diamond cut:', error);
         // Log more details about the error
-        if (error.reason) console.error('Error reason:', error.reason);
-        if (error.code) console.error('Error code:', error.code);
-        if (error.transaction) console.error('Failed transaction:', error.transaction);
+        if (error instanceof Error) {
+            if ('reason' in error) console.error('Error reason:', (error as any).reason);
+            if ('code' in error) console.error('Error code:', (error as any).code);
+            if ('transaction' in error) console.error('Failed transaction:', (error as any).transaction);
+        }
         throw error;
     }
 
     // Verify Diamond setup
-    await verifyDiamond(hre, Diamond.address);
+    await verifyDiamond(hre, diamondDeployment.address);
 
     // Generate contract addresses and ABI files
-    await generateContractAddresses(hre.network.config, deployments);
+    await generateContractAddresses(hre.network.config as NetworkConfig, await deployments.all());
     await generateABIFiles(hre, ['Diamond', 'DiamondInit', ...FacetNames]);
 };
 
@@ -241,10 +264,10 @@ async function getFacetName(hre: HardhatRuntimeEnvironment, facetAddress: string
     return "Unknown Facet";
 }
 
-async function generateContractAddresses(network: any, deployments: any) {
+async function generateContractAddresses(network: NetworkConfig, deployments: { [name: string]: Deployment }) {
     const contractAddresses = {
-        [network.chainId!.toString()]: Object.fromEntries(
-            Object.entries(await deployments.all()).map(([name, deployment]) => [name, deployment.address])
+        [network.chainId.toString()]: Object.fromEntries(
+            Object.entries(deployments).map(([name, deployment]) => [name, deployment.address])
         )
     };
 

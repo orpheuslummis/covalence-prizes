@@ -4,12 +4,10 @@ pragma solidity ^0.8.0;
 import "@fhenixprotocol/contracts/FHE.sol";
 import "../libraries/LibAppStorage.sol";
 import "../libraries/LibPrize.sol";
+import "../libraries/LibACL.sol";
 import "../interfaces/IAllocationStrategy.sol";
-import "../facets/PrizeACLFacet.sol";
 
 contract PrizeRewardFacet {
-    PrizeACLFacet acl = PrizeACLFacet(address(this));
-
     function _getContestantScores(
         uint256 prizeId,
         address[] memory contestants
@@ -53,18 +51,16 @@ contract PrizeRewardFacet {
 
     function allocateRewards(uint256 prizeId) external {
         require(LibPrize.isState(prizeId, LibPrize.State.Evaluating), "Invalid state");
-        require(acl.isPrizeOrganizer(prizeId, msg.sender), "Only prize organizer can allocate rewards");
+        require(LibACL.isPrizeOrganizer(prizeId, msg.sender), "Only prize organizer can allocate rewards");
 
         AppStorage storage s = LibAppStorage.diamondStorage();
         Prize storage prize = s.prizes[prizeId];
 
-        // Add this check
         require(!prize.rewardsAllocated, "Rewards have already been allocated");
 
         address[] memory contestants = prize.contributionList;
         require(contestants.length > 0, "No contestants to allocate rewards");
 
-        // Set the flag before any state-changing operations
         prize.rewardsAllocated = true;
 
         (euint32[] memory scores, uint256[] memory evaluationCounts) = _getContestantScores(prizeId, contestants);

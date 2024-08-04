@@ -11,6 +11,12 @@ struct AppStorage {
     uint256 prizeCount;
     mapping(bytes32 => RoleData) roles;
     bool initialized;
+    mapping(uint256 => PrizeRoles) prizeRoles;
+}
+
+struct PrizeRoles {
+    address organizer;
+    EnumerableSet.AddressSet evaluators;
 }
 
 struct Prize {

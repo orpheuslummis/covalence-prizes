@@ -3,17 +3,15 @@ pragma solidity ^0.8.0;
 
 import "../libraries/LibAppStorage.sol";
 import "../libraries/LibPrize.sol";
-import {PrizeACLFacet} from "./PrizeACLFacet.sol";
+import "../libraries/LibACL.sol";
 
 contract PrizeStateFacet {
-    PrizeACLFacet acl = PrizeACLFacet(address(this));
-
     function getState(uint256 prizeId) external view returns (LibPrize.State) {
         return LibPrize.getPrizeState(prizeId);
     }
 
     function moveToNextState(uint256 prizeId) external {
-        require(acl.isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
+        require(LibACL.isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
         AppStorage storage s = LibAppStorage.diamondStorage();
         Prize storage prize = s.prizes[prizeId];
         LibPrize.State newState;
