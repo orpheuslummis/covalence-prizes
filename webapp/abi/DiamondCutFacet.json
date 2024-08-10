@@ -155,7 +155,7 @@
   },
   {
     "inputs": [],
-    "name": "DEFAULT_ADMIN_ROLE",
+    "name": "ADMIN_ROLE",
     "outputs": [
       {
         "internalType": "bytes32",

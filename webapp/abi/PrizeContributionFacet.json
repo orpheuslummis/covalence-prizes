@@ -29,6 +29,11 @@
         "internalType": "address",
         "name": "contestant",
         "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "contributionIndex",
+        "type": "uint256"
       }
     ],
     "name": "getContribution",
@@ -44,14 +49,14 @@
         "type": "string"
       },
       {
-        "internalType": "euint32",
+        "internalType": "euint16",
         "name": "",
         "type": "uint256"
       },
       {
-        "internalType": "uint256",
+        "internalType": "uint16",
         "name": "",
-        "type": "uint256"
+        "type": "uint16"
       },
       {
         "internalType": "euint32",
@@ -86,6 +91,11 @@
         "internalType": "address",
         "name": "",
         "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",

@@ -9,14 +9,27 @@
         "type": "uint256"
       },
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "strategyAddress",
-        "type": "address"
+        "indexed": false,
+        "internalType": "enum LibPrize.AllocationStrategy",
+        "name": "strategy",
+        "type": "uint8"
       }
     ],
     "name": "AllocationStrategySet",
     "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "getAllAllocationStrategies",
+    "outputs": [
+      {
+        "internalType": "enum LibPrize.AllocationStrategy[]",
+        "name": "",
+        "type": "uint8[]"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
   },
   {
     "inputs": [
@@ -29,9 +42,9 @@
     "name": "getAllocationStrategy",
     "outputs": [
       {
-        "internalType": "contract IAllocationStrategy",
+        "internalType": "enum LibPrize.AllocationStrategy",
         "name": "",
-        "type": "address"
+        "type": "uint8"
       }
     ],
     "stateMutability": "view",
@@ -45,9 +58,9 @@
         "type": "uint256"
       },
       {
-        "internalType": "address",
-        "name": "_strategyAddress",
-        "type": "address"
+        "internalType": "enum LibPrize.AllocationStrategy",
+        "name": "strategy",
+        "type": "uint8"
       }
     ],
     "name": "setAllocationStrategy",

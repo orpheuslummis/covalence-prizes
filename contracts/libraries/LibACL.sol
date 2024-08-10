@@ -8,60 +8,56 @@ import "./LibPrize.sol";
 library LibACL {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
-
-    function diamondStorage() internal pure returns (AppStorage storage ds) {
-        return LibAppStorage.diamondStorage();
-    }
+    bytes32 public constant ADMIN_ROLE = 0x00;
 
     function setPrizeOrganizer(uint256 prizeId, address organizer) internal {
-        AppStorage storage s = diamondStorage();
+        AppStorage storage s = LibAppStorage.diamondStorage();
         s.prizeRoles[prizeId].organizer = organizer;
         emit LibPrize.PrizeOrganizerSet(prizeId, organizer);
     }
 
     function isPrizeOrganizer(uint256 prizeId, address account) internal view returns (bool) {
-        AppStorage storage s = diamondStorage();
+        AppStorage storage s = LibAppStorage.diamondStorage();
         return s.prizeRoles[prizeId].organizer == account;
     }
 
     function addPrizeEvaluator(uint256 prizeId, address evaluator) internal {
-        AppStorage storage s = diamondStorage();
+        AppStorage storage s = LibAppStorage.diamondStorage();
         s.prizeRoles[prizeId].evaluators.add(evaluator);
         emit LibPrize.PrizeEvaluatorAdded(prizeId, evaluator);
     }
 
     function removePrizeEvaluator(uint256 prizeId, address evaluator) internal {
-        AppStorage storage s = diamondStorage();
+        AppStorage storage s = LibAppStorage.diamondStorage();
         s.prizeRoles[prizeId].evaluators.remove(evaluator);
         emit LibPrize.PrizeEvaluatorRemoved(prizeId, evaluator);
     }
 
     function isPrizeEvaluator(uint256 prizeId, address account) internal view returns (bool) {
-        AppStorage storage s = diamondStorage();
+        AppStorage storage s = LibAppStorage.diamondStorage();
         return s.prizeRoles[prizeId].evaluators.contains(account);
     }
 
     function getPrizeEvaluatorCount(uint256 prizeId) internal view returns (uint256) {
-        AppStorage storage s = diamondStorage();
+        AppStorage storage s = LibAppStorage.diamondStorage();
         return s.prizeRoles[prizeId].evaluators.length();
     }
 
     function getPrizeEvaluator(uint256 prizeId, uint256 index) internal view returns (address) {
-        AppStorage storage s = diamondStorage();
+        AppStorage storage s = LibAppStorage.diamondStorage();
         return s.prizeRoles[prizeId].evaluators.at(index);
     }
 
     function hasRole(bytes32 role, address account) internal view returns (bool) {
-        AppStorage storage s = diamondStorage();
-        if (role == DEFAULT_ADMIN_ROLE) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        if (role == ADMIN_ROLE) {
             return s.roles[role].members.contains(account);
         }
         return false;
     }
 
     function _grantRole(bytes32 role, address account) internal returns (bool) {
-        AppStorage storage s = diamondStorage();
+        AppStorage storage s = LibAppStorage.diamondStorage();
         if (!hasRole(role, account)) {
             s.roles[role].members.add(account);
             emit LibPrize.RoleGranted(role, account, msg.sender);
@@ -71,7 +67,7 @@ library LibACL {
     }
 
     function _revokeRole(bytes32 role, address account) internal returns (bool) {
-        AppStorage storage s = diamondStorage();
+        AppStorage storage s = LibAppStorage.diamondStorage();
         if (hasRole(role, account)) {
             s.roles[role].members.remove(account);
             emit LibPrize.RoleRevoked(role, account, msg.sender);

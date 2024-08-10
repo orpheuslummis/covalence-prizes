@@ -31,31 +31,6 @@
     "type": "event"
   },
   {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "prizeId",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "enum LibPrize.State",
-        "name": "oldState",
-        "type": "uint8"
-      },
-      {
-        "indexed": false,
-        "internalType": "enum LibPrize.State",
-        "name": "newState",
-        "type": "uint8"
-      }
-    ],
-    "name": "StateChanged",
-    "type": "event"
-  },
-  {
     "inputs": [
       {
         "internalType": "uint256",

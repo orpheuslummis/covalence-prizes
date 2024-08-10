@@ -1,46 +1,49 @@
 import { ethers } from "ethers";
-import { FhenixClient, Permission } from "fhenixjs";
-import { HardhatRuntimeEnvironment } from "hardhat/types/runtime";
+import { FhenixHardhatRuntimeEnvironment } from "fhenix-hardhat-plugin/src/FhenixHardhatRuntimeEnvironment";
+import { FhenixClient, InstanceParams, Permission } from "fhenixjs";
+import { HardhatRuntimeEnvironment } from "hardhat/types";
 
-type FhenixHRE = {
-  fhenixjs: FhenixClient;
-};
-
-type ExtendedFhenixClient = FhenixClient & Partial<HardhatRuntimeEnvironment> & FhenixHRE;
+type HardhatFhenixClient = FhenixClient & Partial<FhenixHardhatRuntimeEnvironment>;
 
 export interface FheInstance {
-  instance: ExtendedFhenixClient;
+  instance: HardhatFhenixClient;
   permission: Permission;
 }
 
 export async function createFheInstance(
-  hre: any,
-  contractAddress: string
+  hre: HardhatRuntimeEnvironment,
+  contractAddress: string,
+  signer: ethers.Signer
 ): Promise<FheInstance> {
-  // console.log("HRE object:", hre);
+  console.log("Creating FHE instance...");
+  console.log("Contract address:", contractAddress);
 
-  if (!hre._networkName) {
-    throw new Error("Network name is not available in the provided object");
+  let instance: HardhatFhenixClient;
+
+  if (hre.fhenixjs) {
+    console.log("Using hre.fhenixjs");
+    instance = hre.fhenixjs as unknown as HardhatFhenixClient;
+  } else {
+    console.log("fhenixjs not found in HRE, creating a new FhenixClient instance");
+    const params: InstanceParams = {
+      provider: hre.ethers.provider,
+    };
+    instance = new FhenixClient(params) as HardhatFhenixClient;
   }
 
-  const networkName = hre._networkName;
-  console.log("Network name:", networkName);
-
-  const provider = hre.provider;
-  if (!provider) {
-    throw new Error("Provider is not available in the provided object");
+  console.log("Waiting for FHE public key to be initialized...");
+  try {
+    await instance.fhePublicKey;
+    console.log("FHE public key initialized successfully");
+  } catch (error) {
+    console.error("Error initializing FHE public key:", error);
+    throw error;
   }
 
-  const signer = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
-
-  // Initialize FhenixClient
-  const instance = new FhenixClient({
-    provider,
-    signer,
-  }) as ExtendedFhenixClient;
-
-  const permit = await instance.generatePermit(contractAddress);
+  console.log("Generating permit...");
+  const permit = await instance.generatePermit(contractAddress, hre.ethers.provider, signer);
   const permission = instance.extractPermitPermission(permit);
+  console.log("Permit generated successfully");
 
   return {
     instance,

@@ -2,7 +2,7 @@
 
 Covalence Prizes revolutionizes incentive mechanisms by leveraging homomorphic encryption and blockchain technology to create a decentralized, privacy-preserving prize system. This platform empowers organizations to foster innovation, align collective efforts, and distribute rewards with unprecedented transparency and fairness.
 
-## Features
+Features:
 
 - Decentralized prize management with homomorphic smart contracts
 - Privacy-preserving evaluations and reward allocations
@@ -10,7 +10,11 @@ Covalence Prizes revolutionizes incentive mechanisms by leveraging homomorphic e
 - Multi-stakeholder participation (organizers, evaluators, contestants)
 - Customizable allocation strategies
 
-## Quick Start
+What is private and how? The system employs 'selective' privacy-preservation. In particular, the evaluations and the allocation of rewards are private.
+
+## Use it
+
+## Development quick start
 
 Prerequisites: Node.js, pnpm, Hardhat
 
@@ -23,24 +27,19 @@ pnpm compile
 pnpm test
 ```
 
-## Core Components
+## System notes
 
-- `PrizeManager.sol`: Manages prize creation and tracking
-- `PrizeContract.sol`: Handles prize lifecycle, submissions, and evaluations
-- `LinearAllocationStrategy.sol`: Example allocation strategy
+- Diamond pattern, with AppStorage pattern
+-
 
-## Usage
+Current limitations
 
-Refer to `test/Prize.ts` for comprehensive usage examples.
-
-## Limitations
-
-- No support for contestant disqualification
 - Organizer introduces centralization risk - it's possible to replace some parts of it with social choice
+- The 'optimal' system parameters haven't been found, e.g. batch sizes, etc.
 
 ## Development notes
 
-We're developping directly on testnet because fhenix's local devnet didn't work for us.
+We're developping directly on testnet because fhenix's local devnet didn't work for us. Hardhat node doesn't work because of the FHE requirement.
 
 ```
 p compile && p task:deploy --network testnet
@@ -51,11 +50,20 @@ p test
 cd webapp && p dev
 ```
 
-## System notes
+## Ideation
 
-- Diamond pattern, with AppStorage pattern
--
+- Support for non-monetary rewards
+- Support for pluggable external allocation strategies
+- Prize as private fractional NFT
+- Constestant disqualification
+- ACL for prize creation, e.g. requiring magic link login
+- Prize pausability, and overall system pausability
+- Non-linear lifecycle, e.g. to support reverts based on errors or disputes
+- Oracles
+- Document upgrade process
+- Cancel and refund prize
+- React library to integrate easily into another front-end
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) file.s
+MIT License. See [LICENSE](LICENSE) file.

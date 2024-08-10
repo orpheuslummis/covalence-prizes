@@ -19,18 +19,20 @@ contract PrizeStateFacet {
         if (prize.state == LibPrize.State.Setup) {
             require(LibPrize.getPrizeMonetaryRewardPool(prizeId) > 0, "Prize pool must be funded before opening");
             require(
-                LibPrize.getPrizeAllocationStrategy(prizeId) != IAllocationStrategy(address(0)),
-                "Allocation strategy must be set"
+                LibPrize.getPrizeAllocationStrategy(prizeId) != LibPrize.AllocationStrategy.Invalid,
+                "Invalid allocation strategy"
             );
             newState = LibPrize.State.Open;
         } else if (prize.state == LibPrize.State.Open) {
-            require(prize.contributionList.length > 0, "At least one contribution is required");
+            require(prize.contributionAddressList.length > 0, "At least one contribution is required");
             newState = LibPrize.State.Evaluating;
         } else if (prize.state == LibPrize.State.Evaluating) {
-            require(_allContributionsEvaluated(prizeId), "All contributions must be evaluated");
-            newState = LibPrize.State.Rewarding;
-        } else if (prize.state == LibPrize.State.Rewarding) {
-            require(_allRewardsClaimed(prizeId), "All rewards must be claimed");
+            require(prize.evaluatedContributionsCount == prize.contributionCount, "Not all contributions evaluated");
+            newState = LibPrize.State.Allocating;
+        } else if (prize.state == LibPrize.State.Allocating) {
+            newState = LibPrize.State.Claiming;
+        } else if (prize.state == LibPrize.State.Claiming) {
+            require(prize.claimedRewardsCount == prize.contributionCount, "Not all rewards claimed");
             newState = LibPrize.State.Closed;
         } else {
             revert("Cannot move to next state");
@@ -41,27 +43,45 @@ contract PrizeStateFacet {
         emit LibPrize.StateChanged(prizeId, oldState, newState);
     }
 
-    function _allContributionsEvaluated(uint256 prizeId) internal view returns (bool) {
+    function updateEvaluationStatus(uint256 prizeId, address[] calldata contributors) external {
+        require(LibACL.isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
+        require(LibPrize.isState(prizeId, LibPrize.State.Evaluating), "Invalid state");
+
         AppStorage storage s = LibAppStorage.diamondStorage();
         Prize storage prize = s.prizes[prizeId];
-        uint256 i = 0;
-        for (i; i < prize.contributionList.length; i++) {
-            if (prize.contributions[prize.contributionList[i]].evaluationCount == 0) {
-                return false;
+
+        for (uint256 i = 0; i < contributors.length; i++) {
+            address contributor = contributors[i];
+            if (prize.contributions[contributor].length > 0) {
+                Contribution storage contribution = prize.contributions[contributor][
+                    prize.contributions[contributor].length - 1
+                ];
+                if (contribution.evaluationCount > 0 && !prize.contributionEvaluated[contributor]) {
+                    prize.contributionEvaluated[contributor] = true;
+                    prize.evaluatedContributionsCount++;
+                }
             }
         }
-        return true;
     }
 
-    function _allRewardsClaimed(uint256 prizeId) internal view returns (bool) {
+    function updateClaimStatus(uint256 prizeId, address[] calldata contributors) external {
+        require(LibACL.isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
+        require(LibPrize.isState(prizeId, LibPrize.State.Claiming), "Invalid state");
+
         AppStorage storage s = LibAppStorage.diamondStorage();
         Prize storage prize = s.prizes[prizeId];
-        uint256 i = 0;
-        for (i; i < prize.contributionList.length; i++) {
-            if (!prize.contributions[prize.contributionList[i]].claimed) {
-                return false;
+
+        for (uint256 i = 0; i < contributors.length; i++) {
+            address contributor = contributors[i];
+            if (prize.contributions[contributor].length > 0) {
+                Contribution storage contribution = prize.contributions[contributor][
+                    prize.contributions[contributor].length - 1
+                ];
+                if (contribution.claimed && !prize.contributionClaimed[contributor]) {
+                    prize.contributionClaimed[contributor] = true;
+                    prize.claimedRewardsCount++;
+                }
             }
         }
-        return true;
     }
 }

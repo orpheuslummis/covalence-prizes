@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {IDiamondCut} from "../interfaces/IDiamondCut.sol";
+import {LibACL} from "./LibACL.sol";
 
 // Remember to add the loupe functions from DiamondLoupeFacet to the diamond.
 // The loupe functions are required by the EIP2535 Diamonds standard
@@ -24,8 +25,6 @@ library LibDiamond {
         // Used to query if a contract implements an interface.
         // Used to implement ERC-165.
         mapping(bytes4 => bool) supportedInterfaces;
-        // owner of the contract
-        // address contractOwner;
     }
 
     function diamondStorage() internal pure returns (DiamondStorage storage ds) {
@@ -35,22 +34,11 @@ library LibDiamond {
         }
     }
 
-    // event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
-    // function setContractOwner(address _newOwner) internal {
-    //     DiamondStorage storage ds = diamondStorage();
-    //     address previousOwner = ds.contractOwner;
-    //     ds.contractOwner = _newOwner;
-    //     emit OwnershipTransferred(previousOwner, _newOwner);
-    // }
-
-    // function contractOwner() internal view returns (address contractOwner_) {
-    //     contractOwner_ = diamondStorage().contractOwner;
-    // }
-
-    // function enforceIsContractOwner() internal view {
-    //     require(msg.sender == diamondStorage().contractOwner, "LibDiamond: Must be contract owner");
-    // }
+    function enforceIsAdmin() internal view {
+        LibACL.checkRole(LibACL.ADMIN_ROLE, msg.sender);
+    }
 
     event DiamondCut(IDiamondCut.FacetCut[] _diamondCut, address _init, bytes _calldata);
 

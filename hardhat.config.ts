@@ -12,9 +12,17 @@ import "./tasks";
 const dotenvConfigPath: string = process.env.DOTENV_CONFIG_PATH || "./.env.local";
 dotenvConfig({ path: resolve(__dirname, dotenvConfigPath) });
 
-const PRIVATE_KEY = process.env.PRIVATE_KEY;
-if (!PRIVATE_KEY) {
-  throw new Error("Please set your PRIVATE_KEY in a .env file");
+const PRIVATE_KEYS = [
+  process.env.PRIVATE_KEY,
+  process.env.PRIVATE_KEY_1,
+  process.env.PRIVATE_KEY_2,
+  process.env.PRIVATE_KEY_3,
+  process.env.PRIVATE_KEY_4,
+  process.env.PRIVATE_KEY_5
+].filter((key): key is string => typeof key === 'string');
+
+if (PRIVATE_KEYS.length === 0) {
+  throw new Error("Please set at least one PRIVATE_KEY in your .env.local file");
 }
 
 const config: HardhatUserConfig = {
@@ -25,12 +33,12 @@ const config: HardhatUserConfig = {
       // debug: { revertStrings: "debug" }
     }
   },
-  defaultNetwork: "localhost",
+  defaultNetwork: "testnet",
   networks: {
     testnet: {
       chainId: fhenixTestnet.id,
       url: fhenixTestnet.rpcUrls.default.http[0],
-      accounts: [PRIVATE_KEY],
+      accounts: PRIVATE_KEYS,
     }
   },
   namedAccounts: {
@@ -58,6 +66,9 @@ const config: HardhatUserConfig = {
   sourcify: {
     enabled: false
   },
+  mocha: {
+    timeout: 300000 // 5 minutes
+  }
 };
 
 export default config;

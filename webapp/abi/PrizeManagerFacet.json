@@ -74,9 +74,14 @@
             "type": "string[]"
           },
           {
-            "internalType": "uint32[]",
+            "internalType": "uint16[]",
             "name": "criteriaWeights",
-            "type": "uint32[]"
+            "type": "uint16[]"
+          },
+          {
+            "internalType": "enum LibPrize.AllocationStrategy",
+            "name": "strategy",
+            "type": "uint8"
           }
         ],
         "internalType": "struct PrizeManagerFacet.PrizeParams",
@@ -156,9 +161,9 @@
             "type": "string[]"
           },
           {
-            "internalType": "uint32[]",
+            "internalType": "uint16[]",
             "name": "criteriaWeights",
-            "type": "uint32[]"
+            "type": "uint16[]"
           },
           {
             "internalType": "uint256",
@@ -166,9 +171,9 @@
             "type": "uint256"
           },
           {
-            "internalType": "contract IAllocationStrategy",
+            "internalType": "enum LibPrize.AllocationStrategy",
             "name": "strategy",
-            "type": "address"
+            "type": "uint8"
           },
           {
             "internalType": "uint256",
@@ -185,7 +190,18 @@
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "startIndex",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "count",
+        "type": "uint256"
+      }
+    ],
     "name": "getPrizes",
     "outputs": [
       {
@@ -226,9 +242,9 @@
             "type": "string[]"
           },
           {
-            "internalType": "uint32[]",
+            "internalType": "uint16[]",
             "name": "criteriaWeights",
-            "type": "uint32[]"
+            "type": "uint16[]"
           },
           {
             "internalType": "uint256",
@@ -236,9 +252,9 @@
             "type": "uint256"
           },
           {
-            "internalType": "contract IAllocationStrategy",
+            "internalType": "enum LibPrize.AllocationStrategy",
             "name": "strategy",
-            "type": "address"
+            "type": "uint8"
           },
           {
             "internalType": "uint256",
@@ -249,6 +265,19 @@
         "internalType": "struct PrizeManagerFacet.PrizeDetails[]",
         "name": "",
         "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getTotalPrizeCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",

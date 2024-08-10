@@ -20,7 +20,7 @@ export const usePrizeContract = (prizeAddress: Address) => {
     const { data: hasAdminRole, isLoading: isLoadingAdminRole } = useReadContract({
         ...prizeContractConfig,
         functionName: 'hasRole',
-        args: [config.contracts.PrizeContract.roles['DEFAULT_ADMIN_ROLE'], connectedAddress!],
+        args: [config.contracts.PrizeContract.roles['ADMIN_ROLE'], connectedAddress!],
         query: {
             enabled: !!prizeAddress && !!connectedAddress,
         },

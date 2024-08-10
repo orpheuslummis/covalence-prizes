@@ -4,7 +4,7 @@ import {
     UsePublicClientReturnType
 } from 'wagmi';
 
-export type Role = 'DEFAULT_ADMIN_ROLE' | 'EVALUATOR_ROLE' | 'CONTESTANT_ROLE';
+export type Role = 'ADMIN_ROLE' | 'EVALUATOR_ROLE' | 'CONTESTANT_ROLE';
 export type UserRoles = Role[];
 
 export enum State {

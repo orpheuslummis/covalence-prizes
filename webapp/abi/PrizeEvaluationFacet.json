@@ -10,9 +10,9 @@
       },
       {
         "indexed": false,
-        "internalType": "uint32[]",
+        "internalType": "uint16[]",
         "name": "weights",
-        "type": "uint32[]"
+        "type": "uint16[]"
       }
     ],
     "name": "CriteriaWeightsAssigned",
@@ -111,18 +111,18 @@
       },
       {
         "indexed": false,
-        "internalType": "address[]",
-        "name": "contestants",
-        "type": "address[]"
+        "internalType": "address",
+        "name": "contestant",
+        "type": "address"
       },
       {
         "indexed": false,
-        "internalType": "uint256[]",
-        "name": "scoreCounts",
-        "type": "uint256[]"
+        "internalType": "uint256",
+        "name": "scoreCount",
+        "type": "uint256"
       }
     ],
-    "name": "ScoresAssigned",
+    "name": "ScoreAssigned",
     "type": "event"
   },
   {
@@ -151,9 +151,9 @@
         "type": "uint256"
       },
       {
-        "internalType": "uint32[]",
+        "internalType": "uint16[]",
         "name": "weights",
-        "type": "uint32[]"
+        "type": "uint16[]"
       }
     ],
     "name": "assignCriteriaWeights",
@@ -169,9 +169,9 @@
         "type": "uint256"
       },
       {
-        "internalType": "address[]",
-        "name": "contestants",
-        "type": "address[]"
+        "internalType": "address",
+        "name": "contestant",
+        "type": "address"
       },
       {
         "components": [
@@ -181,12 +181,12 @@
             "type": "bytes"
           }
         ],
-        "internalType": "struct inEuint32[][]",
+        "internalType": "struct inEuint8[]",
         "name": "encryptedScores",
-        "type": "tuple[][]"
+        "type": "tuple[]"
       }
     ],
-    "name": "assignScores",
+    "name": "assignScoreForContestant",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -207,9 +207,9 @@
     "name": "getEvaluationCount",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "uint16",
         "name": "",
-        "type": "uint256"
+        "type": "uint16"
       }
     ],
     "stateMutability": "view",
@@ -234,30 +234,6 @@
       }
     ],
     "name": "hasEvaluatorScoredContestant",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "prizeId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "_account",
-        "type": "address"
-      }
-    ],
-    "name": "isEvaluator",
     "outputs": [
       {
         "internalType": "bool",

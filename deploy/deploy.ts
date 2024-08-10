@@ -1,9 +1,8 @@
-import { Contract, ethers, FunctionFragment } from "ethers";
+import { Contract, FunctionFragment } from "ethers";
 import * as fs from 'fs';
 import { DeployFunction, Deployment } from "hardhat-deploy/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import * as path from 'path';
-import { IDiamondCut } from "../types";
 
 interface NetworkConfig {
     chainId: number;
@@ -12,38 +11,42 @@ interface NetworkConfig {
 
 const FacetCutAction = { Add: 0, Replace: 1, Remove: 2 };
 
-function getSelectors(contract: Contract): { selector: string; name: string }[] {
+interface Selector {
+    selector: string;
+    name: string;
+    facetName: string;  // Add this line
+}
+
+function getSelectors(contract: Contract, facetName: string): Selector[] {
     const signatures = Object.values(
         contract.interface.fragments.filter(
             (fragment) => fragment.type === "function"
         )
     ) as FunctionFragment[];
 
-    return signatures.reduce<{ selector: string; name: string }[]>((acc, val) => {
+    return signatures.reduce<Selector[]>((acc, val) => {
         if (val.format("sighash") !== "init(bytes)") {
             acc.push({
                 selector: val.selector,
-                name: val.name
+                name: val.name,
+                facetName: facetName  // Add this line
             });
         }
         return acc;
     }, []);
 }
 
-function findDuplicateSelectors(cut: IDiamondCut.FacetCutStruct[], facetNames: string[]): { [selector: string]: string[] } {
-    const selectorMap: { [selector: string]: string[] } = {};
-    const duplicates: { [selector: string]: string[] } = {};
+function findDuplicateSelectors(facetCuts: { facetName: string; selectors: Selector[] }[]): { [selector: string]: Selector[] } {
+    const selectorMap: { [selector: string]: Selector[] } = {};
+    const duplicates: { [selector: string]: Selector[] } = {};
 
-    cut.forEach((facetCut, index) => {
-        const facetName = facetNames[index];
-        facetCut.functionSelectors.forEach(selector => {
-            // Convert Uint8Array to hex string
-            const selectorString = ethers.hexlify(selector);
-            if (selectorMap[selectorString]) {
-                selectorMap[selectorString].push(facetName);
-                duplicates[selectorString] = selectorMap[selectorString];
+    facetCuts.forEach(({ facetName, selectors }) => {
+        selectors.forEach(selector => {
+            if (selectorMap[selector.selector]) {
+                selectorMap[selector.selector].push({ ...selector, facetName });
+                duplicates[selector.selector] = selectorMap[selector.selector];
             } else {
-                selectorMap[selectorString] = [facetName];
+                selectorMap[selector.selector] = [{ ...selector, facetName }];
             }
         });
     });
@@ -51,23 +54,32 @@ function findDuplicateSelectors(cut: IDiamondCut.FacetCutStruct[], facetNames: s
     return duplicates;
 }
 
-function formatDuplicatesMessage(duplicates: { [selector: string]: string[] }): string {
+function formatDuplicatesMessage(duplicates: { [selector: string]: Selector[] }): string {
     let message = "Duplicate selectors found:\n";
-    for (const [selector, facets] of Object.entries(duplicates)) {
-        message += `  Selector ${selector} is present in facets: ${facets.join(", ")}\n`;
+    for (const [selector, selectorInfo] of Object.entries(duplicates)) {
+        message += `  Selector ${selector} (${selectorInfo[0].name}) is present in facets:\n`;
+        selectorInfo.forEach(info => {
+            message += `    - ${info.facetName}\n`;
+        });
     }
     return message;
 }
 
+// Add this function to get contract size
+async function getContractSize(hre: HardhatRuntimeEnvironment, contractName: string): Promise<number> {
+    const artifact = await hre.artifacts.readArtifact(contractName);
+    return artifact.deployedBytecode.length / 2 - 1; // Convert bytes to size in bytes
+}
+
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const { deployments, getNamedAccounts, ethers } = hre;
-    const { deploy, get } = deployments;
+    const { deploy } = deployments;
     const { deployer } = await getNamedAccounts();
 
     console.log(`Deploying to network: ${hre.network.name} (Chain ID: ${hre.network.config.chainId})`);
     console.log(`Deployer address: ${deployer}`);
 
-    // Add this balance check
+    // Check deployer balance
     const balance = await ethers.provider.getBalance(deployer);
     console.log(`Deployer balance: ${ethers.formatEther(balance)} ETH`);
 
@@ -75,38 +87,31 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         throw new Error("Deployer account has less than 1 ETH. Please fund it before deploying.");
     }
 
-    // Check if Diamond is already deployed
-    let diamondDeployment: Deployment | undefined;
-    try {
-        diamondDeployment = await get('Diamond');
-        console.log('Diamond already deployed at:', diamondDeployment.address);
-        console.log('Skipping deployment...');
-        return; // Exit the function early if Diamond is already deployed
-    } catch (error) {
-        console.log('Diamond not found, proceeding with deployment...');
+    // Force new deployment by adding a timestamp to the contract name
+    const timestamp = Date.now();
+
+    // Helper function to deploy and log size
+    async function deployAndLogSize(name: string, contract: string, args: any[] = []) {
+        const deployment = await deploy(`${name}_${timestamp}`, {
+            from: deployer,
+            contract: contract,
+            args: args,
+            log: true,
+        });
+        const size = await getContractSize(hre, contract);
+        console.log(`${name} deployed at ${deployment.address}`);
+        console.log(`${name} size: ${size} bytes`);
+        return deployment;
     }
 
     // Deploy DiamondCutFacet
-    const DiamondCutFacet = await deploy('DiamondCutFacet', {
-        from: deployer,
-        log: true,
-    });
-    console.log('DiamondCutFacet deployed:', DiamondCutFacet.address);
+    const DiamondCutFacet = await deployAndLogSize('DiamondCutFacet', 'DiamondCutFacet');
 
     // Deploy Diamond
-    diamondDeployment = await deploy('Diamond', {
-        from: deployer,
-        args: [deployer, DiamondCutFacet.address],
-        log: true,
-    });
-    console.log('Diamond deployed:', diamondDeployment.address);
+    const Diamond = await deployAndLogSize('Diamond', 'Diamond', [deployer, DiamondCutFacet.address]);
 
     // Deploy DiamondInit
-    const DiamondInit = await deploy('DiamondInit', {
-        from: deployer,
-        log: true,
-    });
-    console.log('DiamondInit deployed:', DiamondInit.address);
+    const DiamondInit = await deployAndLogSize('DiamondInit', 'DiamondInit');
 
     // Deploy facets
     console.log('Deploying facets');
@@ -120,113 +125,55 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         'PrizeStateFacet',
         'PrizeStrategyFacet',
         'PrizeFundingFacet',
+        'FHETestFacet',
     ];
     const cut = [];
+    const facetCuts = [];
+
     for (const FacetName of FacetNames) {
-        const Facet = await deploy(FacetName, {
-            from: deployer,
-            log: true,
-        });
-        console.log(`${FacetName} deployed: ${Facet.address}`);
+        const Facet = await deployAndLogSize(FacetName, FacetName);
         const facetContract = await ethers.getContractAt(FacetName, Facet.address);
-        const selectors = getSelectors(facetContract);
+        const selectors = getSelectors(facetContract, FacetName);  // Pass FacetName here
         cut.push({
             facetAddress: Facet.address,
             action: FacetCutAction.Add,
             functionSelectors: selectors.map(s => s.selector)
         });
-        console.log(`${FacetName} selectors:`);
-        selectors.forEach(s => console.log(`  ${s.selector}: ${s.name}`));
-    }
-
-    // Add this function to check contract size
-    async function checkContractSize(contractName: string) {
-        const artifact = await hre.artifacts.readArtifact(contractName);
-        const bytecode = artifact.bytecode;
-        const sizeInBytes = bytecode.length / 2 - 1;
-        const sizeInKB = sizeInBytes / 1024;
-        console.log(`${contractName} size: ${sizeInKB.toFixed(2)} KB`);
-        if (sizeInKB > 24) {
-            console.warn(`Warning: ${contractName} is larger than 24KB (${sizeInKB.toFixed(2)} KB)`);
-        }
-    }
-
-    // Check sizes of all facets and main contracts
-    console.log('\nChecking contract sizes:');
-    await checkContractSize('DiamondCutFacet');
-    await checkContractSize('Diamond');
-    await checkContractSize('DiamondInit');
-    for (const FacetName of FacetNames) {
-        await checkContractSize(FacetName);
+        facetCuts.push({ facetName: FacetName, selectors });
+        console.log(`${FacetName} selectors:`, selectors.map(s => `${s.selector}: ${s.name}`).join(', '));
     }
 
     // Check for duplicate selectors
-    const duplicates = findDuplicateSelectors(cut, FacetNames);
+    const duplicates = findDuplicateSelectors(facetCuts);
     if (Object.keys(duplicates).length > 0) {
         console.error(formatDuplicatesMessage(duplicates));
-        throw new Error("Duplicate selectors found. Please check the facet implementations.");
+        throw new Error("Duplicate selectors found. Deployment aborted.");
     }
 
-    // Upgrade diamond with facets
-    console.log('Diamond Cut:');
-    cut.forEach((facetCut, index) => {
-        console.log(`Facet ${index + 1}: ${FacetNames[index]}`);
-        console.log(`  Address: ${facetCut.facetAddress}`);
-        console.log('  Function Selectors:');
-        facetCut.functionSelectors.forEach(selector => {
-            console.log(`    ${selector}`);
-        });
-    });
-
-    const diamondCut = await ethers.getContractAt('IDiamondCut', diamondDeployment.address);
-
-    // Perform diamond cut with DiamondInit
-    console.log('Performing diamond cut with DiamondInit...');
+    // Perform diamond cut
+    console.log('Performing diamond cut...');
+    const diamondCut = await ethers.getContractAt('IDiamondCut', Diamond.address);
     const diamondInit = await ethers.getContractAt('DiamondInit', DiamondInit.address);
-    let functionCall = diamondInit.interface.encodeFunctionData('init', [deployer]);
-    console.log('Encoded init function call:', functionCall);
-
-    console.log('Diamond address:', diamondDeployment.address);
-    console.log('DiamondInit address:', DiamondInit.address);
-    console.log('Number of facets to add:', cut.length);
-
-    console.log('Diamond cut parameters:');
-    console.log('cut:', JSON.stringify(cut, null, 2));
-    console.log('init address:', DiamondInit.address);
-    console.log('init calldata:', functionCall);
+    let functionCall = diamondInit.interface.encodeFunctionData('init');
 
     try {
-        let tx = await diamondCut.diamondCut(cut, DiamondInit.address, functionCall);
+        const tx = await diamondCut.diamondCut(cut, DiamondInit.address, functionCall);
         console.log('Diamond cut tx: ', tx.hash);
-        let receipt = await tx.wait();
-        if (!receipt) {
-            throw Error(`Diamond cut failed: transaction ${tx.hash} was not mined`);
+        const receipt = await tx.wait();
+        if (receipt === null) {
+            throw Error(`Diamond upgrade failed: transaction ${tx.hash} was not mined`);
         }
         if (!receipt.status) {
-            throw Error(`Diamond cut failed: ${tx.hash}`);
+            throw Error(`Diamond upgrade failed: ${tx.hash}`);
         }
-        console.log('Completed diamond cut and initialization');
-
-        // Verify facets after diamond cut
-        const diamondLoupeFacet = await ethers.getContractAt('DiamondLoupeFacet', diamondDeployment.address);
-        const facets = await diamondLoupeFacet.facets();
-        console.log('Facets after diamond cut:');
-        for (const facet of facets) {
-            console.log(`Address: ${facet.facetAddress}, Function selectors: ${facet.functionSelectors}`);
-        }
+        console.log('Completed diamond cut');
     } catch (error) {
         console.error('Error during diamond cut:', error);
-        // Log more details about the error
-        if (error instanceof Error) {
-            if ('reason' in error) console.error('Error reason:', (error as any).reason);
-            if ('code' in error) console.error('Error code:', (error as any).code);
-            if ('transaction' in error) console.error('Failed transaction:', (error as any).transaction);
-        }
         throw error;
     }
 
     // Verify Diamond setup
-    await verifyDiamond(hre, diamondDeployment.address);
+    await verifyDiamond(hre, Diamond.address);
 
     // Generate contract addresses and ABI files
     await generateContractAddresses(hre.network.config as NetworkConfig, await deployments.all());
@@ -242,8 +189,10 @@ async function verifyDiamond(hre: HardhatRuntimeEnvironment, diamondAddress: str
 
     for (const facet of facets) {
         const facetName = await getFacetName(hre, facet.facetAddress);
-        const facetContract = await hre.ethers.getContractAt(facetName, facet.facetAddress);
-        console.log(`\nFacet: ${facetName}`);
+        // Use the original contract name without timestamp
+        const originalFacetName = facetName.split('_')[0];
+        const facetContract = await hre.ethers.getContractAt(originalFacetName, facet.facetAddress);
+        console.log(`\nFacet: ${originalFacetName}`);
         console.log(`Address: ${facet.facetAddress}`);
         console.log('Function Selectors:');
         for (const selector of facet.functionSelectors) {
@@ -265,10 +214,25 @@ async function getFacetName(hre: HardhatRuntimeEnvironment, facetAddress: string
 }
 
 async function generateContractAddresses(network: NetworkConfig, deployments: { [name: string]: Deployment }) {
+    const latestDeployments: { [key: string]: string } = {};
+
+    // Sort deployments by timestamp (assuming the timestamp is part of the name)
+    const sortedDeployments = Object.entries(deployments).sort((a, b) => {
+        const timestampA = parseInt(a[0].split('_')[1] || '0');
+        const timestampB = parseInt(b[0].split('_')[1] || '0');
+        return timestampB - timestampA;
+    });
+
+    // Keep only the latest deployment for each contract type
+    for (const [name, deployment] of sortedDeployments) {
+        const baseName = name.split('_')[0];
+        if (!latestDeployments[baseName]) {
+            latestDeployments[baseName] = deployment.address;
+        }
+    }
+
     const contractAddresses = {
-        [network.chainId.toString()]: Object.fromEntries(
-            Object.entries(deployments).map(([name, deployment]) => [name, deployment.address])
-        )
+        [network.chainId.toString()]: latestDeployments
     };
 
     const contractAddressesPath = path.join(__dirname, '..', 'webapp', 'contract-addresses.json');
@@ -283,10 +247,12 @@ async function generateABIFiles(hre: HardhatRuntimeEnvironment, contractNames: s
     }
 
     for (const contractName of contractNames) {
-        const artifact = await hre.artifacts.readArtifact(contractName);
-        const abiPath = path.join(abiDir, `${contractName}.json`);
+        // Always use the base contract name without timestamp
+        const baseContractName = contractName.split('_')[0];
+        const artifact = await hre.artifacts.readArtifact(baseContractName);
+        const abiPath = path.join(abiDir, `${baseContractName}.json`);
         fs.writeFileSync(abiPath, JSON.stringify(artifact.abi, null, 2));
-        console.log(`${contractName} ABI written to ${abiPath}`);
+        console.log(`${baseContractName} ABI written to ${abiPath}`);
     }
 }
 

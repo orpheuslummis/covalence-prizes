@@ -6,39 +6,38 @@ import "../libraries/LibAppStorage.sol";
 import "../libraries/LibPrize.sol";
 
 contract PrizeContributionFacet {
-    event ContributionAdded(address contestant, string description);
-
     function submitContribution(uint256 prizeId, string memory _description) external {
-        require(LibPrize.isState(prizeId, LibPrize.State.Open), "Invalid state");
         AppStorage storage s = LibAppStorage.diamondStorage();
+        require(LibPrize.isState(prizeId, LibPrize.State.Open), "Invalid state");
         require(bytes(_description).length > 0, "Description cannot be empty");
-        require(
-            s.prizes[prizeId].contributions[msg.sender].contestant == address(0),
-            "Contestant has already submitted"
-        );
 
-        s.prizes[prizeId].contributions[msg.sender] = Contribution({
+        Prize storage prize = s.prizes[prizeId];
+
+        Contribution memory newContribution = Contribution({
             contestant: msg.sender,
             description: _description,
-            aggregatedScore: FHE.asEuint32(0),
+            aggregatedScore: FHE.asEuint16(0),
             evaluationCount: 0,
             reward: FHE.asEuint32(0),
             claimed: false
         });
 
-        s.prizes[prizeId].contributionList.push(msg.sender);
-        s.prizes[prizeId].contributionCount++;
-        // s.contributionIndexToAddress[s.prizes[prizeId].contributionCount] = msg.sender;
+        prize.contributions[msg.sender].push(newContribution);
+        prize.contributionAddressList.push(msg.sender);
+        prize.contributionCount++;
 
-        emit ContributionAdded(msg.sender, _description);
+        emit LibPrize.ContributionAdded(msg.sender, _description);
     }
 
     function getContribution(
         uint256 prizeId,
-        address contestant
-    ) external view returns (address, string memory, euint32, uint256, euint32, bool) {
+        address contestant,
+        uint256 contributionIndex
+    ) external view returns (address, string memory, euint16, uint16, euint32, bool) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        Contribution storage contribution = s.prizes[prizeId].contributions[contestant];
+        Contribution[] storage contributions = s.prizes[prizeId].contributions[contestant];
+        require(contributionIndex < contributions.length, "Invalid contribution index");
+        Contribution storage contribution = contributions[contributionIndex];
         return (
             contribution.contestant,
             contribution.description,
@@ -49,9 +48,10 @@ contract PrizeContributionFacet {
         );
     }
 
+    // todo batch
     function getContributionList(uint256 prizeId) external view returns (address[] memory) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        return s.prizes[prizeId].contributionList;
+        return s.prizes[prizeId].contributionAddressList;
     }
 
     function getContributionCount(uint256 prizeId) external view returns (uint256) {
@@ -59,9 +59,11 @@ contract PrizeContributionFacet {
         return s.prizes[prizeId].contributionCount;
     }
 
-    function getContributionByIndex(uint256 prizeId, uint256 index) external view returns (address) {
+    function getContributionByIndex(uint256 prizeId, uint256 index) external view returns (address, uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         require(index < s.prizes[prizeId].contributionCount, "Index out of bounds");
-        return s.prizes[prizeId].contributionList[index];
+        address contestant = s.prizes[prizeId].contributionAddressList[index];
+        uint256 contributionIndex = s.prizes[prizeId].contributions[contestant].length - 1;
+        return (contestant, contributionIndex);
     }
 }

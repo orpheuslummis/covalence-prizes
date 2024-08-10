@@ -1,12 +1,6 @@
 [
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_admin",
-        "type": "address"
-      }
-    ],
+    "inputs": [],
     "name": "init",
     "outputs": [],
     "stateMutability": "nonpayable",

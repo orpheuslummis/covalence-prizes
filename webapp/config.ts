@@ -88,7 +88,7 @@ export const config = {
             roles: {
                 ...prizeContractRoles,
                 // Update these to match the smart contract
-                DEFAULT_ADMIN_ROLE: '0x0000000000000000000000000000000000000000000000000000000000000000',
+                ADMIN_ROLE: '0x0000000000000000000000000000000000000000000000000000000000000000',
                 EVALUATOR_ROLE: keccak256(toBytes("EVALUATOR")),
             }
         },

@@ -10,7 +10,7 @@ import { Prize, UserRoles } from './types';
 const PRIZES_PER_PAGE = 9;
 
 const isUserActiveInPrize = (prize: Prize, userRoles: UserRoles) => {
-  return userRoles.includes('DEFAULT_ADMIN_ROLE') || userRoles.includes('EVALUATOR_ROLE');
+  return userRoles.includes('ADMIN_ROLE') || userRoles.includes('EVALUATOR_ROLE');
 };
 
 export default function Home() {

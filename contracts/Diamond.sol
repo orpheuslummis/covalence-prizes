@@ -3,11 +3,11 @@ pragma solidity ^0.8.0;
 
 import {LibDiamond} from "./libraries/LibDiamond.sol";
 import {IDiamondCut} from "./interfaces/IDiamondCut.sol";
-import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
+import {LibACL} from "./libraries/LibACL.sol";
 
-contract Diamond is AccessControlEnumerable {
+contract Diamond {
     constructor(address _admin, address _diamondCutFacet) payable {
-        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+        LibACL._grantRole(LibACL.ADMIN_ROLE, _admin);
 
         // Add the diamondCut external function from the diamondCutFacet
         IDiamondCut.FacetCut[] memory cut = new IDiamondCut.FacetCut[](1);
