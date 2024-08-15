@@ -2,6 +2,7 @@ import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-verify";
 import { config as dotenvConfig } from "dotenv";
+import "fhenix-hardhat-docker";
 import "fhenix-hardhat-plugin";
 import "hardhat-deploy";
 import { HardhatUserConfig } from "hardhat/config";
@@ -67,6 +68,7 @@ const config: HardhatUserConfig = {
     enabled: false
   },
   mocha: {
+    reporter: "spec",
     timeout: 300000 // 5 minutes
   }
 };

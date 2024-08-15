@@ -3,15 +3,8 @@ pragma solidity ^0.8.0;
 
 import "../libraries/LibAppStorage.sol";
 import "../libraries/LibACL.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 contract PrizeACLFacet {
-    using EnumerableSet for EnumerableSet.AddressSet;
-
-    function getAdminRole() public pure returns (bytes32) {
-        return LibACL.ADMIN_ROLE;
-    }
-
     modifier onlyDefaultAdmin() {
         LibACL.checkRole(LibACL.ADMIN_ROLE, msg.sender);
         _;
@@ -27,16 +20,34 @@ contract PrizeACLFacet {
         _;
     }
 
-    function setPrizeOrganizer(uint256 prizeId, address organizer) external onlyDefaultAdmin {
-        LibACL.setPrizeOrganizer(prizeId, organizer);
-    }
-
     function addPrizeEvaluator(uint256 prizeId, address evaluator) external onlyPrizeOrganizer(prizeId) {
         LibACL.addPrizeEvaluator(prizeId, evaluator);
     }
 
+    function addEvaluators(uint256 prizeId, address[] memory _evaluators) external {
+        require(LibPrize.isState(prizeId, LibPrize.State.Setup), "Invalid state");
+        require(isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
+        for (uint256 i = 0; i < _evaluators.length; i++) {
+            LibACL.addPrizeEvaluator(prizeId, _evaluators[i]);
+        }
+        emit LibPrize.EvaluatorsAdded(prizeId, _evaluators);
+    }
+
+    function isEvaluator(uint256 prizeId, address evaluator) external view returns (bool) {
+        return LibACL.isPrizeEvaluator(prizeId, evaluator);
+    }
+
     function removePrizeEvaluator(uint256 prizeId, address evaluator) external onlyPrizeOrganizer(prizeId) {
         LibACL.removePrizeEvaluator(prizeId, evaluator);
+    }
+
+    function removeEvaluators(uint256 prizeId, address[] memory _evaluators) external {
+        require(LibPrize.isState(prizeId, LibPrize.State.Setup), "Invalid state");
+        require(isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
+        for (uint256 i = 0; i < _evaluators.length; i++) {
+            LibACL.removePrizeEvaluator(prizeId, _evaluators[i]);
+        }
+        emit LibPrize.EvaluatorsRemoved(prizeId, _evaluators);
     }
 
     function isPrizeOrganizer(uint256 prizeId, address account) public view returns (bool) {
@@ -49,28 +60,5 @@ contract PrizeACLFacet {
 
     function getPrizeEvaluatorCount(uint256 prizeId) public view returns (uint256) {
         return LibACL.getPrizeEvaluatorCount(prizeId);
-    }
-
-    function getPrizeEvaluator(uint256 prizeId, uint256 index) public view returns (address) {
-        return LibACL.getPrizeEvaluator(prizeId, index);
-    }
-
-    function hasRole(bytes32 role, address account) public view returns (bool) {
-        return LibACL.hasRole(role, account);
-    }
-
-    function grantRole(bytes32 role, address account) public virtual onlyDefaultAdmin {
-        require(role == LibACL.ADMIN_ROLE, "Only ADMIN_ROLE can grant roles");
-        LibACL._grantRole(role, account);
-    }
-
-    function revokeRole(bytes32 role, address account) public virtual onlyDefaultAdmin {
-        require(role == LibACL.ADMIN_ROLE, "Only ADMIN_ROLE can revoke roles");
-        LibACL._revokeRole(role, account);
-    }
-
-    function renounceRole(bytes32 role, address account) public virtual {
-        require(account == msg.sender, "ACL: can only renounce roles for self");
-        LibACL._revokeRole(role, account);
     }
 }

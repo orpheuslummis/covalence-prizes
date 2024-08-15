@@ -1,13 +1,14 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { useAccount, useWaitForTransaction } from 'wagmi';
+import { Hash } from 'viem';
+import { useAccount } from 'wagmi';
+import { useAppContext } from '../../../../app/AppContext';
 import { useError } from '../../../../hooks/useError';
-import { usePrizeContract } from '../../../../hooks/usePrizeContract';
-import { usePrizeManager } from '../../../../hooks/usePrizeManager';
-import { State } from '../../../types';
+import { State } from '../../../../types';
 
 export default function SubmitContributionPage() {
     const { prizeId } = useParams();
@@ -16,33 +17,25 @@ export default function SubmitContributionPage() {
     const { handleError } = useError();
     const [description, setDescription] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
+    const { prizeDiamond, blockNumber } = useAppContext();
 
     const {
         submitContribution,
-        contribution,
-        refetchContribution,
-        roles,
-        isLoadingRoles,
-        currentState,
-    } = usePrizeContract(prizeId as `0x${string}`);
+        getPrizeDetails,
+        getState,
+    } = prizeDiamond;
 
-    const { getPrize } = usePrizeManager();
-    const { data: prize, isLoading: isPrizeLoading, error: prizeError } = getPrize(prizeId as string);
-
-    const { data: receipt, isLoading: isWaitingForReceipt } = useWaitForTransactionReceipt({
-        hash: txHash,
-        query: {
-            enabled: !!txHash,
-        },
+    const { data: prizeDetails, isLoading: isLoadingPrizeDetails } = useQuery({
+        queryKey: ['prizeDetails', prizeId, blockNumber],
+        queryFn: () => getPrizeDetails(BigInt(prizeId as string)),
+        enabled: !!prizeId,
     });
 
-    useEffect(() => {
-        if (receipt && receipt.status === 1) { // or receipt.status === '0x1'
-            toast.success('Contribution submitted successfully!');
-            router.push(`/prize/${prizeId}`);
-        }
-    }, [receipt, router, prizeId]);
+    const { data: currentState, isLoading: isLoadingState } = useQuery({
+        queryKey: ['prizeState', prizeId, blockNumber],
+        queryFn: () => getState(BigInt(prizeId as string)),
+        enabled: !!prizeId,
+    });
 
     useEffect(() => {
         if (!isConnected) {
@@ -53,14 +46,15 @@ export default function SubmitContributionPage() {
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        const formData = new FormData(event.currentTarget);
-        const description = formData.get('description') as string;
-        console.log('Submitting contribution with description:', description);
+        setIsSubmitting(true);
         try {
-            const result = await submitContribution(description);
-            console.log('Submission successful:', result);
-            await refetchContribution();
-            console.log('Contribution refetched');
+            const txHash = await submitContribution({ prizeId: BigInt(prizeId as string), description }) as Hash;
+
+            // Wait for the transaction to be confirmed
+            await prizeDiamond.waitForTransaction(txHash);
+
+            toast.success('Contribution submitted successfully!');
+            router.push(`/prize/${prizeId}`);
         } catch (error) {
             console.error('Error submitting contribution:', error);
             handleError('Failed to submit contribution', error as Error);
@@ -71,9 +65,8 @@ export default function SubmitContributionPage() {
 
     // Memoize the rendered content
     const content = useMemo(() => {
-        if (isPrizeLoading || isLoadingRoles) return <div>Loading...</div>;
+        if (isLoadingPrizeDetails || isLoadingState) return <div>Loading...</div>;
         if (!isConnected) return null;
-        if (prizeError || !prize) return <div>Prize not found</div>;
 
         return (
             <div className="container mx-auto px-4 py-8 bg-purple-50 min-h-screen">
@@ -82,13 +75,13 @@ export default function SubmitContributionPage() {
                         <h2 className="text-3xl font-bold text-white">Submit Contribution</h2>
                     </div>
                     <div className="p-6">
-                        <h3 className="text-2xl font-semibold mb-2 text-purple-800">{prize.name}</h3>
-                        <p className="text-gray-700 mb-6">{prize.description}</p>
+                        <h3 className="text-2xl font-semibold mb-2 text-purple-800">{prizeDetails?.name}</h3>
+                        <p className="text-gray-700 mb-6">{prizeDetails?.description}</p>
 
                         <div className="mb-6 bg-purple-100 p-4 rounded-lg">
                             <h4 className="text-lg font-semibold mb-2 text-purple-800">Current Prize State</h4>
                             <p className="text-gray-700">
-                                The prize is currently in the <strong>{State[currentState]}</strong> state.<br />
+                                The prize is currently in the <strong>{State[currentState as number]}</strong> state.<br />
                                 {currentState !== State.Open && (
                                     <span className="text-red-600"> Submissions are only allowed when the prize is in the Open state.</span>
                                 )}
@@ -121,8 +114,8 @@ export default function SubmitContributionPage() {
                             </div>
                             <button
                                 type="submit"
-                                disabled={isSubmitting || !roles.canSubmit || currentState !== State.Open}
-                                className={`w-full bg-purple-600 text-white py-3 px-4 rounded-md text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors ${(isSubmitting || !roles.canSubmit || currentState !== State.Open)
+                                disabled={isSubmitting || currentState !== State.Open}
+                                className={`w-full bg-purple-600 text-white py-3 px-4 rounded-md text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors ${(isSubmitting || currentState !== State.Open)
                                     ? 'opacity-50 cursor-not-allowed bg-purple-400'
                                     : 'hover:bg-purple-700'
                                     }`}
@@ -134,7 +127,7 @@ export default function SubmitContributionPage() {
                 </div>
             </div>
         );
-    }, [isPrizeLoading, isLoadingRoles, isConnected, prizeError, prize, roles, currentState, description, isSubmitting, handleSubmit]);
+    }, [isLoadingPrizeDetails, isLoadingState, isConnected, prizeDetails, currentState, description, isSubmitting, handleSubmit]);
 
     return content;
 }

@@ -3,6 +3,12 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
         "indexed": false,
         "internalType": "address",
         "name": "contestant",
@@ -13,6 +19,12 @@
         "internalType": "string",
         "name": "description",
         "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "contributionId",
+        "type": "uint256"
       }
     ],
     "name": "ContributionAdded",
@@ -26,47 +38,59 @@
         "type": "uint256"
       },
       {
-        "internalType": "address",
-        "name": "contestant",
-        "type": "address"
-      },
-      {
         "internalType": "uint256",
-        "name": "contributionIndex",
+        "name": "contributionId",
         "type": "uint256"
       }
     ],
     "name": "getContribution",
     "outputs": [
       {
-        "internalType": "address",
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "id",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "contestant",
+            "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "description",
+            "type": "string"
+          },
+          {
+            "internalType": "uint16",
+            "name": "evaluationCount",
+            "type": "uint16"
+          },
+          {
+            "internalType": "bool",
+            "name": "evaluated",
+            "type": "bool"
+          },
+          {
+            "internalType": "euint32",
+            "name": "weightedScore",
+            "type": "uint256"
+          },
+          {
+            "internalType": "euint32",
+            "name": "reward",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "claimed",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct Contribution",
         "name": "",
-        "type": "address"
-      },
-      {
-        "internalType": "string",
-        "name": "",
-        "type": "string"
-      },
-      {
-        "internalType": "euint16",
-        "name": "",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint16",
-        "name": "",
-        "type": "uint16"
-      },
-      {
-        "internalType": "euint32",
-        "name": "",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
+        "type": "tuple"
       }
     ],
     "stateMutability": "view",
@@ -126,14 +150,19 @@
         "internalType": "uint256",
         "name": "prizeId",
         "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "contestant",
+        "type": "address"
       }
     ],
-    "name": "getContributionList",
+    "name": "getContributionIdsForContestant",
     "outputs": [
       {
-        "internalType": "address[]",
+        "internalType": "uint256[]",
         "name": "",
-        "type": "address[]"
+        "type": "uint256[]"
       }
     ],
     "stateMutability": "view",
@@ -153,7 +182,13 @@
       }
     ],
     "name": "submitContribution",
-    "outputs": [],
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "function"
   }

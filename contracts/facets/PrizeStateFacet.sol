@@ -24,12 +24,13 @@ contract PrizeStateFacet {
             );
             newState = LibPrize.State.Open;
         } else if (prize.state == LibPrize.State.Open) {
-            require(prize.contributionAddressList.length > 0, "At least one contribution is required");
+            require(prize.contributionCount > 0, "At least one contribution is required");
             newState = LibPrize.State.Evaluating;
         } else if (prize.state == LibPrize.State.Evaluating) {
             require(prize.evaluatedContributionsCount == prize.contributionCount, "Not all contributions evaluated");
             newState = LibPrize.State.Allocating;
         } else if (prize.state == LibPrize.State.Allocating) {
+            require(prize.rewardsAllocated, "Rewards have not been allocated yet");
             newState = LibPrize.State.Claiming;
         } else if (prize.state == LibPrize.State.Claiming) {
             require(prize.claimedRewardsCount == prize.contributionCount, "Not all rewards claimed");
@@ -43,45 +44,21 @@ contract PrizeStateFacet {
         emit LibPrize.StateChanged(prizeId, oldState, newState);
     }
 
-    function updateEvaluationStatus(uint256 prizeId, address[] calldata contributors) external {
-        require(LibACL.isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
-        require(LibPrize.isState(prizeId, LibPrize.State.Evaluating), "Invalid state");
-
-        AppStorage storage s = LibAppStorage.diamondStorage();
-        Prize storage prize = s.prizes[prizeId];
-
-        for (uint256 i = 0; i < contributors.length; i++) {
-            address contributor = contributors[i];
-            if (prize.contributions[contributor].length > 0) {
-                Contribution storage contribution = prize.contributions[contributor][
-                    prize.contributions[contributor].length - 1
-                ];
-                if (contribution.evaluationCount > 0 && !prize.contributionEvaluated[contributor]) {
-                    prize.contributionEvaluated[contributor] = true;
-                    prize.evaluatedContributionsCount++;
-                }
-            }
-        }
-    }
-
-    function updateClaimStatus(uint256 prizeId, address[] calldata contributors) external {
+    function updateClaimStatus(uint256 prizeId) external {
         require(LibACL.isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
         require(LibPrize.isState(prizeId, LibPrize.State.Claiming), "Invalid state");
 
         AppStorage storage s = LibAppStorage.diamondStorage();
         Prize storage prize = s.prizes[prizeId];
 
-        for (uint256 i = 0; i < contributors.length; i++) {
-            address contributor = contributors[i];
-            if (prize.contributions[contributor].length > 0) {
-                Contribution storage contribution = prize.contributions[contributor][
-                    prize.contributions[contributor].length - 1
-                ];
-                if (contribution.claimed && !prize.contributionClaimed[contributor]) {
-                    prize.contributionClaimed[contributor] = true;
-                    prize.claimedRewardsCount++;
-                }
+        uint16 claimedCount = 0;
+        for (uint256 i = 0; i < prize.contributionCount; i++) {
+            Contribution storage contribution = prize.contributionsById[i];
+            if (contribution.claimed) {
+                claimedCount++;
             }
         }
+
+        prize.claimedRewardsCount = claimedCount;
     }
 }

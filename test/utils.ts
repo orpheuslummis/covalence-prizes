@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
-import { ContractTransactionResponse, EventLog, Signer } from "ethers";
+import { ContractTransactionResponse, EventLog, Signer, TransactionReceipt, TransactionResponse } from "ethers";
 import { artifacts, ethers } from "hardhat";
-import { Diamond, DiamondLoupeFacet, FHETestFacet, PrizeACLFacet, PrizeContributionFacet, PrizeEvaluationFacet, PrizeFundingFacet, PrizeManagerFacet, PrizeRewardFacet, PrizeStateFacet, PrizeStrategyFacet } from "../types";
+import { Diamond, DiamondLoupeFacet, PrizeACLFacet, PrizeContributionFacet, PrizeEvaluationFacet, PrizeFundingFacet, PrizeManagerFacet, PrizeRewardFacet, PrizeStateFacet, PrizeStrategyFacet } from "../types";
 import contractAddresses from "../webapp/contract-addresses.json";
 
 type ContractAddresses = {
@@ -16,33 +16,6 @@ export const TEST_PRIZE_AMOUNT = ethers.parseEther("0.001");
 export const DEFAULT_TEST_SEED = "testSeed123";
 export const CRITERIA_OPTIONS = ["Quality", "Creativity", "Innovation", "Feasibility", "Impact", "Originality"];
 
-export enum AllocationStrategy {
-    Linear = 0,
-    Quadratic = 1,
-    WinnerTakesAll = 2,
-    Invalid = 3
-}
-
-export enum PrizeState {
-    Setup = 0,
-    Open = 1,
-    Evaluating = 2,
-    Rewarding = 3,
-    Closed = 4
-}
-
-export interface PrizeParams {
-    name: string;
-    description: string;
-    pool: bigint;
-    criteria: string[];
-    criteriaWeights: number[];
-    strategy: AllocationStrategy;
-}
-export type DiamondWithFacets = Diamond & {
-    [K in keyof (DiamondLoupeFacet & PrizeManagerFacet & PrizeFundingFacet & PrizeACLFacet & PrizeContributionFacet & PrizeEvaluationFacet & PrizeRewardFacet & PrizeStateFacet & PrizeStrategyFacet & FHETestFacet)]: (DiamondLoupeFacet & PrizeManagerFacet & PrizeFundingFacet & PrizeACLFacet & PrizeContributionFacet & PrizeEvaluationFacet & PrizeRewardFacet & PrizeStateFacet & PrizeStrategyFacet & FHETestFacet)[K]
-};
-
 export const FACET_NAMES = [
     "DiamondCutFacet",
     "DiamondLoupeFacet",
@@ -54,8 +27,37 @@ export const FACET_NAMES = [
     "PrizeStateFacet",
     "PrizeStrategyFacet",
     "PrizeFundingFacet",
-    "FHETestFacet"
+    // "FHETestFacet"
 ];
+
+export enum AllocationStrategy {
+    Linear = 0,
+    Quadratic = 1,
+    WinnerTakesAll = 2,
+    Invalid = 3
+}
+
+export enum PrizeState {
+    Setup = 0,
+    Open = 1,
+    Evaluating = 2,
+    Allocating = 3,
+    Claiming = 4,
+    Closed = 5
+}
+
+export interface PrizeParams {
+    name: string;
+    description: string;
+    pool: bigint;
+    criteria: string[];
+    criteriaWeights: number[];
+    strategy: AllocationStrategy;
+}
+
+export type DiamondWithFacets = Diamond & {
+    [K in keyof (DiamondLoupeFacet & PrizeManagerFacet & PrizeFundingFacet & PrizeACLFacet & PrizeContributionFacet & PrizeEvaluationFacet & PrizeRewardFacet & PrizeStateFacet & PrizeStrategyFacet)]: (DiamondLoupeFacet & PrizeManagerFacet & PrizeFundingFacet & PrizeACLFacet & PrizeContributionFacet & PrizeEvaluationFacet & PrizeRewardFacet & PrizeStateFacet & PrizeStrategyFacet)[K]
+};
 
 export function generateUniqueId(): string {
     return `${Date.now()}_${Math.random().toString(36).substring(7)}`;
@@ -65,20 +67,12 @@ export function generateRandomPrizeParams(seed: string = DEFAULT_TEST_SEED): Pri
     const rng = randomBytes(32);
     rng.write(seed);
 
-    const criteriaCount = 3 + (rng[0] % 3); // 3 to 5 criteria
+    const criteriaCount = 3 + (rng[0] % 2); // 3 to 4 criteria
     const criteria = Array.from({ length: criteriaCount }, () => CRITERIA_OPTIONS[Math.floor(Math.random() * CRITERIA_OPTIONS.length)]);
-    const criteriaWeights = Array.from({ length: criteriaCount }, () => 10 + (rng[1] % 91)); // 10 to 100
+    const criteriaWeights = Array.from({ length: criteriaCount }, () => Math.floor(Math.random() * 10) + 1);
 
     const uniqueId = generateUniqueId();
-    const pool = ethers.parseEther((0.001 + (rng[2] % 10) * 0.001).toString());
-
-    console.log(`Generating random prize params:`);
-    console.log(`- Seed: ${seed}`);
-    console.log(`- Unique ID: ${uniqueId}`);
-    console.log(`- Criteria Count: ${criteriaCount}`);
-    console.log(`- Criteria: ${criteria.join(', ')}`);
-    console.log(`- Criteria Weights: ${criteriaWeights.join(', ')}`);
-    console.log(`- Pool: ${ethers.formatEther(pool)} ETH`);
+    const pool = ethers.parseEther((0.0001).toString());
 
     return {
         name: `Prize ${seed}_${uniqueId}`,
@@ -166,4 +160,46 @@ export async function getFunctionName(selector: string): Promise<string> {
         }
     }
     return "Unknown Function";
+}
+
+export async function logTransaction(contract: DiamondWithFacets, tx: TransactionResponse, operation: string): Promise<TransactionReceipt | undefined> {
+    console.log(`\nTXN: ${operation} (${tx.hash})`);
+    const receipt = await tx.wait();
+    if (receipt) {
+        console.log(`Block: ${receipt.blockNumber} | Gas Used: ${receipt.gasUsed.toString()}`);
+        if (receipt.logs) {
+            for (const log of receipt.logs) {
+                try {
+                    const parsedLog = contract.interface.parseLog({
+                        topics: log.topics as string[],
+                        data: log.data
+                    });
+                    if (parsedLog) {
+                        const args = Object.entries(parsedLog.args)
+                            .filter(([key]) => isNaN(Number(key)))
+                            .map(([key, value]) => `${key}: ${formatLogValue(value)}`)
+                            .join(', ');
+                        console.log(`Event: ${parsedLog.name}(${args})`);
+                    }
+                } catch (error) {
+                    // Silently ignore decoding errors
+                }
+            }
+        }
+        return receipt;
+    } else {
+        console.log(`${operation} - Receipt not available`);
+        return undefined;
+    }
+}
+
+function formatLogValue(value: any): string {
+    if (typeof value === 'bigint') {
+        return value.toString();
+    } else if (Array.isArray(value)) {
+        return `[${value.map(formatLogValue).join(', ')}]`;
+    } else if (typeof value === 'object' && value !== null) {
+        return JSON.stringify(value);
+    }
+    return String(value);
 }

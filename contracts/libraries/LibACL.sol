@@ -12,40 +12,40 @@ library LibACL {
 
     function setPrizeOrganizer(uint256 prizeId, address organizer) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        s.prizeRoles[prizeId].organizer = organizer;
+        s.prizes[prizeId].organizer = organizer;
         emit LibPrize.PrizeOrganizerSet(prizeId, organizer);
     }
 
     function isPrizeOrganizer(uint256 prizeId, address account) internal view returns (bool) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        return s.prizeRoles[prizeId].organizer == account;
+        return s.prizes[prizeId].organizer == account;
     }
 
     function addPrizeEvaluator(uint256 prizeId, address evaluator) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        s.prizeRoles[prizeId].evaluators.add(evaluator);
+        s.prizes[prizeId].evaluators.add(evaluator);
         emit LibPrize.PrizeEvaluatorAdded(prizeId, evaluator);
     }
 
     function removePrizeEvaluator(uint256 prizeId, address evaluator) internal {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        s.prizeRoles[prizeId].evaluators.remove(evaluator);
+        s.prizes[prizeId].evaluators.remove(evaluator);
         emit LibPrize.PrizeEvaluatorRemoved(prizeId, evaluator);
     }
 
     function isPrizeEvaluator(uint256 prizeId, address account) internal view returns (bool) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        return s.prizeRoles[prizeId].evaluators.contains(account);
+        return s.prizes[prizeId].evaluators.contains(account);
     }
 
     function getPrizeEvaluatorCount(uint256 prizeId) internal view returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        return s.prizeRoles[prizeId].evaluators.length();
+        return s.prizes[prizeId].evaluators.length();
     }
 
     function getPrizeEvaluator(uint256 prizeId, uint256 index) internal view returns (address) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        return s.prizeRoles[prizeId].evaluators.at(index);
+        return s.prizes[prizeId].evaluators.at(index);
     }
 
     function hasRole(bytes32 role, address account) internal view returns (bool) {

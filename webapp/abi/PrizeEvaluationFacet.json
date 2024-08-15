@@ -28,82 +28,6 @@
         "type": "uint256"
       },
       {
-        "indexed": false,
-        "internalType": "address[]",
-        "name": "evaluators",
-        "type": "address[]"
-      }
-    ],
-    "name": "EvaluatorsAdded",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "prizeId",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "address[]",
-        "name": "evaluators",
-        "type": "address[]"
-      }
-    ],
-    "name": "EvaluatorsRemoved",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "prizeId",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "evaluator",
-        "type": "address"
-      }
-    ],
-    "name": "PrizeEvaluatorAdded",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "prizeId",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "evaluator",
-        "type": "address"
-      }
-    ],
-    "name": "PrizeEvaluatorRemoved",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "prizeId",
-        "type": "uint256"
-      },
-      {
         "indexed": true,
         "internalType": "address",
         "name": "evaluator",
@@ -118,30 +42,18 @@
       {
         "indexed": false,
         "internalType": "uint256",
+        "name": "contributionId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
         "name": "scoreCount",
         "type": "uint256"
       }
     ],
     "name": "ScoreAssigned",
     "type": "event"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "prizeId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address[]",
-        "name": "_evaluators",
-        "type": "address[]"
-      }
-    ],
-    "name": "addEvaluators",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
   },
   {
     "inputs": [
@@ -181,14 +93,33 @@
             "type": "bytes"
           }
         ],
-        "internalType": "struct inEuint8[]",
+        "internalType": "struct inEuint32[]",
         "name": "encryptedScores",
         "type": "tuple[]"
       }
     ],
-    "name": "assignScoreForContestant",
+    "name": "assignScoresForContestant",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCriteriaWeights",
+    "outputs": [
+      {
+        "internalType": "uint16[]",
+        "name": "",
+        "type": "uint16[]"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -242,24 +173,6 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "prizeId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address[]",
-        "name": "_evaluators",
-        "type": "address[]"
-      }
-    ],
-    "name": "removeEvaluators",
-    "outputs": [],
-    "stateMutability": "nonpayable",
     "type": "function"
   }
 ]

@@ -30,6 +30,11 @@ pnpm test
 ## System notes
 
 - Diamond pattern, with AppStorage pattern
+
+Flow
+
+- Create a prize
+- Fund it
 -
 
 Current limitations

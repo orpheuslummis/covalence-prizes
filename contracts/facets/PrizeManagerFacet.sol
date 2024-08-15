@@ -22,12 +22,16 @@ contract PrizeManagerFacet {
         string name;
         string description;
         uint256 monetaryRewardPool;
+        uint256 fundedAmount; // Added fundedAmount field
         LibPrize.State state;
         string[] criteriaNames;
         uint16[] criteriaWeights;
         uint256 createdAt;
         LibPrize.AllocationStrategy strategy;
         uint256 contributionCount;
+        uint16 evaluatedContributionsCount;
+        uint16 claimedRewardsCount;
+        bool rewardsAllocated;
     }
 
     function createPrize(PrizeParams memory params) external returns (uint256) {
@@ -43,15 +47,12 @@ contract PrizeManagerFacet {
         newPrize.monetaryRewardPool = params.pool;
         newPrize.state = LibPrize.State.Setup;
         newPrize.createdAt = block.timestamp;
-
-        LibPrize.setPrizeAllocationStrategy(prizeId, params.strategy);
+        newPrize.allocationStrategy = params.strategy;
 
         for (uint256 i = 0; i < params.criteria.length; i++) {
             newPrize.criteriaNames.push(params.criteria[i]);
             newPrize.criteriaWeights.push(params.criteriaWeights[i]);
         }
-
-        LibACL.setPrizeOrganizer(prizeId, msg.sender);
 
         emit LibPrize.PrizeCreated(msg.sender, prizeId, params.name, params.pool);
         return prizeId;
@@ -71,12 +72,16 @@ contract PrizeManagerFacet {
             name: LibPrize.getPrizeName(prizeId),
             description: LibPrize.getPrizeDescription(prizeId),
             monetaryRewardPool: LibPrize.getPrizeMonetaryRewardPool(prizeId),
+            fundedAmount: LibPrize.getPrizeFundedAmount(prizeId),
             state: LibPrize.getPrizeState(prizeId),
             criteriaNames: LibPrize.getPrizeCriteriaNames(prizeId),
             criteriaWeights: LibPrize.getPrizeCriteriaWeights(prizeId),
             createdAt: prize.createdAt,
             strategy: LibPrize.getPrizeAllocationStrategy(prizeId),
-            contributionCount: prize.contributionAddressList.length
+            contributionCount: prize.contributionCount,
+            evaluatedContributionsCount: prize.evaluatedContributionsCount,
+            claimedRewardsCount: prize.claimedRewardsCount,
+            rewardsAllocated: prize.rewardsAllocated
         });
         return prizeDetails;
     }
@@ -100,10 +105,6 @@ contract PrizeManagerFacet {
         return prizeDetails;
     }
 
-    function getTotalPrizeCount() external view returns (uint256) {
-        return LibAppStorage.diamondStorage().prizeCount;
-    }
-
     function validatePrizeParams(PrizeParams memory params) internal pure {
         require(params.pool > 0, "Invalid pool amount");
         require(bytes(params.name).length > 0, "Name cannot be empty");
@@ -114,5 +115,10 @@ contract PrizeManagerFacet {
             "Criteria and weights must have the same length"
         );
         require(params.strategy != LibPrize.AllocationStrategy.Invalid, "Invalid allocation strategy");
+        require(params.pool <= 4294 ether, "Prize pool exceeds maximum allowed");
+
+        for (uint256 i = 0; i < params.criteriaWeights.length; i++) {
+            require(params.criteriaWeights[i] <= 10, "Weight must be <= 10");
+        }
     }
 }

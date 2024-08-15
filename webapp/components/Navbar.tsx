@@ -4,16 +4,29 @@ import { ConnectKitButton } from 'connectkit';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useAccount } from 'wagmi';
 
 const Navbar: React.FC = () => {
     const [isScrolled, setIsScrolled] = useState(false);
     const pathname = usePathname();
+    const { isConnected } = useAccount();
 
     useEffect(() => {
         const handleScroll = () => setIsScrolled(window.scrollY > 0);
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
+
+    useEffect(() => {
+        const createPrizeBtn = document.querySelector('.create-prize-btn');
+        if (createPrizeBtn) {
+            if (!isConnected) {
+                createPrizeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                createPrizeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+    }, [isConnected]);
 
     return (
         <nav className={`navbar ${isScrolled ? 'navbar-scrolled' : 'navbar-default'}`}>
@@ -24,7 +37,17 @@ const Navbar: React.FC = () => {
                     </Link>
                     <div className="navbar-links">
                         {pathname === '/' && (
-                            <Link href="/create-prize" className="nav-link create-prize-btn">
+                            <Link
+                                href="/create-prize"
+                                className="nav-link create-prize-btn"
+                                onClick={(e) => {
+                                    if (!isConnected) {
+                                        e.preventDefault();
+                                        // You can add a toast or alert here to inform the user
+                                        // that they need to connect their wallet
+                                    }
+                                }}
+                            >
                                 Create a Prize
                             </Link>
                         )}

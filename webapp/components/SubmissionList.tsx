@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Submission } from '../app/types';
+import { Submission } from '../types';
 
 interface SubmissionListProps {
     submissions: Submission[];

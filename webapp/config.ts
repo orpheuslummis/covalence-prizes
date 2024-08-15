@@ -1,14 +1,23 @@
 import { Address, createPublicClient, defineChain, http, keccak256, toBytes } from 'viem';
 import { createConfig } from 'wagmi';
-import PrizeContractABI from './abi/PrizeContract.json';
-import PrizeManagerABI from './abi/PrizeManager.json';
+import DiamondABI from './abi/Diamond.json';
+import DiamondCutFacetABI from './abi/DiamondCutFacet.json';
+import DiamondLoupeFacetABI from './abi/DiamondLoupeFacet.json';
+import PrizeACLFacetABI from './abi/PrizeACLFacet.json';
+import PrizeContributionFacetABI from './abi/PrizeContributionFacet.json';
+import PrizeEvaluationFacetABI from './abi/PrizeEvaluationFacet.json';
+import PrizeFundingFacetABI from './abi/PrizeFundingFacet.json';
+import PrizeManagerFacetABI from './abi/PrizeManagerFacet.json';
+import PrizeRewardFacetABI from './abi/PrizeRewardFacet.json';
+import PrizeStateFacetABI from './abi/PrizeStateFacet.json';
+import PrizeStrategyFacetABI from './abi/PrizeStrategyFacet.json';
 import contractAddresses from './contract-addresses.json';
-
-export type PrizeContractAbi = typeof PrizeContractABI;
+import { AllocationStrategy } from './types';
 
 const ENV = {
     TESTNET_RPC_URL: process.env.NEXT_PUBLIC_TESTNET_RPC_URL || "https://api.helium.fhenix.zone",
     CHAIN_ID: process.env.NEXT_PUBLIC_CHAIN_ID || '8008135',
+    EXPLORER_URL: process.env.NEXT_PUBLIC_EXPLORER_URL || "https://explorer.helium.fhenix.zone",
 };
 
 Object.entries(ENV).forEach(([key, value]) => {
@@ -58,52 +67,74 @@ if (!addresses) {
 // Function to generate role hash
 const getRoleHash = (role: string) => keccak256(toBytes(role));
 
-// Extract roles from PrizeContractABI
-const extractRoles = (abi: any[]) => {
-    const roles: Record<string, string> = {};
-    abi.forEach(item => {
-        if (item.type === 'event' && item.name === 'RoleAdminChanged') {
-            item.inputs.forEach((input: any) => {
-                if (input.name === 'role' && input.internalType.startsWith('bytes32')) {
-                    const roleName = input.internalType.split(' ')[1];
-                    roles[roleName] = getRoleHash(roleName);
-                }
-            });
-        }
-    });
-    return roles;
+export const allocationStrategies: Record<AllocationStrategy, { name: string; description: string }> = {
+    [AllocationStrategy.Linear]: {
+        name: 'Linear',
+        description: 'Rewards are distributed linearly based on scores.'
+    },
+    [AllocationStrategy.Quadratic]: {
+        name: 'Quadratic',
+        description: 'Rewards are distributed quadratically, emphasizing higher scores.'
+    },
+    [AllocationStrategy.Invalid]: {
+        name: 'Invalid',
+        description: 'An invalid or unspecified allocation strategy.'
+    }
 };
-
-const prizeContractRoles = extractRoles(PrizeContractABI);
 
 export const config = {
     env: ENV,
     contracts: {
-        PrizeManager: {
-            address: addresses.PrizeManager as Address,
-            abi: PrizeManagerABI,
+        Diamond: {
+            address: addresses.Diamond as Address,
+            abi: DiamondABI,
         },
-        PrizeContract: {
-            abi: PrizeContractABI,
-            roles: {
-                ...prizeContractRoles,
-                // Update these to match the smart contract
-                ADMIN_ROLE: '0x0000000000000000000000000000000000000000000000000000000000000000',
-                EVALUATOR_ROLE: keccak256(toBytes("EVALUATOR")),
-            }
+        DiamondCutFacet: {
+            address: addresses.DiamondCutFacet as Address,
+            abi: DiamondCutFacetABI,
         },
-        AllocationStrategyLinear: {
-            address: addresses.AllocationStrategyLinear as Address,
+        DiamondLoupeFacet: {
+            address: addresses.DiamondLoupeFacet as Address,
+            abi: DiamondLoupeFacetABI,
+        },
+        PrizeACLFacet: {
+            address: addresses.PrizeACLFacet as Address,
+            abi: PrizeACLFacetABI,
+        },
+        PrizeManagerFacet: {
+            address: addresses.PrizeManagerFacet as Address,
+            abi: PrizeManagerFacetABI,
+        },
+        PrizeContributionFacet: {
+            address: addresses.PrizeContributionFacet as Address,
+            abi: PrizeContributionFacetABI,
+        },
+        PrizeRewardFacet: {
+            address: addresses.PrizeRewardFacet as Address,
+            abi: PrizeRewardFacetABI,
+        },
+        PrizeEvaluationFacet: {
+            address: addresses.PrizeEvaluationFacet as Address,
+            abi: PrizeEvaluationFacetABI,
+        },
+        PrizeStrategyFacet: {
+            address: addresses.PrizeStrategyFacet as Address,
+            abi: PrizeStrategyFacetABI,
+        },
+        PrizeFundingFacet: {
+            address: addresses.PrizeFundingFacet as Address,
+            abi: PrizeFundingFacetABI,
+        },
+        PrizeStateFacet: {
+            address: addresses.PrizeStateFacet as Address,
+            abi: PrizeStateFacetABI,
         },
     },
-    allocationStrategies: {
-        AllocationStrategyLinear: {
-            name: 'AllocationStrategyLinear',
-            contractName: 'AllocationStrategyLinear',
-            address: addresses.AllocationStrategyLinear as Address,
-        },
-        // Add other strategies here as they are implemented
+    roles: {
+        ADMIN_ROLE: '0x0000000000000000000000000000000000000000000000000000000000000000',
+        EVALUATOR_ROLE: getRoleHash("EVALUATOR"),
     },
+    allocationStrategies,
 };
 
 export const shortenAddress = (address: string): string => {

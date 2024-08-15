@@ -6,7 +6,7 @@ interface ErrorContextType {
     error: Error | null;
     setError: (error: Error | null) => void;
     clearError: () => void;
-    handleError: (message: string, error: Error) => void;
+    handleError: (message: string, error?: Error) => void;
 }
 
 const ErrorContext = createContext<ErrorContextType | undefined>(undefined);
@@ -16,9 +16,9 @@ export const ErrorProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     const clearError = () => setError(null);
 
-    const handleError = (message: string, error: Error) => {
+    const handleError = (message: string, error?: Error) => {
         console.error(message, error);
-        setError(error);
+        setError(error || new Error(message));
     };
 
     const contextValue = useMemo(() => ({

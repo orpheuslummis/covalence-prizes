@@ -1,5 +1,5 @@
 import React from 'react';
-import { Contribution } from '../app/types';
+import { Contribution } from '../types';
 
 interface SubmissionCardProps {
     contribution: Contribution;

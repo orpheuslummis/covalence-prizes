@@ -3,6 +3,6 @@ Notes:
 - We use wagmi v2 and tanstack react query
 - We use Solidity >8.0 with built-in overflow checks, so we don't need SafeMath
 - We do 'from "../types"' instead of 'from "../typechain-types"'
-- We have to test directly on testnet, where can't use logging - but we may use events
+- We have to test directly on testnet, where can't use logging or events or tracing.
 
 Let us know of any confusions, request for extra information, clarifications. Be careful. Thank you! :)

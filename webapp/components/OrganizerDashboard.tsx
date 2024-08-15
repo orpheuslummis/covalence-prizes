@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAppContext } from '../app/AppContext';
-import { Prize } from '../app/types';
 import { usePrizeManager } from '../hooks/usePrizeManager';
+import { Prize } from '../types';
 import List from './List';
 
 const OrganizerDashboard: React.FC = () => {

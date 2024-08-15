@@ -125,7 +125,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         'PrizeStateFacet',
         'PrizeStrategyFacet',
         'PrizeFundingFacet',
-        'FHETestFacet',
+        // 'FHETestFacet',
     ];
     const cut = [];
     const facetCuts = [];

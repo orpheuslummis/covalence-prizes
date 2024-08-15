@@ -13,10 +13,8 @@ contract PrizeFundingFacet {
         uint256 prizePool = LibPrize.getPrizeMonetaryRewardPool(prizeId);
         require(msg.value == prizePool, "Must send exact prize amount");
 
+        LibPrize.setPrizeFundedAmount(prizeId, prizePool);
+
         emit LibPrize.PrizeFunded(prizeId, msg.sender, msg.value, prizePool);
     }
-
-    // Future funding methods can be added here
-    // function crowdfundPrize(uint256 prizeId) external payable { ... }
-    // function sponsorPrize(uint256 prizeId) external payable { ... }
 }

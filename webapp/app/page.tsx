@@ -1,11 +1,11 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import PrizeCard from '../components/PrizeCard';
-import { usePrizeManager } from '../hooks/usePrizeManager';
+import { usePrizeDiamond } from '../hooks/usePrizeDiamond';
+import { Prize, UserRoles } from '../types';
 import { useAppContext } from './AppContext';
-import { Prize, UserRoles } from './types';
 
 const PRIZES_PER_PAGE = 9;
 
@@ -14,20 +14,26 @@ const isUserActiveInPrize = (prize: Prize, userRoles: UserRoles) => {
 };
 
 export default function Home() {
-  const { getPrizes } = usePrizeManager();
-  const { userRoles, prizeManager } = useAppContext();
+  const { getPrizes, prizeCount } = usePrizeDiamond();
+  const { userRoles, blockNumber } = useAppContext();
   const [currentPage, setCurrentPage] = useState(1);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['prizes', currentPage],
-    queryFn: () => getPrizes(currentPage, PRIZES_PER_PAGE),
-    keepPreviousData: true,
+    queryKey: ['prizes', currentPage, blockNumber],
+    queryFn: async () => {
+      const startIndex = BigInt((currentPage - 1) * PRIZES_PER_PAGE);
+      const count = BigInt(PRIZES_PER_PAGE);
+      console.log(`Fetching prizes: startIndex=${startIndex}, count=${count}`);
+      const prizes = await getPrizes(startIndex, count);
+      console.log('Fetched prizes:', prizes);
+      return prizes;
+    },
+    enabled: blockNumber !== undefined,
   });
 
-  const prizes = data?.prizes ?? [];
-  const totalCount = data?.totalCount ?? 0;
-
-  const totalPages = useMemo(() => Math.ceil(totalCount / PRIZES_PER_PAGE), [totalCount]);
+  const prizes = data ?? [];
+  const totalCount = Number(prizeCount);
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(totalCount / PRIZES_PER_PAGE)), [totalCount]);
 
   const sortedPrizes = useMemo(() =>
     [...prizes].sort((a, b) => {
@@ -47,7 +53,6 @@ export default function Home() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="bg-gradient-to-br from-purple-800 to-indigo-900 rounded-lg p-8 mb-8 text-white shadow-lg">
-        <h1 className="text-4xl font-bold mb-6">Covalence Prizes</h1>
         <p className="text-xl mb-6">
           A decentralized platform revolutionizing prize management with homomorphic smart contracts.
         </p>
@@ -72,10 +77,12 @@ export default function Home() {
       ) : (
         <div id="prizes" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedPrizes.length === 0 ? (
-            <p className="text-gray-500 col-span-full">No prizes available at the moment. (Total count: {prizeManager.prizeCount})</p>
+            <p className="text-gray-500 col-span-full">No prizes available at the moment. (Total count: {totalCount})</p>
           ) : (
             sortedPrizes.map((prize) => (
-              <PrizeCard key={prize.id} prize={prize} />
+              <Suspense key={prize.id} fallback={<div className="prize-card-skeleton">Loading...</div>}>
+                <PrizeCard prize={prize} />
+              </Suspense>
             ))
           )}
         </div>

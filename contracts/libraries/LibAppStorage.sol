@@ -2,20 +2,14 @@
 pragma solidity ^0.8.0;
 
 import "@fhenixprotocol/contracts/FHE.sol";
-import {LibPrize} from "./LibPrize.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {LibPrize} from "./LibPrize.sol";
 
 struct AppStorage {
     bool initialized;
     mapping(uint256 => Prize) prizes;
     uint256 prizeCount;
     mapping(bytes32 => RoleData) roles;
-    mapping(uint256 => PrizeRoles) prizeRoles;
-}
-
-struct PrizeRoles {
-    address organizer;
-    EnumerableSet.AddressSet evaluators;
 }
 
 struct RoleData {
@@ -29,26 +23,31 @@ struct Prize {
     string description;
     uint256 createdAt;
     uint256 monetaryRewardPool;
+    uint256 fundedAmount;
     string[] criteriaNames;
-    uint16[] criteriaWeights; // Changed from uint8[] to uint16[]
+    uint16[] criteriaWeights;
     LibPrize.AllocationStrategy allocationStrategy;
     LibPrize.State state;
-    mapping(address => Contribution[]) contributions;
-    address[] contributionAddressList;
-    uint16 contributionCount;
-    mapping(address => mapping(address => bool)) evaluatorContestantScored;
+    mapping(uint256 => Contribution) contributionsById;
+    mapping(address => mapping(address => mapping(uint256 => bool))) evaluatorContestantScored;
     bool rewardsAllocated;
-    mapping(address => bool) contributionEvaluated;
-    mapping(address => bool) contributionClaimed;
     uint16 evaluatedContributionsCount;
     uint16 claimedRewardsCount;
+    uint32 contributionCount;
+    euint32 totalScore;
+    mapping(address => uint256[]) contributionIdsByContestant;
+    uint256 lastProcessedIndex;
+    EnumerableSet.AddressSet evaluators;
+    mapping(address => euint32) claimedRewards;
 }
 
 struct Contribution {
+    uint256 id;
     address contestant;
     string description;
     uint16 evaluationCount;
-    euint16 aggregatedScore;
+    bool evaluated;
+    euint32 weightedScore;
     euint32 reward;
     bool claimed;
 }

@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { createFheInstance, FheInstance } from "../utils/instance";
+import { createFheInstance } from "../utils/instance";
 import { connectDiamond, DiamondWithFacets } from "./utils";
 
 // Declare hre as a global variable

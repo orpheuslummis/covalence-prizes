@@ -31,25 +31,6 @@
     "type": "event"
   },
   {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "prizeId",
-        "type": "uint256"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "organizer",
-        "type": "address"
-      }
-    ],
-    "name": "PrizeOrganizerSet",
-    "type": "event"
-  },
-  {
     "inputs": [
       {
         "components": [
@@ -151,6 +132,11 @@
             "type": "uint256"
           },
           {
+            "internalType": "uint256",
+            "name": "fundedAmount",
+            "type": "uint256"
+          },
+          {
             "internalType": "enum LibPrize.State",
             "name": "state",
             "type": "uint8"
@@ -179,6 +165,21 @@
             "internalType": "uint256",
             "name": "contributionCount",
             "type": "uint256"
+          },
+          {
+            "internalType": "uint16",
+            "name": "evaluatedContributionsCount",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint16",
+            "name": "claimedRewardsCount",
+            "type": "uint16"
+          },
+          {
+            "internalType": "bool",
+            "name": "rewardsAllocated",
+            "type": "bool"
           }
         ],
         "internalType": "struct PrizeManagerFacet.PrizeDetails",
@@ -232,6 +233,11 @@
             "type": "uint256"
           },
           {
+            "internalType": "uint256",
+            "name": "fundedAmount",
+            "type": "uint256"
+          },
+          {
             "internalType": "enum LibPrize.State",
             "name": "state",
             "type": "uint8"
@@ -260,24 +266,26 @@
             "internalType": "uint256",
             "name": "contributionCount",
             "type": "uint256"
+          },
+          {
+            "internalType": "uint16",
+            "name": "evaluatedContributionsCount",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint16",
+            "name": "claimedRewardsCount",
+            "type": "uint16"
+          },
+          {
+            "internalType": "bool",
+            "name": "rewardsAllocated",
+            "type": "bool"
           }
         ],
         "internalType": "struct PrizeManagerFacet.PrizeDetails[]",
         "name": "",
         "type": "tuple[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getTotalPrizeCount",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
       }
     ],
     "stateMutability": "view",

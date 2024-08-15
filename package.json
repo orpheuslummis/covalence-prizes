@@ -5,7 +5,9 @@
   "scripts": {
     "clean": "rimraf ./artifacts ./cache ./coverage ./types ./coverage.json ./deployments/localfhenix",
     "deploy:testnet": "hardhat deploy --network testnet",
-    "test:testnet": "hardhat test test/DiamondPrize.ts --network testnet"
+    "test:testnet": "hardhat test test/DiamondPrize.ts --network testnet",
+    "localfhenix:start": "hardhat localfhenix:start",
+    "localfhenix:stop": "hardhat localfhenix:stop"
   },
   "repository": {
     "type": "git",
@@ -49,6 +51,7 @@
   "dependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.0.6",
     "ethers": "^6.13.2",
+    "fhenix-hardhat-docker": "^0.2.1",
     "fhenixjs": "^0.3.0",
     "viem": "^2.18.2"
   },

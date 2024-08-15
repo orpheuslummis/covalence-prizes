@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAppContext } from '../app/AppContext';
 import { useError } from '../app/ErrorContext';
-import { Prize, Submission } from '../app/types';
 import { usePrizeManager } from '../hooks/usePrizeManager';
+import { Prize, Submission } from '../types';
 import SubmissionList from './SubmissionList';
 
 const EvaluatorDashboard: React.FC = () => {

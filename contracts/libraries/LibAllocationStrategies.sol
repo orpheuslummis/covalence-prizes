@@ -1,79 +1,52 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+// // SPDX-License-Identifier: MIT
+// pragma solidity ^0.8.0;
 
-import "@fhenixprotocol/contracts/FHE.sol";
-import "../libraries/LibAppStorage.sol";
-import "../libraries/LibPrize.sol";
+// import "@fhenixprotocol/contracts/FHE.sol";
+// import "../libraries/LibAppStorage.sol";
+// import "../libraries/LibPrize.sol";
 
-library LibAllocationStrategies {
-    function computeAllocation(
-        euint32[] memory scores,
-        LibPrize.AllocationStrategy strategy
-    ) internal pure returns (euint32[] memory) {
-        if (strategy == LibPrize.AllocationStrategy.Linear) {
-            return linearAllocation(scores);
-        } else if (strategy == LibPrize.AllocationStrategy.Quadratic) {
-            return quadraticAllocation(scores);
-        } else if (strategy == LibPrize.AllocationStrategy.WinnerTakesAll) {
-            return winnerTakesAllAllocation(scores);
-        } else {
-            revert("Invalid allocation strategy");
-        }
-    }
+// library LibAllocationStrategies {
+//     function computeAllocation(
+//         Prize storage prize,
+//         euint32[] memory scores,
+//         uint256 startIndex,
+//         uint256 batchSize,
+//         uint256 totalContributions
+//     ) internal view returns (euint16[] memory) {
+//         if (prize.allocationStrategy == LibPrize.AllocationStrategy.Linear) {
+//             return linearAllocation(prize, scores, startIndex, batchSize, totalContributions);
+//             // } else if (prize.allocationStrategy == LibPrize.AllocationStrategy.Quadratic) {
+//             //     return quadraticAllocation(prize, scores, startIndex, batchSize, totalContributions);
+//         } else {
+//             revert("Invalid allocation strategy");
+//         }
+//     }
 
-    function linearAllocation(euint32[] memory scores) internal pure returns (euint32[] memory) {
-        euint32[] memory rewards = new euint32[](scores.length);
-        euint32 totalScore = FHE.asEuint32(0);
-        euint32 equalShare = FHE.div(FHE.asEuint32(1), FHE.asEuint32(scores.length));
+//     function linearAllocation(
+//         Prize storage prize,
+//         euint32[] memory scores,
+//         uint256 startIndex,
+//         uint256 batchSize,
+//         uint256 totalContributions
+//     ) internal view returns (euint16[] memory) {
+//         require(scores.length == batchSize, "Scores length must match batch size");
+//         require(totalContributions > 0, "Total contributions must be greater than zero");
 
-        for (uint256 i = 0; i < scores.length; i++) {
-            totalScore = FHE.add(totalScore, scores[i]);
-        }
+//         euint16[] memory rewards = new euint16[](batchSize);
+//         euint32 rewardPool = FHE.asEuint32(prize.monetaryRewardPool);
+//         euint32 equalShare = FHE.div(rewardPool, FHE.asEuint32(totalContributions));
+//         ebool isTotalScoreZero = FHE.eq(prize.totalScore, FHE.asEuint32(0));
 
-        ebool isTotalScoreZero = FHE.eq(totalScore, FHE.asEuint32(0));
+//         for (uint256 i = 0; i < batchSize; i++) {
+//             rewards[i] = FHE.select(
+//                 isTotalScoreZero,
+//                 equalShare,
+//                 FHE.div(FHE.mul(scores[i], rewardPool), prize.totalScore)
+//             );
+//         }
 
-        for (uint256 i = 0; i < scores.length; i++) {
-            rewards[i] = FHE.select(isTotalScoreZero, equalShare, FHE.div(scores[i], totalScore));
-        }
+//         return rewards;
+//     }
 
-        return rewards;
-    }
-
-    function quadraticAllocation(euint32[] memory scores) internal pure returns (euint32[] memory) {
-        euint32[] memory rewards = new euint32[](scores.length);
-        euint32 totalSquaredScore = FHE.asEuint32(0);
-        euint32 equalShare = FHE.div(FHE.asEuint32(1), FHE.asEuint32(scores.length));
-
-        for (uint256 i = 0; i < scores.length; i++) {
-            euint32 squaredScore = FHE.mul(scores[i], scores[i]);
-            totalSquaredScore = FHE.add(totalSquaredScore, squaredScore);
-            rewards[i] = squaredScore;
-        }
-
-        ebool isTotalSquaredScoreZero = FHE.eq(totalSquaredScore, FHE.asEuint32(0));
-
-        for (uint256 i = 0; i < scores.length; i++) {
-            rewards[i] = FHE.select(isTotalSquaredScoreZero, equalShare, FHE.div(rewards[i], totalSquaredScore));
-        }
-
-        return rewards;
-    }
-
-    function winnerTakesAllAllocation(euint32[] memory scores) internal pure returns (euint32[] memory) {
-        euint32[] memory rewards = new euint32[](scores.length);
-        euint32 maxScore = scores[0];
-        euint32 winnerIndex = FHE.asEuint32(0);
-
-        for (uint256 i = 1; i < scores.length; i++) {
-            ebool isGreater = FHE.gt(scores[i], maxScore);
-            maxScore = FHE.select(isGreater, scores[i], maxScore);
-            winnerIndex = FHE.select(isGreater, FHE.asEuint32(i), winnerIndex);
-        }
-
-        for (uint256 i = 0; i < scores.length; i++) {
-            rewards[i] = FHE.select(FHE.eq(FHE.asEuint32(i), winnerIndex), FHE.asEuint32(1), FHE.asEuint32(0));
-        }
-
-        return rewards;
-    }
-}
+//     // ....
+// }

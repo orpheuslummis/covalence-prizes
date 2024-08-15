@@ -7,44 +7,55 @@ import "../libraries/LibACL.sol";
 import "../libraries/LibPrize.sol";
 
 contract PrizeEvaluationFacet {
-    function assignScoreForContestant(uint256 prizeId, address contestant, inEuint8[] memory encryptedScores) external {
+    function assignScoresForContestant(
+        uint256 prizeId,
+        address contestant,
+        inEuint32[] memory encryptedScores
+    ) external {
         require(LibPrize.isState(prizeId, LibPrize.State.Evaluating), "Invalid state");
         require(LibACL.isPrizeEvaluator(prizeId, msg.sender), "Caller is not an evaluator for this prize");
         AppStorage storage s = LibAppStorage.diamondStorage();
         Prize storage prize = s.prizes[prizeId];
 
-        require(prize.contributions[contestant].length > 0, "Invalid contestant");
+        uint256[] storage contributionIds = prize.contributionIdsByContestant[contestant];
+        require(contributionIds.length > 0, "Invalid contestant");
+        uint256 contributionId = contributionIds[contributionIds.length - 1];
+        Contribution storage contribution = prize.contributionsById[contributionId];
+
         require(encryptedScores.length == prize.criteriaWeights.length, "Invalid number of scores");
         require(
-            !prize.evaluatorContestantScored[msg.sender][contestant],
+            !prize.evaluatorContestantScored[msg.sender][contestant][contributionId],
             "Contestant already scored by this evaluator"
         );
 
-        euint8 weightedScore = calculateWeightedScore(encryptedScores, prize.criteriaWeights);
-
-        Contribution storage contribution = prize.contributions[contestant][prize.contributions[contestant].length - 1];
-        contribution.aggregatedScore = FHE.add(contribution.aggregatedScore, FHE.asEuint16(weightedScore));
-        contribution.evaluationCount++;
-        prize.evaluatorContestantScored[msg.sender][contestant] = true;
-
-        emit LibPrize.ScoreAssigned(prizeId, msg.sender, contestant, encryptedScores.length);
-    }
-
-    function calculateWeightedScore(inEuint8[] memory scores, uint16[] storage weights) internal view returns (euint8) {
-        euint8 weightedScore = FHE.asEuint8(0);
-        for (uint256 j = 0; j < scores.length; j++) {
-            weightedScore = FHE.add(weightedScore, FHE.mul(FHE.asEuint8(scores[j]), FHE.asEuint8(weights[j])));
+        euint32 weightedScore = FHE.asEuint32(0);
+        for (uint256 j = 0; j < encryptedScores.length; j++) {
+            euint32 score = FHE.asEuint32(encryptedScores[j]);
+            euint32 weight = FHE.asEuint32(prize.criteriaWeights[j]);
+            weightedScore = FHE.add(weightedScore, FHE.mul(score, weight));
         }
-        return weightedScore;
+
+        contribution.weightedScore = FHE.add(contribution.weightedScore, weightedScore);
+        contribution.evaluationCount++;
+        if (!contribution.evaluated && contribution.evaluationCount == LibACL.getPrizeEvaluatorCount(prizeId)) {
+            contribution.evaluated = true;
+            prize.evaluatedContributionsCount++;
+        }
+        prize.evaluatorContestantScored[msg.sender][contestant][contributionId] = true;
+        prize.totalScore = FHE.add(prize.totalScore, weightedScore);
+
+        emit LibPrize.ScoreAssigned(prizeId, msg.sender, contestant, contributionId, encryptedScores.length);
     }
 
     function getEvaluationCount(uint256 prizeId, address contestant) external view returns (uint16) {
         AppStorage storage s = LibAppStorage.diamondStorage();
-        Contribution[] storage contributions = s.prizes[prizeId].contributions[contestant];
-        if (contributions.length == 0) {
+        Prize storage prize = s.prizes[prizeId];
+        uint256[] storage contributionIds = prize.contributionIdsByContestant[contestant];
+        if (contributionIds.length == 0) {
             return 0;
         }
-        return contributions[contributions.length - 1].evaluationCount;
+        uint256 contributionId = contributionIds[contributionIds.length - 1];
+        return prize.contributionsById[contributionId].evaluationCount;
     }
 
     function hasEvaluatorScoredContestant(
@@ -52,25 +63,14 @@ contract PrizeEvaluationFacet {
         address evaluator,
         address contestant
     ) external view returns (bool) {
-        return LibAppStorage.diamondStorage().prizes[prizeId].evaluatorContestantScored[evaluator][contestant];
-    }
-
-    function addEvaluators(uint256 prizeId, address[] memory _evaluators) external {
-        require(LibPrize.isState(prizeId, LibPrize.State.Setup), "Invalid state");
-        require(LibACL.isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
-        for (uint256 i = 0; i < _evaluators.length; i++) {
-            LibACL.addPrizeEvaluator(prizeId, _evaluators[i]);
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        Prize storage prize = s.prizes[prizeId];
+        uint256[] storage contributionIds = prize.contributionIdsByContestant[contestant];
+        if (contributionIds.length == 0) {
+            return false;
         }
-        emit LibPrize.EvaluatorsAdded(prizeId, _evaluators);
-    }
-
-    function removeEvaluators(uint256 prizeId, address[] memory _evaluators) external {
-        require(LibPrize.isState(prizeId, LibPrize.State.Setup), "Invalid state");
-        require(LibACL.isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
-        for (uint256 i = 0; i < _evaluators.length; i++) {
-            LibACL.removePrizeEvaluator(prizeId, _evaluators[i]);
-        }
-        emit LibPrize.EvaluatorsRemoved(prizeId, _evaluators);
+        uint256 contributionId = contributionIds[contributionIds.length - 1];
+        return prize.evaluatorContestantScored[evaluator][contestant][contributionId];
     }
 
     function assignCriteriaWeights(uint256 prizeId, uint16[] calldata weights) external {
@@ -80,13 +80,17 @@ contract PrizeEvaluationFacet {
         Prize storage prize = s.prizes[prizeId];
         require(weights.length == prize.criteriaNames.length, "Mismatch in number of weights");
 
-        uint16 totalWeight = 0;
-        for (uint8 i = 0; i < weights.length; i++) {
-            totalWeight += weights[i];
+        for (uint256 i = 0; i < weights.length; i++) {
+            require(weights[i] <= 10, "Weight must be <= 10");
         }
-        require(totalWeight == 100, "Sum of weights must equal 100");
 
         prize.criteriaWeights = weights;
         emit LibPrize.CriteriaWeightsAssigned(prizeId, weights);
+    }
+
+    function getCriteriaWeights(uint256 prizeId) external view returns (uint16[] memory) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        Prize storage prize = s.prizes[prizeId];
+        return prize.criteriaWeights;
     }
 }

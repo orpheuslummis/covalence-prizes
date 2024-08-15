@@ -17,20 +17,24 @@ library LibPrize {
     enum AllocationStrategy {
         Linear,
         Quadratic,
-        WinnerTakesAll,
         Invalid
     }
 
-    event ContributionAdded(address contestant, string description);
+    event ContributionAdded(uint256 indexed prizeId, address contestant, string description, uint256 contributionId);
     event StateChanged(uint256 indexed prizeId, State oldState, State newState);
     event PrizeCreated(address indexed organizer, uint256 indexed prizeId, string name, uint256 pool);
     event PrizeFunded(uint256 indexed prizeId, address funder, uint256 amount, uint256 newTotal);
-    event ContributionAdded(uint256 indexed prizeId, address contestant, string description);
-    event ScoreAssigned(uint256 indexed prizeId, address indexed evaluator, address contestant, uint256 scoreCount);
+    event ScoreAssigned(
+        uint256 indexed prizeId,
+        address indexed evaluator,
+        address contestant,
+        uint256 contributionId,
+        uint256 scoreCount
+    );
     event EvaluatorsAdded(uint256 indexed prizeId, address[] evaluators);
     event EvaluatorsRemoved(uint256 indexed prizeId, address[] evaluators);
     event RewardsAllocated(uint256 indexed prizeId, uint256 contestantCount);
-    event RewardClaimed(uint256 indexed prizeId, address indexed contestant, uint256 amount);
+    event RewardClaimed(uint256 indexed prizeId, address indexed contestant);
     event AllocationStrategySet(uint256 indexed prizeId, AllocationStrategy strategy);
     event PrizeContractsSet(
         uint256 indexed prizeId,
@@ -44,6 +48,7 @@ library LibPrize {
     event CriteriaWeightsAssigned(uint256 indexed prizeId, uint16[] weights);
     event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender);
     event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender);
+    event RewardsAllocatedPartial(uint256 indexed prizeId, uint256 startIndex, uint256 endIndex);
 
     function isState(uint256 prizeId, State _state) internal view returns (bool) {
         return LibAppStorage.diamondStorage().prizes[prizeId].state == _state;
@@ -96,5 +101,24 @@ library LibPrize {
             strategies[i] = AllocationStrategy(i);
         }
         return strategies;
+    }
+
+    function addContributionForContestant(uint256 prizeId, address contestant, uint256 contributionId) internal {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        s.prizes[prizeId].contributionIdsByContestant[contestant].push(contributionId);
+    }
+
+    function getPrizeFundedAmount(uint256 prizeId) internal view returns (uint256) {
+        return LibAppStorage.diamondStorage().prizes[prizeId].fundedAmount;
+    }
+
+    function setPrizeFundedAmount(uint256 prizeId, uint256 amount) internal {
+        LibAppStorage.diamondStorage().prizes[prizeId].fundedAmount = amount;
+    }
+
+    function isPrizeFullyFunded(uint256 prizeId) internal view returns (bool) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        Prize storage prize = s.prizes[prizeId];
+        return prize.fundedAmount >= prize.monetaryRewardPool;
     }
 }

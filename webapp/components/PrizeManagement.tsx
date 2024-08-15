@@ -3,25 +3,24 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAppContext } from '../app/AppContext';
 import { useError } from '../app/ErrorContext';
-import { PrizeStatus } from '../app/types';
-import { usePrizeManager } from '../hooks/usePrizeManager';
+import { usePrizeDiamond } from '../hooks/usePrizeDiamond';
+import { State } from '../types';
 
 const PrizeManagement: React.FC = () => {
-    const { web3, role } = useAppContext();
+    const { role } = useAppContext();
     const {
-        loading: prizeManagerLoading,
         addEvaluators,
         assignCriteriaWeights,
-        fundPrize,
+        fundTotally,
         moveToNextState,
-        assignScores,
-        allocateRewards,
-        getPrizeState,
-        prizes
-    } = usePrizeManager();
+        assignScoresForContestant,
+        allocateRewardsBatch,
+        getState,
+        getPrizes
+    } = usePrizeDiamond();
     const { handleError } = useError();
-    const [selectedPrizeId, setSelectedPrizeId] = useState<number | null>(null);
-    const [currentState, setCurrentState] = useState<PrizeStatus | null>(null);
+    const [selectedPrizeId, setSelectedPrizeId] = useState<bigint | null>(null);
+    const [currentState, setCurrentState] = useState<State | null>(null);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
     const [evaluators, setEvaluators] = useState<string[]>(['']);
     const [weights, setWeights] = useState<number[]>([]);
@@ -33,15 +32,15 @@ const PrizeManagement: React.FC = () => {
     const updatePrizeState = useCallback(async () => {
         if (selectedPrizeId !== null) {
             try {
-                const state = await getPrizeState(selectedPrizeId);
+                const state = await getState(selectedPrizeId);
                 setCurrentState(state);
             } catch (error) {
                 handleError('Failed to update prize state', error);
             }
         }
-    }, [selectedPrizeId, getPrizeState, handleError]);
+    }, [selectedPrizeId, getState, handleError]);
 
-    const handlePrizeSelection = (prizeId: number) => {
+    const handlePrizeSelection = (prizeId: bigint) => {
         try {
             setSelectedPrizeId(prizeId);
             updatePrizeState();
@@ -85,7 +84,7 @@ const PrizeManagement: React.FC = () => {
 
     const handleFundPrize = () =>
         handleAction(async () => {
-            await fundPrize(selectedPrizeId!, fundAmount);
+            await fundTotally(selectedPrizeId!, fundAmount);
         }, 'Prize funded successfully');
 
     const handleMoveToNextState = () =>
@@ -94,10 +93,10 @@ const PrizeManagement: React.FC = () => {
         }, 'Moved to next state successfully');
 
     const handleAssignScores = () =>
-        handleAction(() => assignScores(selectedPrizeId!, contestants.filter(c => c), scores), 'Scores assigned successfully');
+        handleAction(() => assignScoresForContestant(selectedPrizeId!, contestants.filter(c => c), scores), 'Scores assigned successfully');
 
     const handleAllocateRewards = () =>
-        handleAction(() => allocateRewards(selectedPrizeId!), 'Rewards allocated successfully');
+        handleAction(() => allocateRewardsBatch(selectedPrizeId!), 'Rewards allocated successfully');
 
     if (!web3.isConnected) {
         return <div className="text-center p-4 bg-yellow-100 text-yellow-700 rounded">Please connect your wallet to manage prizes.</div>;

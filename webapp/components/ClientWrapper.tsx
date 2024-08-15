@@ -3,11 +3,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ConnectKitProvider } from 'connectkit';
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { WagmiProvider } from 'wagmi';
-import { AppProvider } from '../app/AppContextProvider';
-import { fhenixTestnet, wagmiConfig } from '../config';
+import { AppProvider } from '../app/AppContext';
+import { wagmiConfig } from '../config';
 import { ErrorProvider } from '../hooks/useError';
 import Footer from "./Footer";
 import Navbar from "./Navbar";
@@ -15,7 +15,7 @@ import Navbar from "./Navbar";
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
-            staleTime: 5 * 60 * 1000, // 5 minutes
+            staleTime: 10 * 60 * 1000, // 10 minutes
             retry: 2,
             refetchOnWindowFocus: false,
         },
@@ -27,12 +27,14 @@ const ClientWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         <ErrorProvider>
             <WagmiProvider config={wagmiConfig}>
                 <QueryClientProvider client={queryClient}>
-                    <ConnectKitProvider options={{ initialChainId: fhenixTestnet.id }}>
+                    <ConnectKitProvider>
                         <AppProvider>
                             <Navbar />
                             <div className="min-h-screen bg-gradient-to-b from-purple-950 to-purple-800">
                                 <main className="pt-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                                    {children}
+                                    <Suspense fallback={<div>Loading...</div>}>
+                                        {children}
+                                    </Suspense>
                                 </main>
                             </div>
                             <Footer />
