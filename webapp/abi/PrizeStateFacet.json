@@ -1,0 +1,72 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum LibPrize.State",
+        "name": "oldState",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum LibPrize.State",
+        "name": "newState",
+        "type": "uint8"
+      }
+    ],
+    "name": "StateChanged",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getState",
+    "outputs": [
+      {
+        "internalType": "enum LibPrize.State",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      }
+    ],
+    "name": "moveToNextState",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      }
+    ],
+    "name": "updateClaimStatus",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

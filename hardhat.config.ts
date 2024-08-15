@@ -1,53 +1,76 @@
-// Plugins
-// Tasks
-import "./tasks";
+import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-toolbox";
-import {config as dotenvConfig} from "dotenv";
+import "@nomicfoundation/hardhat-verify";
+import { config as dotenvConfig } from "dotenv";
 import "fhenix-hardhat-docker";
 import "fhenix-hardhat-plugin";
 import "hardhat-deploy";
-import {HardhatUserConfig} from "hardhat/config";
-import {resolve} from "path";
+import { HardhatUserConfig } from "hardhat/config";
+import { resolve } from "path";
+import { fhenixTestnet } from "./chainConfig";
+import "./tasks";
 
-// DOTENV_CONFIG_PATH is used to specify the path to the .env file for example in the CI
-const dotenvConfigPath: string = process.env.DOTENV_CONFIG_PATH || "./.env";
+const dotenvConfigPath: string = process.env.DOTENV_CONFIG_PATH || "./.env.local";
 dotenvConfig({ path: resolve(__dirname, dotenvConfigPath) });
 
-const TESTNET_CHAIN_ID = 42069;
-const TESTNET_RPC_URL = "https://api.testnet.fhenix.zone:7747";
+const PRIVATE_KEYS = [
+  process.env.PRIVATE_KEY,
+  process.env.PRIVATE_KEY_1,
+  process.env.PRIVATE_KEY_2,
+  process.env.PRIVATE_KEY_3,
+  process.env.PRIVATE_KEY_4,
+  process.env.PRIVATE_KEY_5
+].filter((key): key is string => typeof key === 'string');
 
-const testnetConfig = {
-    chainId: TESTNET_CHAIN_ID,
-    url: TESTNET_RPC_URL,
+if (PRIVATE_KEYS.length === 0) {
+  throw new Error("Please set at least one PRIVATE_KEY in your .env.local file");
 }
-
-
-// Select either private keys or mnemonic from .env file or environment variables
-const keys = process.env.KEY;
-if (!keys) {
-  let mnemonic = process.env.MNEMONIC;
-  if (!mnemonic) {
-    throw new Error("No mnemonic or private key provided, please set MNEMONIC or KEY in your .env file");
-  }
-  testnetConfig['accounts'] = {
-    count: 10,
-    mnemonic,
-    path: "m/44'/60'/0'/0",
-  }
-} else {
-  testnetConfig['accounts'] = [keys];
-}
-
 
 const config: HardhatUserConfig = {
-  solidity:{version:  "0.8.25", settings: {optimizer: {enabled: true, runs: 1}}},
+  solidity: {
+    version: "0.8.25",
+    settings: {
+      optimizer: { enabled: true, runs: 200 },
+      // debug: { revertStrings: "debug" }
+    }
+  },
+  defaultNetwork: "testnet",
   networks: {
-    testnet: testnetConfig,
+    testnet: {
+      chainId: fhenixTestnet.id,
+      url: fhenixTestnet.rpcUrls.default.http[0],
+      accounts: PRIVATE_KEYS,
+    }
+  },
+  namedAccounts: {
+    deployer: 0,
   },
   typechain: {
     outDir: "types",
     target: "ethers-v6",
   },
+  etherscan: {
+    apiKey: {
+      testnet: "abc"
+    },
+    customChains: [
+      {
+        network: "testnet",
+        chainId: 412346,
+        urls: {
+          apiURL: "https://explorer.helium.fhenix.zone/api",
+          browserURL: "https://explorer.helium.fhenix.zone/",
+        }
+      }
+    ]
+  },
+  sourcify: {
+    enabled: false
+  },
+  mocha: {
+    reporter: "spec",
+    timeout: 300000 // 5 minutes
+  }
 };
 
 export default config;

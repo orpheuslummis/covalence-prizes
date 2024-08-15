@@ -1,0 +1,71 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum LibPrize.AllocationStrategy",
+        "name": "strategy",
+        "type": "uint8"
+      }
+    ],
+    "name": "AllocationStrategySet",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "getAllAllocationStrategies",
+    "outputs": [
+      {
+        "internalType": "enum LibPrize.AllocationStrategy[]",
+        "name": "",
+        "type": "uint8[]"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getAllocationStrategy",
+    "outputs": [
+      {
+        "internalType": "enum LibPrize.AllocationStrategy",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "enum LibPrize.AllocationStrategy",
+        "name": "strategy",
+        "type": "uint8"
+      }
+    ],
+    "name": "setAllocationStrategy",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]
