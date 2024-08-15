@@ -181,6 +181,7 @@ const PrizeDetails = React.memo(({ prize }: {
         </div>
     );
 });
+PrizeDetails.displayName = 'PrizeDetails';
 
 const EvaluationCriteria = React.memo(({ criteria }: { criteria: string[] }) => {
     return (
@@ -198,6 +199,7 @@ const EvaluationCriteria = React.memo(({ criteria }: { criteria: string[] }) => 
         </div>
     );
 });
+EvaluationCriteria.displayName = 'EvaluationCriteria';
 
 const PrizeAmount = React.memo(({ amount }: { amount: bigint }) => {
     return (
@@ -209,6 +211,7 @@ const PrizeAmount = React.memo(({ amount }: { amount: bigint }) => {
         </div>
     );
 });
+PrizeAmount.displayName = 'PrizeAmount';
 
 const PrizeInPageStatus = React.memo(({ currentState }: { currentState: State }) => {
     const states = Object.values(State).filter(state => typeof state === 'number') as State[];
@@ -242,3 +245,4 @@ const PrizeInPageStatus = React.memo(({ currentState }: { currentState: State })
         </div>
     );
 });
+PrizeInPageStatus.displayName = 'PrizeInPageStatus';

@@ -9,7 +9,7 @@ const AboutPage: React.FC = () => {
             <section className="mb-10">
                 <h2 className="text-2xl font-semibold mb-4 text-purple-200">Our Mission</h2>
                 <p className="text-lg leading-relaxed">
-                    Covalence Prizes is a decentralized platform that's changing how prizes are created, managed, and awarded.
+                    Covalence Prizes is a decentralized platform that&apos;s changing how prizes are created, managed, and awarded.
                     We use advanced smart contracts to ensure privacy, fair decision-making, and transparency in prize management.
                 </p>
             </section>
@@ -57,7 +57,7 @@ const AboutPage: React.FC = () => {
             <section className="mb-10">
                 <h2 className="text-2xl font-semibold mb-4 text-purple-200">Get Involved</h2>
                 <p className="text-lg mb-6 leading-relaxed">
-                    We're always looking for developers, content creators, and enthusiasts to join us.
+                    We&apos;re always looking for developers, content creators, and enthusiasts to join us.
                     Help us shape the future of prize management!
                 </p>
                 <Link href="/contact" className="inline-block bg-purple-300 hover:bg-purple-400 text-purple-900 font-bold py-3 px-6 rounded-lg transition duration-300">

@@ -31,20 +31,19 @@ export default function Home() {
     enabled: blockNumber !== undefined,
   });
 
-  const prizes = data ?? [];
   const totalCount = Number(prizeCount);
   const totalPages = useMemo(() => Math.max(1, Math.ceil(totalCount / PRIZES_PER_PAGE)), [totalCount]);
 
-  const sortedPrizes = useMemo(() =>
-    [...prizes].sort((a, b) => {
+  const sortedPrizes = useMemo(() => {
+    const prizes = data ?? [];
+    return [...prizes].sort((a, b) => {
       const aActive = isUserActiveInPrize(a, userRoles);
       const bActive = isUserActiveInPrize(b, userRoles);
       if (aActive && !bActive) return -1;
       if (!aActive && bActive) return 1;
       return 0;
-    }),
-    [prizes, userRoles]
-  );
+    });
+  }, [data, userRoles]);
 
   if (error) {
     console.error('Error fetching prizes:', error);

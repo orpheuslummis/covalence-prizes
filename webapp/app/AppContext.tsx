@@ -127,7 +127,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         await disconnect();
     }, [disconnect]);
 
-    const memoizedGetPrizeDetails = useCallback(prizeDiamond.getPrizeDetails, [prizeDiamond]);
+    const memoizedGetPrizeDetails = useCallback((prizeId: bigint) => prizeDiamond.getPrizeDetails(prizeId), [prizeDiamond]);
 
     const contextValue = useMemo<AppContextType>(() => ({
         account,

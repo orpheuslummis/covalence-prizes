@@ -28,3 +28,4 @@ yarn.lock
 /etc
 
 **/.env.local
+/webapp/.next/

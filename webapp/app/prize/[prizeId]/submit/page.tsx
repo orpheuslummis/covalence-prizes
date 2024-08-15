@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { Hash } from 'viem';
 import { useAccount } from 'wagmi';
@@ -25,13 +25,19 @@ export default function SubmitContributionPage() {
         getState,
     } = prizeDiamond;
 
-    const { data: prizeDetails, isLoading: isLoadingPrizeDetails } = useQuery({
+    const {
+        data: prizeDetails,
+        isLoading: isLoadingPrizeDetails,
+    } = useQuery({
         queryKey: ['prizeDetails', prizeId, blockNumber],
         queryFn: () => getPrizeDetails(BigInt(prizeId as string)),
         enabled: !!prizeId,
     });
 
-    const { data: currentState, isLoading: isLoadingState } = useQuery({
+    const {
+        data: currentState,
+        isLoading: isLoadingState,
+    } = useQuery({
         queryKey: ['prizeState', prizeId, blockNumber],
         queryFn: () => getState(BigInt(prizeId as string)),
         enabled: !!prizeId,
@@ -44,7 +50,7 @@ export default function SubmitContributionPage() {
         }
     }, [isConnected, router, prizeId]);
 
-    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setIsSubmitting(true);
         try {
@@ -61,7 +67,7 @@ export default function SubmitContributionPage() {
         } finally {
             setIsSubmitting(false);
         }
-    };
+    }, [prizeId, description, submitContribution, prizeDiamond, router, handleError]);
 
     // Memoize the rendered content
     const content = useMemo(() => {
@@ -91,7 +97,7 @@ export default function SubmitContributionPage() {
                         <div className="mb-6 bg-purple-100 p-4 rounded-lg">
                             <h4 className="text-lg font-semibold mb-2 text-purple-800">About Submitting a Contribution</h4>
                             <p className="text-gray-700">
-                                By submitting a contribution, you're proposing a solution or idea for this prize.
+                                By submitting a contribution, you&apos;re proposing a solution or idea for this prize.
                                 Your submission will be evaluated based on the prize criteria. Make sure your
                                 description is clear, concise, and addresses the prize objectives.
                             </p>

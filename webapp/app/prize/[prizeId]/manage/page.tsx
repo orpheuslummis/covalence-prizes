@@ -29,7 +29,7 @@ export default function ManagePrizePage() {
         console.log('prizeId:', prizeId);
         console.log('isPrizesLoading:', isPrizesLoading);
         console.log('prizes:', prizes);
-    }, []);
+    }, [prizeId, isPrizesLoading, prizes]);
 
     useEffect(() => {
         const fetchPrizeDetails = async () => {
@@ -195,7 +195,7 @@ export default function ManagePrizePage() {
                                 <li><strong>Claiming:</strong> Contestants can claim their rewards.</li>
                                 <li><strong>Closed:</strong> Final state when all rewards are claimed.</li>
                             </ul>
-                            <p className="mt-4 text-purple-600">As the prize organizer, you are responsible for moving the prize through these states using the "Move to Next State" button below.</p>
+                            <p className="mt-4 text-purple-600">As the prize organizer, you are responsible for moving the prize through these states using the &ldquo;Move to Next State&rdquo; button below.</p>
                             <p className="mt-2 text-purple-600">Complete these steps in order to properly set up and manage your prize.</p>
                         </ManagementCard>
 

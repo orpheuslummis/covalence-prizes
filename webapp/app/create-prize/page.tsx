@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { parseEther } from 'viem';
 import { useAccount, useBalance, useWaitForTransactionReceipt } from 'wagmi';
@@ -37,15 +37,7 @@ export default function CreatePrizePage() {
         }
     }, [isConnected]);
 
-    useEffect(() => {
-        if (isSuccess && transactionReceipt) {
-            handleTransactionSuccess();
-        } else if (isError) {
-            toast.error('Transaction failed. Please try again.');
-        }
-    }, [isSuccess, isError, transactionReceipt]);
-
-    const handleTransactionSuccess = async () => {
+    const handleTransactionSuccess = useCallback(async () => {
         toast.success('Prize created successfully');
         try {
             const prizesResult = await getPrizes(1n, 1n);
@@ -64,7 +56,15 @@ export default function CreatePrizePage() {
             toast.error('Prize created, but there was an error loading the details.');
             router.push('/prizes');
         }
-    };
+    }, [getPrizes, router]);
+
+    useEffect(() => {
+        if (isSuccess && transactionReceipt) {
+            handleTransactionSuccess();
+        } else if (isError) {
+            toast.error('Transaction failed. Please try again.');
+        }
+    }, [isSuccess, isError, transactionReceipt, handleTransactionSuccess]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

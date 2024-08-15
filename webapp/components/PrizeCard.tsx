@@ -119,4 +119,6 @@ const PrizeCard: React.FC<PrizeCardProps> = React.memo(({ prize }) => {
     );
 });
 
+PrizeCard.displayName = 'PrizeCard';
+
 export default PrizeCard;
