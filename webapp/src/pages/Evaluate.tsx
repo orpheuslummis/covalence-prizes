@@ -3,11 +3,13 @@ import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { FaInfoCircle, FaSpinner } from "react-icons/fa";
 import { useAccount } from "wagmi";
-import { Contribution, Prize } from "../lib/types";
+import { Contribution, PrizeDetails } from "../lib/types";
 import { useAppContext } from "../contexts/AppContext";
+import { usePrizeDiamond } from "../hooks/usePrizeDiamond";
+import { Address } from "viem";
 
 interface EvaluatePageState {
-  prize: Prize | null;
+  prize: PrizeDetails | null;
   contributions: Contribution[];
   selectedContribution: Contribution | null;
   scores: number[];
@@ -19,7 +21,7 @@ interface EvaluatePageState {
 }
 
 type Action =
-  | { type: "SET_PRIZE"; payload: Prize }
+  | { type: "SET_PRIZE"; payload: PrizeDetails }
   | { type: "SET_CONTRIBUTIONS"; payload: Contribution[] }
   | { type: "SET_SELECTED_CONTRIBUTION"; payload: Contribution | null }
   | { type: "SET_SCORES"; payload: number[] }
@@ -73,6 +75,8 @@ const EvaluatePage: React.FC = () => {
   const { prizeDiamond } = useAppContext();
   const [state, dispatch] = useReducer(reducer, initialState);
 
+  const { evaluate, encryptScores } = usePrizeDiamond();
+
   const fetchPrizeDetails = useCallback(async () => {
     if (!prizeId) return;
 
@@ -89,7 +93,7 @@ const EvaluatePage: React.FC = () => {
       );
       dispatch({ type: "SET_CONTRIBUTIONS", payload: contributions });
 
-      const canEvaluate = await prizeDiamond.canEvaluate(BigInt(prizeId), address || "");
+      const canEvaluate = await prizeDiamond.canEvaluate(BigInt(prizeId), address as Address);
       dispatch({ type: "SET_CAN_EVALUATE", payload: canEvaluate });
 
       dispatch({ type: "SET_LOADING", payload: false });
@@ -138,7 +142,12 @@ const EvaluatePage: React.FC = () => {
 
     try {
       dispatch({ type: "SET_SUBMITTING", payload: true });
-      await prizeDiamond.evaluate(BigInt(prizeId as string), state.selectedContribution.id, state.scores.map(BigInt));
+      const encryptedScores = await encryptScores(state.scores);
+      await evaluate({
+        prizeId: BigInt(prizeId as string),
+        contributionId: state.selectedContribution.id,
+        encryptedScores: encryptedScores
+      });
       toast.success("Evaluation submitted successfully!");
       navigate(`/prize/${prizeId}`);
     } catch (error) {

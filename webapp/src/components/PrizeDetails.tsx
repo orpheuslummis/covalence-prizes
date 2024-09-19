@@ -1,9 +1,9 @@
 import React from "react";
 import { formatEther } from "viem";
-import { Prize, State, AllocationStrategy } from "../lib/types";
+import { type PrizeDetails, AllocationStrategy } from "../lib/types";
 
 interface PrizeDetailsProps {
-  prize: Prize;
+  prize: PrizeDetails;
 }
 
 const PrizeDetails: React.FC<PrizeDetailsProps> = ({ prize }) => {
@@ -26,7 +26,7 @@ const PrizeDetails: React.FC<PrizeDetailsProps> = ({ prize }) => {
       title: "Rewards",
       items: [
         { label: "Claimed Rewards", value: prize.claimedRewardsCount.toString() },
-        { label: "Rewards Allocated", value: `${formatEther(prize.rewardsAllocated)} ETH` },
+        { label: "Rewards Allocated", value: prize.rewardsAllocated ? "Yes" : "No" },
       ],
     },
     {

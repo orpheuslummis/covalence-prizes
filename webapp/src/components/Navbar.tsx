@@ -1,24 +1,16 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ConnectKitButton } from "connectkit";
 import { useWalletContext } from "../contexts/WalletContext";
 import { useState, useEffect } from "react";
 import { FaInfoCircle } from "react-icons/fa";
 
 const Navbar: React.FC = () => {
-  const [isScrolled, setIsScrolled] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const location = useLocation();
   const { account, isLoading } = useWalletContext();
   const isConnected = account.isConnected;
 
   useEffect(() => {
     setIsMounted(true);
-  }, []);
-
-  useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 0);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   if (!isMounted) {

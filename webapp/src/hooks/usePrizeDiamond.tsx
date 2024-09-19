@@ -242,23 +242,29 @@ export const usePrizeDiamond = () => {
     },
   });
 
-  const createPrize = useMutation<`0x${string}`, Error, PrizeParams>({
-    mutationFn: async (params: PrizeParams) => {
+  const createPrize = useMutation<string, Error, PrizeParams>({
+    mutationFn: async (prizeParams) => {
       if (!walletClient) throw new Error("Wallet not connected");
-      const hash = await writeContractAsync({
+      const txHash = await writeContractAsync({
         address: diamondAddress,
         abi: diamondAbi,
         functionName: "createPrize",
-        args: [params],
+        args: [
+          prizeParams.name,
+          prizeParams.description,
+          prizeParams.monetaryRewardPool,
+          prizeParams.criteriaWeights,
+          prizeParams.allocationStrategy,
+        ],
       });
-      return hash;
+      return txHash;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["initialPrizes"] });
-      toast.success("Prize created successfully");
+      queryClient.invalidateQueries({ queryKey: ["prizes"] });
+      toast.success('Prize created successfully');
     },
     onError: (error) => {
-      console.error("Error creating prize:", error);
+      console.error('Error creating prize:', error);
       toast.error(`Failed to create prize: ${error.message}`);
     },
   });
@@ -284,25 +290,25 @@ export const usePrizeDiamond = () => {
   });
 
   const evaluateContribution = useMutation<
-    string,
+    void,
     Error,
     { prizeId: bigint; contributionId: bigint; encryptedScores: EncryptedUint32[] }
   >({
     mutationFn: async ({ prizeId, contributionId, encryptedScores }) => {
       if (!walletClient) throw new Error("Wallet not connected");
-      return writeContractAsync({
+      await writeContractAsync({
         address: diamondAddress,
         abi: diamondAbi,
         functionName: "evaluateContribution",
         args: [prizeId, contributionId, encryptedScores],
       });
     },
-    onSuccess: (_, { prizeId }) => {
-      queryClient.invalidateQueries({ queryKey: ["prizeDetails", prizeId.toString()] });
-      toast.success("Contribution evaluated successfully");
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["prizeDetails"] });
+      toast.success('Contribution evaluated successfully');
     },
     onError: (error) => {
-      console.error("Error evaluating contribution:", error);
+      console.error('Error evaluating contribution:', error);
       toast.error(`Failed to evaluate contribution: ${error.message}`);
     },
   });
@@ -458,6 +464,57 @@ export const usePrizeDiamond = () => {
     [readDiamond],
   );
 
+  // Add the following implementations within the usePrizeDiamond hook
+
+  const canEvaluate = async (prizeId: bigint, address: Address): Promise<boolean> => {
+    return await isPrizeEvaluator(prizeId, address);
+  };
+
+  const evaluate = useMutation<
+    void,
+    Error,
+    { prizeId: bigint; contributionId: bigint; encryptedScores: EncryptedUint32[] }
+  >({
+    mutationFn: async ({ prizeId, contributionId, encryptedScores }) => {
+      await evaluateContribution.mutateAsync({
+        prizeId,
+        contributionId,
+        encryptedScores,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["prizeDetails"] });
+      toast.success('Contribution evaluated successfully');
+    },
+    onError: (error) => {
+      console.error('Error evaluating contribution:', error);
+      toast.error(`Failed to evaluate contribution: ${error.message}`);
+    },
+  });
+
+  const isPrizeOrganizer = async (prizeId: bigint, address: Address): Promise<boolean> => {
+    try {
+      const prizeDetails = await getPrizeDetails(prizeId);
+      return prizeDetails.organizer.toLowerCase() === address.toLowerCase();
+    } catch (error) {
+      console.error("Error checking if address is prize organizer:", error);
+      throw error;
+    }
+  };
+
+  const addEvaluatorsAsync = useCallback(
+    async ({ prizeId, evaluators }: { prizeId: bigint; evaluators: Address[] }) => {
+      await writeContractAsync({
+        address: diamondAddress,
+        abi: diamondAbi,
+        functionName: "addEvaluators",
+        args: [prizeId, evaluators],
+      });
+    },
+    [writeContractAsync, diamondAddress, diamondAbi]
+  );
+
+  // Include these in the returned object
   return {
     getState,
     isEvaluator,
@@ -519,6 +576,12 @@ export const usePrizeDiamond = () => {
     waitForTransaction,
 
     blockNumber: blockNumber ? Number(blockNumber) : undefined,
+
+    canEvaluate,
+    evaluate: evaluate.mutate,
+    evaluateAsync: evaluate.mutateAsync,
+    isPrizeOrganizer,
+    addEvaluatorsAsync,
   } as const;
 };
 

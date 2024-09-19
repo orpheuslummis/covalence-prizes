@@ -45,13 +45,9 @@ const Home: React.FC = () => {
 
   const sortedPrizes = useMemo(() => {
     const prizes = data ?? [];
-    return [...prizes].sort((a, b) => {
-      const aActive = isUserActiveInPrize(userRoles);
-      const bActive = isUserActiveInPrize(userRoles);
-      if (aActive && !bActive) return -1;
-      if (!aActive && bActive) return 1;
-      return 0;
-    });
+    const activePrizes = prizes.filter(() => isUserActiveInPrize(userRoles));
+    const inactivePrizes = prizes.filter(() => !isUserActiveInPrize(userRoles));
+    return [...activePrizes, ...inactivePrizes];
   }, [data, userRoles]);
 
   if (error) {

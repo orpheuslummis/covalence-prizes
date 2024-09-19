@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { formatEther, parseEther } from "viem";
 import { useAccount } from "wagmi";
-import { FaCheck } from "react-icons/fa";
-import { Prize, State } from "../lib/types";
+import { PrizeDetails, State } from "../lib/types";
 import { useAppContext } from "../contexts/AppContext";
 import { Address } from "viem";
 
@@ -13,13 +11,9 @@ const ManagePage: React.FC = () => {
   const { address } = useAccount();
   const { prizeDiamond, isLoading } = useAppContext();
 
-  const [prize, setPrize] = useState<Prize | null>(null);
-  const [weights, setWeights] = useState<number[]>([]);
+  const [prize, setPrize] = useState<PrizeDetails | null>(null);
   const [evaluators, setEvaluators] = useState<string>("");
-  const [isFunded, setIsFunded] = useState<boolean>(false);
   const [currentEvaluators, setCurrentEvaluators] = useState<string[]>([]);
-  const [fundAmount, setFundAmount] = useState<string>("");
-  const [requiredFunding, setRequiredFunding] = useState<bigint>(BigInt(0));
 
   const parsedPrizeId = useMemo(() => (prizeId ? BigInt(prizeId) : undefined), [prizeId]);
   const memoizedPrizeDiamond = useMemo(() => prizeDiamond, [prizeDiamond]);
@@ -31,20 +25,14 @@ const ManagePage: React.FC = () => {
       const prizeDetails = await memoizedPrizeDiamond.getPrizeDetails(parsedPrizeId);
       setPrize(prizeDetails);
 
-      const fetchedWeights = await memoizedPrizeDiamond.getCriteriaWeights(parsedPrizeId);
-      setWeights(fetchedWeights);
-
       if (address) {
-        const isOrganizer = await memoizedPrizeDiamond.isPrizeOrganizer(parsedPrizeId, address as Address);
+        // const isOrganizer = await memoizedPrizeDiamond.isPrizeOrganizer(parsedPrizeId, address as Address);
         // Optionally utilize 'isPrizeOrganizer' result here
       }
 
       // Fetch current evaluators
       const evaluatorsList = await memoizedPrizeDiamond.getPrizeEvaluators(parsedPrizeId);
       setCurrentEvaluators(evaluatorsList);
-
-      setRequiredFunding(prizeDetails.monetaryRewardPool - prizeDetails.fundedAmount);
-      setFundAmount(formatEther(prizeDetails.monetaryRewardPool - prizeDetails.fundedAmount));
     } catch (error) {
       console.error("Error fetching prize details:", error);
       toast.error("Failed to fetch prize details.");
@@ -59,9 +47,16 @@ const ManagePage: React.FC = () => {
 
   const handleAddEvaluators = useCallback(async () => {
     if (!parsedPrizeId) return;
-    const evaluatorAddresses = evaluators.split(",").map((addr) => addr.trim()) as Address[];
+    
+    const evaluatorAddresses = evaluators
+      .split(",")
+      .map((addr) => addr.trim()) as Address[];
+
     try {
-      await prizeDiamond.addEvaluatorsAsync({ prizeId: parsedPrizeId, evaluators: evaluatorAddresses });
+      await prizeDiamond.addEvaluatorsAsync({
+        prizeId: parsedPrizeId,
+        evaluators: evaluatorAddresses,
+      });
       setEvaluators("");
       toast.success("Evaluators added successfully");
       fetchPrizeDetails();

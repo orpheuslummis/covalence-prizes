@@ -5,12 +5,13 @@ import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persist
 import { useBlockNumber } from "wagmi";
 import { config } from "../config";
 import { usePrizeDiamond } from "../hooks/usePrizeDiamond";
-import { PrizeDetails, Role, UserRoles, AppContextType } from "../lib/types";
+import { PrizeDetails, Role, AppContextType } from "../lib/types";
 
 export const AppContext = createContext<AppContextType>({
   contracts: config.contracts,
   prizeDiamond: {} as ReturnType<typeof usePrizeDiamond>,
   isLoading: false,
+  setIsLoading: () => {}, // Add this line
   prizes: [],
   userRoles: [],
   setUserRoles: () => {},
@@ -91,6 +92,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       contracts: config.contracts,
       prizeDiamond,
       isLoading: isPrizesLoading,
+      setIsLoading: () => {},
       prizes: prizesData || [],
       userRoles,
       setUserRoles,

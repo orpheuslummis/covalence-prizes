@@ -1,5 +1,5 @@
 import { getDefaultConfig } from "connectkit";
-import { Address, createPublicClient, defineChain } from "viem";
+import { Address, createPublicClient, defineChain, http } from "viem";
 import { createConfig, http } from "wagmi";
 import DiamondABI from "../abi/Diamond.json";
 import DiamondCutFacetABI from "../abi/DiamondCutFacet.json";
@@ -45,6 +45,10 @@ export const fhenixTestnet = defineChain({
     default: { name: "Explorer", url: ENV.EXPLORER_URL },
   },
   testnet: true,
+  // Add fees if required by the Chain type
+  fees: {
+    gasPriceMultiplier: 1.0, // Example value, adjust as needed
+  },
 });
 
 export const wagmiConfig = createConfig(

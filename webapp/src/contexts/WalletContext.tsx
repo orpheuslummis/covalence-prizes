@@ -1,8 +1,6 @@
 "use client";
 
 import React, { ReactNode, useCallback, useContext, useMemo } from "react";
-import { WalletClient } from "viem";
-import { Address } from "viem";
 import {
   useAccount,
   UseAccountReturnType,
@@ -12,6 +10,8 @@ import {
   UsePublicClientReturnType,
   useWalletClient,
 } from "wagmi";
+import { ConnectKitProvider } from "connectkit";
+import { Address } from "viem";
 
 interface WalletContextType {
   address: Address | null;
@@ -19,8 +19,8 @@ interface WalletContextType {
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   publicClient: UsePublicClientReturnType;
-  walletClient: WalletClient | undefined;
-  isLoading: boolean; // Added loading state
+  walletClient: ReturnType<typeof useWalletClient>["data"] | undefined;
+  isLoading: boolean;
 }
 
 const defaultWalletContext: WalletContextType = {
@@ -37,7 +37,7 @@ const defaultWalletContext: WalletContextType = {
   disconnect: async () => {},
   publicClient: null as unknown as UsePublicClientReturnType,
   walletClient: undefined,
-  isLoading: true, // Initialize as loading
+  isLoading: true,
 };
 
 export const WalletContext = React.createContext<WalletContextType>(defaultWalletContext);
@@ -61,7 +61,9 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     await disconnect();
   }, [disconnect]);
 
-  const isLoading = account.isConnecting || (connectors.length > 0 && !account.isConnected && !account.isDisconnected);
+  const isLoading =
+    account.isConnecting ||
+    (connectors.length > 0 && !account.isConnected && !account.isDisconnected);
 
   const contextValue = useMemo<WalletContextType>(
     () => ({
@@ -76,5 +78,9 @@ export const WalletProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     [account, memoizedConnect, memoizedDisconnect, publicClient, walletClient, isLoading],
   );
 
-  return <WalletContext.Provider value={contextValue}>{children}</WalletContext.Provider>;
+  return (
+    <ConnectKitProvider>
+      <WalletContext.Provider value={contextValue}>{children}</WalletContext.Provider>
+    </ConnectKitProvider>
+  );
 };

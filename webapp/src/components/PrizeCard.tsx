@@ -11,9 +11,7 @@ interface PrizeCardProps {
 const PrizeCard: React.FC<PrizeCardProps> = React.memo(({ prize }) => {
   const statusColors: Record<State, string> = {
     [State.Setup]: "bg-yellow-300 text-yellow-800",
-    [State.Funded]: "bg-green-300 text-green-800",
-    [State.WeightsAssigned]: "bg-blue-300 text-blue-800",
-    [State.EvaluatorsAssigned]: "bg-purple-300 text-purple-800",
+    [State.Open]: "bg-green-300 text-green-800",
     [State.Evaluating]: "bg-indigo-300 text-indigo-800",
     [State.Allocating]: "bg-red-300 text-red-800",
     [State.Claiming]: "bg-pink-300 text-pink-800",

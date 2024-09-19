@@ -63,7 +63,7 @@ const TestPrizeCreation: React.FC = () => {
     };
   }, []);
 
-  const { createPrize } = usePrizeDiamond();
+  const { createPrizeAsync } = usePrizeDiamond();
   const { address, isConnected } = useAccount();
   const { data: balance } = useBalance({ address });
 
@@ -114,16 +114,14 @@ const TestPrizeCreation: React.FC = () => {
         criteria: testPrize.criteria,
         criteriaWeights: testPrize.criteriaWeights,
         strategy: testPrize.allocationStrategy,
+        monetaryRewardPool: testPrize.monetaryRewardPool,
+        allocationStrategy: testPrize.allocationStrategy,
       };
 
-      const tx = await createPrize(prizeParams);
-      toast.promise(tx.wait(), {
-        loading: "Creating prize...",
-        success: "Prize created successfully!",
-        error: (err) => `Failed to create prize: ${err.message}`,
-      });
+      await createPrizeAsync(prizeParams);
+      toast.success("Prize created successfully!");
+      // Optionally, wait for transaction confirmation
 
-      await tx.wait(); // Wait for transaction confirmation
       setTestPrize(generateRandomPrize());
     } catch (error: any) {
       console.error("Error creating prize:", error);

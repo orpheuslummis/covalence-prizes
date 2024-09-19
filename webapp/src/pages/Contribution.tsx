@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
 import { formatEther } from "viem";
-import { Contribution, Prize, State } from "../lib/types";
+import { Contribution, PrizeDetails, State } from "../lib/types";
 import { useAppContext } from "../contexts/AppContext";
 
 const ContributionPage: React.FC = () => {
   const { prizeId, id } = useParams();
-  const navigate = useNavigate();
   const { prizeDiamond, isLoading } = useAppContext();
   const [contribution, setContribution] = useState<Contribution | null>(null);
-  const [prize, setPrize] = useState<Prize | null>(null);
+  const [prize, setPrize] = useState<PrizeDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -84,7 +83,7 @@ const ContributionPage: React.FC = () => {
           </p>
           <h3 className="text-xl font-semibold mb-2">Evaluation Scores</h3>
           <ul className="list-disc pl-5">
-            {prize.criteriaNames.map((criterion, index) => (
+            {prize.criteriaNames.map((criterion: string, index: number) => (
               <li key={index} className="mb-2">
                 <strong>{criterion}:</strong> {contribution.evaluationScores[index].toString()}
               </li>

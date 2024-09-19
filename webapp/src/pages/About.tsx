@@ -1,5 +1,4 @@
 import React from "react";
-import { Link } from "react-router-dom";
 
 const About: React.FC = () => {
   return (
@@ -64,12 +63,12 @@ const About: React.FC = () => {
           We're always looking for developers, content creators, and enthusiasts to join us. Help us shape the future of
           prize management!
         </p>
-        <Link
-          to="/contact"
+        <a
+          href="mailto:team@covalence.info" // Directly opens email client
           className="inline-block bg-purple-300 hover:bg-purple-400 text-purple-900 font-bold py-3 px-6 rounded-lg transition duration-300"
         >
           Contact Us
-        </Link>
+        </a>
       </section>
     </div>
   );

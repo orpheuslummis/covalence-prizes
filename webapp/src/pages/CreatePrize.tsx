@@ -21,7 +21,7 @@ const CreatePrizePage = () => {
   const {
     data: transactionReceipt,
     isError,
-    isLoading: transactionLoading,
+    isLoading: _,
     isSuccess,
   } = useWaitForTransactionReceipt({
     hash: transactionHash,
@@ -129,6 +129,8 @@ const CreatePrizePage = () => {
           criteria: criteriaNames.filter((name) => name.trim()),
           criteriaWeights: Array(criteriaNames.length).fill(1),
           strategy: allocationStrategy,
+          monetaryRewardPool: rewardPoolValue,
+          allocationStrategy: allocationStrategy,
         };
 
         const result = await createPrizeAsync(prizeParams);

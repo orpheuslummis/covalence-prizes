@@ -1,21 +1,20 @@
-import React from "react";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import React from "react";
+import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import { WagmiProvider } from "wagmi";
-import { ConnectKitProvider } from "connectkit";
+import Footer from "./components/Footer";
+import Navbar from "./components/Navbar";
+import { wagmiConfig } from "./config";
 import { AppProvider } from "./contexts/AppContext";
 import { WalletProvider } from "./contexts/WalletContext";
-import { wagmiConfig } from "./config";
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
-import Home from "./pages/Home";
 import About from "./pages/About";
-import CreatePrizePage from "./pages/CreatePrize";
-import PrizePage from "./pages/Prize";
 import ContributionPage from "./pages/Contribution";
+import CreatePrizePage from "./pages/CreatePrize";
 import EvaluatePage from "./pages/Evaluate";
+import Home from "./pages/Home";
 import ManagePage from "./pages/Manage";
 import NotFound from "./pages/NotFound";
+import PrizePage from "./pages/Prize";
 import TestingPage from "./pages/Testing";
 
 const queryClient = new QueryClient({
@@ -32,7 +31,6 @@ const App: React.FC = () => {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <ConnectKitProvider>
           <WalletProvider>
             <AppProvider>
               <Router>
@@ -56,7 +54,6 @@ const App: React.FC = () => {
               </Router>
             </AppProvider>
           </WalletProvider>
-        </ConnectKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
