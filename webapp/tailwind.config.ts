@@ -1,68 +1,84 @@
-import type { Config } from "tailwindcss";
-
-const config: Config = {
-  content: [
-    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",
-  ],
+module.exports = {
+  content: ["./src/**/*.{js,jsx,ts,tsx}", "./public/index.html"],
   theme: {
     extend: {
       colors: {
-        primary: {
-          50: '#F3E8FF',
-          100: '#E9D5FF',
-          200: '#D8B4FE',
-          300: '#C084FC',
-          400: '#A855F7',
-          500: '#9333EA',
-          600: '#7E22CE',
-          700: '#6B21A8',
-          800: '#581C87',
-          900: '#4C1D95',
-          950: '#2D0A4E',
+        purple: {
+          950: "#242424",
+          800: "#9333ea",
+          700: "#7e22ce",
+          600: "#6b21a8",
+          500: "#5a189a",
         },
         secondary: {
-          500: '#EC4899',
-          600: '#DB2777',
+          500: "#3B82F6",
+          600: "#2563EB",
         },
-        toast: {
-          warn: '#FEF3C7',
-          warnText: '#92400E',
-          success: '#D1FAE5',
-          successText: '#065F46',
-          error: '#FEE2E2',
-          errorText: '#991B1B',
-          info: '#E0F2FE',
-          infoText: '#075985',
+        primary: {
+          900: "#1a202c",
+          800: "#2c3e50",
+        },
+        green: {
+          500: "#10B981",
+          600: "#059669",
+          700: "#047857",
+        },
+        red: {
+          500: "#EF4444",
+          600: "#DC2626",
+        },
+        yellow: {
+          500: "#F59E0B",
+          600: "#D97706",
         },
       },
-      fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+      spacing: {
+        128: "32rem",
+        144: "36rem",
       },
-      textShadow: {
-        'default': '0 2px 4px rgba(0,0,0,0.10)',
-        'lg': '0 8px 16px rgba(0,0,0,0.20)',
+      animation: {
+        glitter: "glitter 4s linear infinite",
+        fadeIn: "fadeIn 0.5s ease-out",
+        pulse: "pulse 2s infinite",
+        bounce: "bounce 1s infinite",
       },
-      backgroundColor: {
-        'toast-success': '#D1FAE5',
-        'toast-error': '#FEE2E2',
-        'toast-info': '#E0F2FE',
-        'toast-warning': '#FEF3C7',
+      keyframes: {
+        glitter: {
+          "0%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+          "100%": { backgroundPosition: "0% 50%" },
+        },
+        fadeIn: {
+          from: { opacity: 0, transform: "translateY(20px)" },
+          to: { opacity: 1, transform: "translateY(0)" },
+        },
+        pulse: {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.05)" },
+        },
+        bounce: {
+          "0%, 20%, 50%, 80%, 100%": {
+            transform: "translateY(0)",
+          },
+          "40%": {
+            transform: "translateY(-30px)",
+          },
+          "60%": {
+            transform: "translateY(-15px)",
+          },
+        },
       },
-      textColor: {
-        'toast-success': '#065F46',
-        'toast-error': '#991B1B',
-        'toast-info': '#075985',
-        'toast-warning': '#92400E',
+      boxShadow: {
+        'outline-purple': '0 0 0 3px rgba(147, 51, 234, 0.5)',
+      },
+      borderRadius: {
+        'xl': '1.5rem',
       },
     },
   },
   plugins: [
-    require('@tailwindcss/typography'),
-    require('@tailwindcss/forms'),
-    require('tailwindcss-textshadow'),
+    require("@tailwindcss/forms"),
+    require("@tailwindcss/typography"),
+    // Add other plugins as needed
   ],
 };
-
-export default config;

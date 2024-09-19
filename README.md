@@ -47,8 +47,8 @@ Current limitations
 We're developping directly on testnet because fhenix's local devnet didn't work for us. Hardhat node doesn't work because of the FHE requirement.
 
 ```
-p compile && p task:deploy --network testnet
 p test
+p deploy:testnet
 ```
 
 ```

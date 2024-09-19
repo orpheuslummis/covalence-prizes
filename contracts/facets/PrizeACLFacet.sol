@@ -3,8 +3,11 @@ pragma solidity ^0.8.0;
 
 import "../libraries/LibAppStorage.sol";
 import "../libraries/LibACL.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 contract PrizeACLFacet {
+    using EnumerableSet for EnumerableSet.AddressSet;
+
     modifier onlyDefaultAdmin() {
         LibACL.checkRole(LibACL.ADMIN_ROLE, msg.sender);
         _;
@@ -60,5 +63,16 @@ contract PrizeACLFacet {
 
     function getPrizeEvaluatorCount(uint256 prizeId) public view returns (uint256) {
         return LibACL.getPrizeEvaluatorCount(prizeId);
+    }
+
+    function getPrizeEvaluators(uint256 prizeId) external view returns (address[] memory) {
+        AppStorage storage s = LibAppStorage.diamondStorage();
+        Prize storage prize = s.prizes[prizeId];
+        uint256 evaluatorCount = prize.evaluators.length();
+        address[] memory evaluators = new address[](evaluatorCount);
+        for (uint256 i = 0; i < evaluatorCount; i++) {
+            evaluators[i] = prize.evaluators.at(i);
+        }
+        return evaluators;
     }
 }

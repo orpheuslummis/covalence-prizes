@@ -136,6 +136,25 @@
         "internalType": "uint256",
         "name": "prizeId",
         "type": "uint256"
+      }
+    ],
+    "name": "getPrizeEvaluators",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "prizeId",
+        "type": "uint256"
       },
       {
         "internalType": "address",

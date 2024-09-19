@@ -1,8 +1,14 @@
-Notes:
-- We use ethers v6
-- We use wagmi v2 and tanstack react query
-- We use Solidity >8.0 with built-in overflow checks, so we don't need SafeMath
-- We do 'from "../types"' instead of 'from "../typechain-types"'
+For smart contracts:
+
+- We use Solidity >8.0 with built-in overflow checks, so we don't need SafeMath.
 - We have to test directly on testnet, where can't use logging or events or tracing.
 
-Let us know of any confusions, request for extra information, clarifications. Be careful. Thank you! :)
+For frontend:
+
+- We do 'from "../types"' instead of 'from "../typechain-types"'.
+- We use React router v6.
+- We use wagmi v2 and tanstack react query.
+- We use ethers v6.
+- We don't use an error boundary, disregard that.
+
+Let us know of any confusions, request for extra information, clarifications. Be careful. Focus on understand root causes and providing solutions. English and code only. Thank you!
