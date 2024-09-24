@@ -98,9 +98,7 @@ const TestPrizeCreation: React.FC = () => {
     const estimatedGas = parseEther("0.001"); // Consider using actual gas estimation
 
     if (balance && balance.value < rewardPoolValue + estimatedGas) {
-      toast.error(
-        "Insufficient funds. Please ensure you have enough ETH for the reward pool and gas fees."
-      );
+      toast.error("Insufficient funds. Please ensure you have enough ETH for the reward pool and gas fees.");
       return;
     }
 
@@ -114,8 +112,6 @@ const TestPrizeCreation: React.FC = () => {
         criteria: testPrize.criteria,
         criteriaWeights: testPrize.criteriaWeights,
         strategy: testPrize.allocationStrategy,
-        monetaryRewardPool: testPrize.monetaryRewardPool,
-        allocationStrategy: testPrize.allocationStrategy,
       };
 
       await createPrizeAsync(prizeParams);

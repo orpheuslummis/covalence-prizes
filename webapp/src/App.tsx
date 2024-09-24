@@ -16,6 +16,8 @@ import ManagePage from "./pages/Manage";
 import NotFound from "./pages/NotFound";
 import PrizePage from "./pages/Prize";
 import TestingPage from "./pages/Testing";
+import SubmitContribution from "./pages/SubmitContribution";
+import { Toaster } from "react-hot-toast";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,29 +33,31 @@ const App: React.FC = () => {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-          <WalletProvider>
-            <AppProvider>
-              <Router>
-                <div className="flex flex-col min-h-screen bg-purple-900">
-                  <Navbar />
-                  <main className="flex-grow pt-20">
-                    <Routes>
-                      <Route path="/" element={<Home />} />
-                      <Route path="/about" element={<About />} />
-                      <Route path="/create-prize" element={<CreatePrizePage />} />
-                      <Route path="/prize/:prizeId" element={<PrizePage />} />
-                      <Route path="/prize/:prizeId/contribution/:id" element={<ContributionPage />} />
-                      <Route path="/prize/:prizeId/evaluate" element={<EvaluatePage />} />
-                      <Route path="/prize/:prizeId/manage" element={<ManagePage />} />
-                      <Route path="/testing" element={<TestingPage />} />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </main>
-                  <Footer />
-                </div>
-              </Router>
-            </AppProvider>
-          </WalletProvider>
+        <WalletProvider>
+          <AppProvider>
+            <Router>
+              <div className="flex flex-col min-h-screen bg-purple-900">
+                <Navbar />
+                <main className="flex-grow pt-20">
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/create-prize" element={<CreatePrizePage />} />
+                    <Route path="/prize/:prizeId" element={<PrizePage />} />
+                    <Route path="/prize/:prizeId/contribution/:id" element={<ContributionPage />} />
+                    <Route path="/prize/:prizeId/evaluate" element={<EvaluatePage />} />
+                    <Route path="/prize/:prizeId/manage" element={<ManagePage />} />
+                    <Route path="/prize/:prizeId/submit" element={<SubmitContribution />} />
+                    <Route path="/testing" element={<TestingPage />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </main>
+                <Footer />
+              </div>
+            </Router>
+            <Toaster position="top-center" />
+          </AppProvider>
+        </WalletProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

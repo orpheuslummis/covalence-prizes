@@ -76,7 +76,7 @@ const CreatePrizePage = () => {
     } catch (error) {
       console.error("Error after transaction success:", error);
       toast.error("Prize created, but there was an error loading the details.");
-      navigate("/prizes");
+      navigate("/");
     }
   }, [getPrizes, navigate]);
 
@@ -129,8 +129,6 @@ const CreatePrizePage = () => {
           criteria: criteriaNames.filter((name) => name.trim()),
           criteriaWeights: Array(criteriaNames.length).fill(1),
           strategy: allocationStrategy,
-          monetaryRewardPool: rewardPoolValue,
-          allocationStrategy: allocationStrategy,
         };
 
         const result = await createPrizeAsync(prizeParams);
@@ -159,7 +157,7 @@ const CreatePrizePage = () => {
       allocationStrategy,
       balance,
       createPrizeAsync,
-    ]
+    ],
   );
 
   const addCriteria = () => {
@@ -198,7 +196,8 @@ const CreatePrizePage = () => {
     );
   }
 
-  const isFormValid = name.trim() && description.trim() && isValidAmount(totalRewardPool) && criteriaNames.every(name => name.trim());
+  const isFormValid =
+    name.trim() && description.trim() && isValidAmount(totalRewardPool) && criteriaNames.every((name) => name.trim());
 
   return (
     <div className="container mx-auto px-4 py-8">

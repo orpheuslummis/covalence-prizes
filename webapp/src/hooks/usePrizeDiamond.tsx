@@ -3,10 +3,10 @@ import { EncryptedUint32, Permission } from "fhenixjs";
 import { useCallback } from "react";
 import toast from "react-hot-toast";
 import { Address, Hash } from "viem";
-import { useBlockNumber, usePublicClient, useWalletClient, useWriteContract } from "wagmi";
+import { useBlockNumber, usePublicClient, useWalletClient, useWriteContract, useAccount } from "wagmi";
 import { config } from "../config";
 import { AllocationStrategy, PrizeDetails, PrizeParams, State } from "../lib/types";
-import { useFhenixClient } from "./useFhenixClient";
+import { useWalletContext } from "../contexts/WalletContext";
 
 type AbiFunction = {
   type: "function";
@@ -37,8 +37,9 @@ export const usePrizeDiamond = () => {
   const queryClient = useQueryClient();
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
+  const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
-  const { getFheClient } = useFhenixClient(config.contracts.Diamond.address);
+  const { fhenixClient } = useWalletContext();
   const { data: blockNumber } = useBlockNumber({ watch: true });
 
   const diamondAddress = config.contracts.Diamond.address;
@@ -50,7 +51,7 @@ export const usePrizeDiamond = () => {
           throw new Error("Public client is not available");
         }
         const data = await publicClient.readContract({
-          address: diamondAddress,
+          address: diamondAddress as Address,
           abi: diamondAbi,
           functionName,
           args,
@@ -71,7 +72,7 @@ export const usePrizeDiamond = () => {
   );
 
   const getState = useReadDiamond("getState");
-  const isEvaluator = useReadDiamond("isEvaluator");
+  const isPrizeEvaluator = useReadDiamond("isPrizeEvaluator");
   const getPrizeEvaluatorCount = useReadDiamond("getPrizeEvaluatorCount");
   const getContributionCount = useReadDiamond("getContributionCount");
   const getContribution = useReadDiamond("getContribution");
@@ -80,7 +81,6 @@ export const usePrizeDiamond = () => {
   const getEvaluationCount = useReadDiamond("getEvaluationCount");
   const hasEvaluatorScoredContribution = useReadDiamond("hasEvaluatorScoredContribution");
   const getCriteriaWeights = useReadDiamond("getCriteriaWeights");
-  const areAllRewardsClaimed = useReadDiamond("areAllRewardsClaimed");
   const getAllAllocationStrategies = useReadDiamond("getAllAllocationStrategies");
   const getAllocationStrategy = useReadDiamond("getAllocationStrategy");
   const getPrizeEvaluators = useReadDiamond("getPrizeEvaluators");
@@ -93,7 +93,7 @@ export const usePrizeDiamond = () => {
   const getPrizeDetails = useCallback(
     async (prizeId: bigint): Promise<PrizeDetails> => {
       try {
-        const details = await readDiamond("getPrizeDetails", [prizeId]);
+        const details = await readDiamond("getPrizeDetails", [prizeId.toString()]);
         return {
           id: BigInt(details.id),
           organizer: details.organizer as Address,
@@ -110,6 +110,7 @@ export const usePrizeDiamond = () => {
           evaluatedContributionsCount: Number(details.evaluatedContributionsCount),
           claimedRewardsCount: Number(details.claimedRewardsCount),
           rewardsAllocated: details.rewardsAllocated as boolean,
+          lastProcessedIndex: details.lastProcessedIndex || 0n,
         };
       } catch (error) {
         console.error(`Error fetching details for prize ${prizeId}:`, error);
@@ -131,7 +132,18 @@ export const usePrizeDiamond = () => {
   const getPrizes = useCallback(
     async (startIndex: bigint, count: bigint): Promise<PrizeDetails[]> => {
       try {
-        const rawPrizes = await readDiamond("getPrizes", [startIndex, count]);
+        const prizeCount = await getPrizeCount();
+        if (prizeCount === 0n) {
+          return []; // Return an empty array if there are no prizes
+        }
+
+        if (startIndex >= prizeCount) {
+          return []; // Return an empty array if startIndex is out of bounds
+        }
+
+        const actualCount = count > prizeCount - startIndex ? prizeCount - startIndex : count;
+        const rawPrizes = await readDiamond("getPrizes", [startIndex.toString(), actualCount.toString()]);
+
         if (!Array.isArray(rawPrizes)) {
           throw new Error("Expected getPrizes to return an array");
         }
@@ -154,7 +166,7 @@ export const usePrizeDiamond = () => {
         throw error;
       }
     },
-    [readDiamond, getPrizeDetails],
+    [readDiamond, getPrizeDetails, getPrizeCount],
   );
 
   const getContestants = useCallback(
@@ -185,10 +197,10 @@ export const usePrizeDiamond = () => {
     mutationFn: async ({ prizeId, amount }) => {
       if (!walletClient) throw new Error("Wallet not connected");
       return writeContractAsync({
-        address: diamondAddress,
+        address: diamondAddress as Address,
         abi: diamondAbi,
         functionName: "fundTotally",
-        args: [prizeId],
+        args: [prizeId.toString()],
         value: amount,
       });
     },
@@ -206,10 +218,10 @@ export const usePrizeDiamond = () => {
     mutationFn: async ({ prizeId, strategy }) => {
       if (!walletClient) throw new Error("Wallet not connected");
       return writeContractAsync({
-        address: diamondAddress,
+        address: diamondAddress as Address,
         abi: diamondAbi,
         functionName: "setAllocationStrategy",
-        args: [prizeId, strategy],
+        args: [prizeId.toString(), strategy],
       });
     },
     onSuccess: (_, { prizeId }) => {
@@ -226,10 +238,10 @@ export const usePrizeDiamond = () => {
     mutationFn: async ({ prizeId, weights }) => {
       if (!walletClient) throw new Error("Wallet not connected");
       return writeContractAsync({
-        address: diamondAddress,
+        address: diamondAddress as Address,
         abi: diamondAbi,
         functionName: "assignCriteriaWeights",
-        args: [prizeId, weights],
+        args: [prizeId.toString(), weights],
       });
     },
     onSuccess: (_, { prizeId }) => {
@@ -246,37 +258,40 @@ export const usePrizeDiamond = () => {
     mutationFn: async (prizeParams) => {
       if (!walletClient) throw new Error("Wallet not connected");
       const txHash = await writeContractAsync({
-        address: diamondAddress,
+        address: diamondAddress as Address,
         abi: diamondAbi,
         functionName: "createPrize",
         args: [
-          prizeParams.name,
-          prizeParams.description,
-          prizeParams.monetaryRewardPool,
-          prizeParams.criteriaWeights,
-          prizeParams.allocationStrategy,
+          {
+            name: prizeParams.name,
+            description: prizeParams.description,
+            pool: prizeParams.pool,
+            criteria: prizeParams.criteria,
+            criteriaWeights: prizeParams.criteriaWeights,
+            strategy: prizeParams.strategy,
+          },
         ],
       });
       return txHash;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prizes"] });
-      toast.success('Prize created successfully');
+      toast.success("Prize created successfully");
     },
     onError: (error) => {
-      console.error('Error creating prize:', error);
+      console.error("Error creating prize:", error);
       toast.error(`Failed to create prize: ${error.message}`);
     },
   });
 
   const submitContribution = useMutation<string, Error, { prizeId: bigint; description: string }>({
     mutationFn: async ({ prizeId, description }) => {
-      if (!walletClient) throw new Error("Wallet not connected");
+      if (!isConnected || !address) throw new Error("Wallet not connected");
       return writeContractAsync({
-        address: diamondAddress,
+        address: diamondAddress as Address,
         abi: diamondAbi,
         functionName: "submitContribution",
-        args: [prizeId, description],
+        args: [prizeId.toString(), description],
       });
     },
     onSuccess: (_, { prizeId }) => {
@@ -289,93 +304,16 @@ export const usePrizeDiamond = () => {
     },
   });
 
-  const evaluateContribution = useMutation<
-    void,
-    Error,
-    { prizeId: bigint; contributionId: bigint; encryptedScores: EncryptedUint32[] }
-  >({
-    mutationFn: async ({ prizeId, contributionId, encryptedScores }) => {
-      if (!walletClient) throw new Error("Wallet not connected");
-      await writeContractAsync({
-        address: diamondAddress,
-        abi: diamondAbi,
-        functionName: "evaluateContribution",
-        args: [prizeId, contributionId, encryptedScores],
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prizeDetails"] });
-      toast.success('Contribution evaluated successfully');
-    },
-    onError: (error) => {
-      console.error('Error evaluating contribution:', error);
-      toast.error(`Failed to evaluate contribution: ${error.message}`);
-    },
-  });
-
   // Additional Mutations
-
-  const allocateRewardsBatch = useMutation<string, Error, { prizeId: bigint; batchSize: bigint }>({
-    mutationFn: async ({ prizeId, batchSize }) => {
-      if (!walletClient) throw new Error("Wallet not connected");
-      return writeContractAsync({
-        address: diamondAddress,
-        abi: diamondAbi,
-        functionName: "allocateRewardsBatch",
-        args: [prizeId, batchSize],
-      });
-    },
-    onSuccess: (_, { prizeId }) => {
-      queryClient.invalidateQueries({ queryKey: ["prizeDetails", prizeId.toString()] });
-      toast.success("Rewards allocated successfully");
-    },
-    onError: (error) => {
-      console.error("Error allocating rewards:", error);
-      toast.error(`Failed to allocate rewards: ${error.message}`);
-    },
-  });
-
-  const computeContestantClaimReward = useMutation<string, Error, { prizeId: bigint }>({
-    mutationFn: async ({ prizeId }) => {
-      if (!walletClient) throw new Error("Wallet not connected");
-      return writeContractAsync({
-        address: diamondAddress,
-        abi: diamondAbi,
-        functionName: "computeContestantClaimReward",
-        args: [prizeId],
-      });
-    },
-    onSuccess: (_, { prizeId }) => {
-      queryClient.invalidateQueries({ queryKey: ["prizeDetails", prizeId.toString()] });
-      toast.success("Contestant rewards computed successfully");
-    },
-    onError: (error) => {
-      console.error("Error computing contestant rewards:", error);
-      toast.error(`Failed to compute contestant rewards: ${error.message}`);
-    },
-  });
-
-  const viewContestantClaimReward = useCallback(
-    async (prizeId: bigint, permission: Permission): Promise<string> => {
-      try {
-        const reward = await readDiamond("viewContestantClaimReward", [prizeId, permission]);
-        return reward;
-      } catch (error) {
-        console.error("Error viewing contestant claim reward:", error);
-        throw error;
-      }
-    },
-    [readDiamond],
-  );
 
   const moveToNextState = useMutation<string, Error, { prizeId: bigint }>({
     mutationFn: async ({ prizeId }) => {
       if (!walletClient) throw new Error("Wallet not connected");
       return writeContractAsync({
-        address: diamondAddress,
+        address: diamondAddress as Address,
         abi: diamondAbi,
         functionName: "moveToNextState",
-        args: [prizeId],
+        args: [prizeId.toString()],
       });
     },
     onSuccess: (_, { prizeId }) => {
@@ -387,55 +325,6 @@ export const usePrizeDiamond = () => {
       toast.error(`Failed to update prize state: ${error.message}`);
     },
   });
-
-  const updateClaimStatus = useMutation<string, Error, { prizeId: bigint }>({
-    mutationFn: async ({ prizeId }) => {
-      if (!walletClient) throw new Error("Wallet not connected");
-      return writeContractAsync({
-        address: diamondAddress,
-        abi: diamondAbi,
-        functionName: "updateClaimStatus",
-        args: [prizeId],
-      });
-    },
-    onSuccess: (_, { prizeId }) => {
-      queryClient.invalidateQueries({ queryKey: ["prizeDetails", prizeId.toString()] });
-      toast.success("Claim status updated successfully");
-    },
-    onError: (error) => {
-      console.error("Error updating claim status:", error);
-      toast.error(`Failed to update claim status: ${error.message}`);
-    },
-  });
-
-  // Utility Functions
-
-  const encryptScores = useCallback(
-    async (scores: number[]): Promise<EncryptedUint32[]> => {
-      try {
-        const fheClient = await getFheClient();
-        return await Promise.all(scores.map(async (score) => await fheClient.encrypt_uint32(score)));
-      } catch (error) {
-        console.error("Error encrypting scores:", error);
-        throw error;
-      }
-    },
-    [getFheClient],
-  );
-
-  const decryptReward = useCallback(
-    async (encryptedReward: EncryptedUint32): Promise<number> => {
-      try {
-        const fheClient = await getFheClient();
-        const decryptedReward: number = await fheClient.unseal(encryptedReward);
-        return decryptedReward;
-      } catch (error) {
-        console.error("Error decrypting reward:", error);
-        throw error;
-      }
-    },
-    [getFheClient],
-  );
 
   const waitForTransaction = useCallback(
     async (hash: Hash): Promise<void> => {
@@ -451,24 +340,39 @@ export const usePrizeDiamond = () => {
     [publicClient],
   );
 
-  const isPrizeEvaluator = useCallback(
-    async (prizeId: bigint, address: Address): Promise<boolean> => {
+  const canEvaluate = useCallback(
+    async (prizeId: bigint): Promise<boolean> => {
+      if (!isConnected || !address) {
+        console.error("Wallet not connected or address is undefined");
+        toast.error("Please connect your wallet to perform this action.");
+        return false;
+      }
+
       try {
-        const result = await readDiamond("isPrizeEvaluator", [prizeId, address]);
-        return result;
+        const [isEvaluator, prizeState] = await Promise.all([
+          readDiamond("isPrizeEvaluator", [prizeId.toString(), address]),
+          getState(prizeId),
+        ]);
+
+        if (!isEvaluator) {
+          toast.error("You are not an evaluator for this prize.");
+          return false;
+        }
+
+        if (prizeState !== State.Evaluating) {
+          toast.error("This prize is not in the evaluation state.");
+          return false;
+        }
+
+        return true;
       } catch (error) {
-        console.error("Error checking if address is prize evaluator:", error);
-        throw error;
+        console.error("Error checking if address can evaluate:", error);
+        toast.error("Failed to verify evaluator status or prize state.");
+        return false;
       }
     },
-    [readDiamond],
+    [readDiamond, getState, address, isConnected],
   );
-
-  // Add the following implementations within the usePrizeDiamond hook
-
-  const canEvaluate = async (prizeId: bigint, address: Address): Promise<boolean> => {
-    return await isPrizeEvaluator(prizeId, address);
-  };
 
   const evaluate = useMutation<
     void,
@@ -476,6 +380,10 @@ export const usePrizeDiamond = () => {
     { prizeId: bigint; contributionId: bigint; encryptedScores: EncryptedUint32[] }
   >({
     mutationFn: async ({ prizeId, contributionId, encryptedScores }) => {
+      const canEvaluateNow = await canEvaluate(prizeId);
+      if (!canEvaluateNow) {
+        throw new Error("You cannot evaluate contributions at this time.");
+      }
       await evaluateContribution.mutateAsync({
         prizeId,
         contributionId,
@@ -484,10 +392,10 @@ export const usePrizeDiamond = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prizeDetails"] });
-      toast.success('Contribution evaluated successfully');
+      toast.success("Contribution evaluated successfully");
     },
     onError: (error) => {
-      console.error('Error evaluating contribution:', error);
+      console.error("Error evaluating contribution:", error);
       toast.error(`Failed to evaluate contribution: ${error.message}`);
     },
   });
@@ -505,19 +413,199 @@ export const usePrizeDiamond = () => {
   const addEvaluatorsAsync = useCallback(
     async ({ prizeId, evaluators }: { prizeId: bigint; evaluators: Address[] }) => {
       await writeContractAsync({
-        address: diamondAddress,
+        address: diamondAddress as Address,
         abi: diamondAbi,
         functionName: "addEvaluators",
-        args: [prizeId, evaluators],
+        args: [prizeId.toString(), evaluators],
       });
     },
-    [writeContractAsync, diamondAddress, diamondAbi]
+    [writeContractAsync, diamondAddress, diamondAbi],
   );
 
-  // Include these in the returned object
+  const getEvaluatedContributions = useCallback(
+    async (prizeId: bigint, evaluator: Address): Promise<bigint[]> => {
+      const contributionCount = await getContributionCount(prizeId);
+      const evaluatedContributions: bigint[] = [];
+
+      for (let i = 0n; i < contributionCount; i++) {
+        const hasScored = await hasEvaluatorScoredContribution(prizeId, evaluator, i);
+        if (hasScored) {
+          evaluatedContributions.push(i);
+        }
+      }
+
+      return evaluatedContributions;
+    },
+    [getContributionCount, hasEvaluatorScoredContribution],
+  );
+
+  const getAllocationDetails = useCallback(
+    async (
+      prizeId: bigint,
+    ): Promise<{ lastProcessedIndex: bigint; contributionCount: bigint; rewardsAllocated: boolean }> => {
+      const prizeDetails = await getPrizeDetails(prizeId);
+      return {
+        lastProcessedIndex: prizeDetails.lastProcessedIndex,
+        contributionCount: prizeDetails.contributionCount,
+        rewardsAllocated: prizeDetails.rewardsAllocated,
+      };
+    },
+    [getPrizeDetails],
+  );
+
+  const hasClaimableReward = useCallback(
+    async (prizeId: bigint, address: Address): Promise<boolean> => {
+      try {
+        const prizeDetails = await getPrizeDetails(prizeId);
+        if (prizeDetails.state !== State.Claiming || !prizeDetails.rewardsAllocated) {
+          return false;
+        }
+        const contributionIds = await getContributionIdsForContestant(prizeId, address);
+        return contributionIds.length > 0;
+      } catch (error) {
+        console.error("Error checking for claimable reward:", error);
+        return false;
+      }
+    },
+    [getPrizeDetails, getContributionIdsForContestant],
+  );
+
+  // FHE-specific functions
+
+  const encryptScores = useCallback(
+    async (scores: number[]): Promise<EncryptedUint32[]> => {
+      if (!fhenixClient) throw new Error("FHE client is not available");
+      return Promise.all(scores.map((score) => fhenixClient.encrypt_uint32(score)));
+    },
+    [fhenixClient],
+  );
+
+  const decryptReward = useCallback(
+    async (encryptedReward: string): Promise<bigint> => {
+      if (!fhenixClient) throw new Error("FHE client is not available");
+      const decryptedReward = await fhenixClient.unseal(config.contracts.Diamond.address, encryptedReward);
+      return BigInt(decryptedReward);
+    },
+    [fhenixClient],
+  );
+
+  const evaluateContribution = useMutation<
+    void,
+    Error,
+    { prizeId: bigint; contributionId: bigint; encryptedScores: EncryptedUint32[] }
+  >({
+    mutationFn: async ({ prizeId, contributionId, encryptedScores }) => {
+      if (!walletClient) throw new Error("Wallet not connected");
+
+      await writeContractAsync({
+        address: diamondAddress as Address,
+        abi: diamondAbi,
+        functionName: "evaluateContribution",
+        args: [prizeId, contributionId, encryptedScores],
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["prizeDetails"] });
+      toast.success("Contribution evaluated successfully");
+    },
+    onError: (error) => {
+      console.error("Error evaluating contribution:", error);
+      toast.error(`Failed to evaluate contribution: ${error.message}`);
+    },
+  });
+
+  const computeContestantClaimReward = useMutation<string, Error, { prizeId: bigint }>({
+    mutationFn: async ({ prizeId }) => {
+      if (!walletClient) throw new Error("Wallet not connected");
+      return writeContractAsync({
+        address: diamondAddress as Address,
+        abi: diamondAbi,
+        functionName: "computeContestantClaimReward",
+        args: [prizeId.toString()],
+      });
+    },
+    onSuccess: (_, { prizeId }) => {
+      queryClient.invalidateQueries({ queryKey: ["prizeDetails", prizeId.toString()] });
+      toast.success("Contestant rewards computed successfully");
+    },
+    onError: (error) => {
+      console.error("Error computing contestant rewards:", error);
+      toast.error(`Failed to compute contestant rewards: ${error.message}`);
+    },
+  });
+
+  const viewContestantClaimReward = useCallback(
+    async (prizeId: bigint, permission: Permission): Promise<string> => {
+      return readDiamond("viewContestantClaimReward", [prizeId.toString(), permission]);
+    },
+    [readDiamond],
+  );
+
+  const allocateRewardsBatch = useMutation<void, Error, { prizeId: bigint; batchSize: bigint }>({
+    mutationFn: async ({ prizeId, batchSize }) => {
+      if (!writeContractAsync) throw new Error("Write contract function is unavailable");
+
+      await writeContractAsync({
+        address: diamondAddress as Address,
+        abi: diamondAbi,
+        functionName: "allocateRewardsBatch",
+        args: [prizeId.toString(), batchSize.toString()],
+      });
+    },
+    onSuccess: (_, { prizeId }) => {
+      queryClient.invalidateQueries({ queryKey: ["prizeDetails", prizeId.toString()] });
+      toast.success("Rewards allocated successfully");
+    },
+    onError: (error) => {
+      console.error("Error allocating rewards:", error);
+      toast.error(`Failed to allocate rewards: ${error.message}`);
+    },
+  });
+
+  const areAllRewardsClaimed = useCallback(
+    async (prizeId: bigint): Promise<boolean> => {
+      return readDiamond("areAllRewardsClaimed", [prizeId.toString()]);
+    },
+    [readDiamond],
+  );
+
+  const updateClaimStatus = useMutation<string, Error, { prizeId: bigint }>({
+    mutationFn: async ({ prizeId }) => {
+      if (!walletClient) throw new Error("Wallet not connected");
+      return writeContractAsync({
+        address: diamondAddress as Address,
+        abi: diamondAbi,
+        functionName: "updateClaimStatus",
+        args: [prizeId.toString()],
+      });
+    },
+    onSuccess: (_, { prizeId }) => {
+      queryClient.invalidateQueries({ queryKey: ["prizeDetails", prizeId.toString()] });
+      toast.success("Claim status updated successfully");
+    },
+    onError: (error) => {
+      console.error("Error updating claim status:", error);
+      toast.error(`Failed to update claim status: ${error.message}`);
+    },
+  });
+
+  const viewAndDecryptClaimedReward = useCallback(
+    async (prizeId: bigint): Promise<bigint> => {
+      if (!fhenixClient) throw new Error("Fhenix client is not available");
+      if (!address) throw new Error("Address is not available");
+
+      const reward = await readDiamond("viewContestantClaimReward", [
+        prizeId.toString(),
+        fhenixClient.getPermit(config.contracts.Diamond.address, address),
+      ]);
+      const decryptedReward = await fhenixClient.unseal(config.contracts.Diamond.address, reward);
+      return BigInt(decryptedReward);
+    },
+    [fhenixClient, readDiamond, address],
+  );
+
   return {
     getState,
-    isEvaluator,
     isPrizeEvaluator,
     getPrizeEvaluatorCount,
     getContributionCount,
@@ -572,6 +660,9 @@ export const usePrizeDiamond = () => {
 
     encryptScores,
     decryptReward,
+    evaluateContributionFHE: evaluateContribution.mutate,
+    claimRewardFHE: computeContestantClaimReward.mutate,
+    viewContestantClaimRewardFHE: viewContestantClaimReward,
 
     waitForTransaction,
 
@@ -582,6 +673,10 @@ export const usePrizeDiamond = () => {
     evaluateAsync: evaluate.mutateAsync,
     isPrizeOrganizer,
     addEvaluatorsAsync,
+    getEvaluatedContributions,
+    getAllocationDetails,
+    hasClaimableReward,
+    viewAndDecryptClaimedReward,
   } as const;
 };
 

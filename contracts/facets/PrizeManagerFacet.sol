@@ -32,8 +32,10 @@ contract PrizeManagerFacet {
         uint16 evaluatedContributionsCount;
         uint16 claimedRewardsCount;
         bool rewardsAllocated;
+        uint256 lastProcessedIndex; // Added lastProcessedIndex field
     }
 
+    // Anyone can create a prize
     function createPrize(PrizeParams memory params) external returns (uint256) {
         validatePrizeParams(params);
         AppStorage storage s = LibAppStorage.diamondStorage();
@@ -81,7 +83,8 @@ contract PrizeManagerFacet {
             contributionCount: prize.contributionCount,
             evaluatedContributionsCount: prize.evaluatedContributionsCount,
             claimedRewardsCount: prize.claimedRewardsCount,
-            rewardsAllocated: prize.rewardsAllocated
+            rewardsAllocated: prize.rewardsAllocated,
+            lastProcessedIndex: prize.lastProcessedIndex // Added lastProcessedIndex field
         });
         return prizeDetails;
     }

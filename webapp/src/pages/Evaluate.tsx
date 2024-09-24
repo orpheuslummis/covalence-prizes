@@ -1,275 +1,233 @@
-import React, { useCallback, useEffect, useMemo, useReducer } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { FaInfoCircle, FaSpinner } from "react-icons/fa";
+import { FaSpinner } from "react-icons/fa";
 import { useAccount } from "wagmi";
-import { Contribution, PrizeDetails } from "../lib/types";
+import { PrizeDetails, Contribution } from "../lib/types";
 import { useAppContext } from "../contexts/AppContext";
 import { usePrizeDiamond } from "../hooks/usePrizeDiamond";
-import { Address } from "viem";
+import ContributionSelect from "../components/ContributionSelect";
+import ContributionDetails from "../components/ContributionDetails";
+import EvaluationCriteria from "../components/EvaluationCriteria";
+import { motion } from "framer-motion";
 
-interface EvaluatePageState {
-  prize: PrizeDetails | null;
-  contributions: Contribution[];
-  selectedContribution: Contribution | null;
-  scores: number[];
-  isLoading: boolean;
-  isSubmitting: boolean;
-  error: string | null;
-  canEvaluate: boolean;
-  hoveredCriterion: number | null;
-}
-
-type Action =
-  | { type: "SET_PRIZE"; payload: PrizeDetails }
-  | { type: "SET_CONTRIBUTIONS"; payload: Contribution[] }
-  | { type: "SET_SELECTED_CONTRIBUTION"; payload: Contribution | null }
-  | { type: "SET_SCORES"; payload: number[] }
-  | { type: "SET_LOADING"; payload: boolean }
-  | { type: "SET_SUBMITTING"; payload: boolean }
-  | { type: "SET_ERROR"; payload: string | null }
-  | { type: "SET_CAN_EVALUATE"; payload: boolean }
-  | { type: "SET_HOVERED_CRITERION"; payload: number | null };
-
-const initialState: EvaluatePageState = {
-  prize: null,
-  contributions: [],
-  selectedContribution: null,
-  scores: [],
-  isLoading: true,
-  isSubmitting: false,
-  error: null,
-  canEvaluate: false,
-  hoveredCriterion: null,
-};
-
-function reducer(state: EvaluatePageState, action: Action): EvaluatePageState {
-  switch (action.type) {
-    case "SET_PRIZE":
-      return { ...state, prize: action.payload };
-    case "SET_CONTRIBUTIONS":
-      return { ...state, contributions: action.payload };
-    case "SET_SELECTED_CONTRIBUTION":
-      return { ...state, selectedContribution: action.payload };
-    case "SET_SCORES":
-      return { ...state, scores: action.payload };
-    case "SET_LOADING":
-      return { ...state, isLoading: action.payload };
-    case "SET_SUBMITTING":
-      return { ...state, isSubmitting: action.payload };
-    case "SET_ERROR":
-      return { ...state, error: action.payload };
-    case "SET_CAN_EVALUATE":
-      return { ...state, canEvaluate: action.payload };
-    case "SET_HOVERED_CRITERION":
-      return { ...state, hoveredCriterion: action.payload };
-    default:
-      return state;
-  }
-}
+const AlreadyEvaluatedBanner: React.FC = () => (
+  <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4" role="alert">
+    <p className="font-bold">Note:</p>
+    <p>This contribution has already been evaluated. You cannot submit another evaluation for it.</p>
+  </div>
+);
 
 const EvaluatePage: React.FC = () => {
   const { prizeId } = useParams<{ prizeId: string }>();
   const navigate = useNavigate();
   const { address } = useAccount();
   const { prizeDiamond } = useAppContext();
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const { getEvaluatedContributions } = usePrizeDiamond();
 
-  const { evaluate, encryptScores } = usePrizeDiamond();
+  const [prize, setPrize] = useState<PrizeDetails | null>(null);
+  const [contributions, setContributions] = useState<Contribution[]>([]);
+  const [selectedContribution, setSelectedContribution] = useState<Contribution | null>(null);
+  const [scores, setScores] = useState<number[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [canEvaluate, setCanEvaluate] = useState<boolean>(false);
+  const [evaluatedContributions, setEvaluatedContributions] = useState<bigint[]>([]);
 
   const fetchPrizeDetails = useCallback(async () => {
     if (!prizeId) return;
-
     try {
-      dispatch({ type: "SET_LOADING", payload: true });
+      setIsLoading(true);
       const prizeDetails = await prizeDiamond.getPrizeDetails(BigInt(prizeId));
-      dispatch({ type: "SET_PRIZE", payload: prizeDetails });
+      setPrize(prizeDetails);
 
       const contributionCount = await prizeDiamond.getContributionCount(BigInt(prizeId));
-      const contributions = await Promise.all(
+      const fetchedContributions = await Promise.all(
         Array.from({ length: Number(contributionCount) }, (_, i) =>
           prizeDiamond.getContribution(BigInt(prizeId), BigInt(i)),
         ),
       );
-      dispatch({ type: "SET_CONTRIBUTIONS", payload: contributions });
+      setContributions(fetchedContributions);
 
-      const canEvaluate = await prizeDiamond.canEvaluate(BigInt(prizeId), address as Address);
-      dispatch({ type: "SET_CAN_EVALUATE", payload: canEvaluate });
-
-      dispatch({ type: "SET_LOADING", payload: false });
-    } catch (error) {
-      console.error("Error fetching prize details:", error);
-      dispatch({ type: "SET_ERROR", payload: "Failed to fetch prize details" });
-      dispatch({ type: "SET_LOADING", payload: false });
+      const canEval = await prizeDiamond.canEvaluate(BigInt(prizeId));
+      setCanEvaluate(canEval);
+    } catch (err) {
+      console.error("Error fetching prize details:", err);
+      setError("Failed to fetch prize details");
+    } finally {
+      setIsLoading(false);
     }
-  }, [prizeId, prizeDiamond, address]);
+  }, [prizeId, prizeDiamond]);
+
+  const fetchEvaluatedContributions = useCallback(async () => {
+    if (!prizeId || !address) return;
+    try {
+      const evaluatedIds = await getEvaluatedContributions(BigInt(prizeId), address);
+      setEvaluatedContributions(evaluatedIds);
+    } catch (err) {
+      console.error("Error fetching evaluated contributions:", err);
+    }
+  }, [prizeId, getEvaluatedContributions, address]);
 
   useEffect(() => {
     fetchPrizeDetails();
-  }, [fetchPrizeDetails]);
+    fetchEvaluatedContributions();
+  }, [fetchPrizeDetails, fetchEvaluatedContributions]);
 
   const handleContributionChange = useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) => {
       const selectedId = event.target.value;
-      const selected = state.contributions.find((c) => c.id.toString() === selectedId) || null;
-      dispatch({ type: "SET_SELECTED_CONTRIBUTION", payload: selected });
-      dispatch({ type: "SET_SCORES", payload: new Array(state.prize?.criteriaNames.length || 0).fill(5) });
+      const selected = contributions.find((c) => c.id.toString() === selectedId) || null;
+      setSelectedContribution(selected);
+      setScores(new Array(prize?.criteriaNames.length || 0).fill(5));
     },
-    [state.contributions, state.prize],
+    [contributions, prize],
   );
 
   const handleScoreChange = useCallback(
     (index: number, value: number) => {
-      const newScores = [...state.scores];
+      const newScores = [...scores];
       newScores[index] = value;
-      dispatch({ type: "SET_SCORES", payload: newScores });
+      setScores(newScores);
     },
-    [state.scores],
+    [scores],
   );
 
-  const isFormValid = useMemo(() => {
-    if (!state.prize) return false;
+  const isFormValid = useCallback(() => {
+    if (!prize || !selectedContribution) return false;
     return (
-      state.scores.length === state.prize.criteriaNames.length &&
-      state.scores.every((score) => score >= 1 && score <= 10) &&
-      !!state.selectedContribution
+      scores.length === prize.criteriaNames.length &&
+      scores.every((score) => score >= 1 && score <= 10) &&
+      !evaluatedContributions.includes(selectedContribution.id)
     );
-  }, [state.prize, state.scores, state.selectedContribution]);
+  }, [prize, scores, selectedContribution, evaluatedContributions]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!isFormValid || !state.prize || !state.selectedContribution) return;
+    if (!isFormValid() || !prize || !selectedContribution) return;
+    console.log("Submitting evaluation:", {
+      prizeId,
+      contributionId: selectedContribution.id,
+      scores,
+      canEvaluate,
+    });
+    await confirmSubmit();
+  };
 
+  const confirmSubmit = async () => {
+    if (!isFormValid() || !prize || !selectedContribution) return;
     try {
-      dispatch({ type: "SET_SUBMITTING", payload: true });
-      const encryptedScores = await encryptScores(state.scores);
-      await evaluate({
+      setIsSubmitting(true);
+      // Add an additional check here
+      const canStillEvaluate = await prizeDiamond.canEvaluate(BigInt(prizeId as string));
+      if (!canStillEvaluate) {
+        throw new Error("Evaluation is no longer allowed for this prize");
+      }
+      const encrypted = await prizeDiamond.encryptScores(scores);
+      await prizeDiamond.evaluate({
         prizeId: BigInt(prizeId as string),
-        contributionId: state.selectedContribution.id,
-        encryptedScores: encryptedScores
+        contributionId: selectedContribution.id,
+        encryptedScores: encrypted,
       });
-      toast.success("Evaluation submitted successfully!");
+      await fetchEvaluatedContributions();
       navigate(`/prize/${prizeId}`);
-    } catch (error) {
-      console.error("Error submitting evaluation:", error);
-      toast.error("Failed to submit evaluation. Please try again.");
+    } catch (err) {
+      console.error("Error submitting evaluation:", err);
+      toast.error(`Failed to submit evaluation: ${(err as Error).message}`);
     } finally {
-      dispatch({ type: "SET_SUBMITTING", payload: false });
+      setIsSubmitting(false);
     }
   };
 
-  if (state.isLoading) {
+  if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-full">
-        <FaSpinner className="animate-spin text-purple-600 text-3xl" />
+      <div className="flex justify-center items-center h-screen">
+        <FaSpinner className="animate-spin text-purple-600 text-4xl" />
       </div>
     );
   }
 
-  if (state.error) {
-    return <div className="text-red-500">{state.error}</div>;
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="feedback-error">{error}</div>
+      </div>
+    );
   }
 
   return (
-    <div className="prize-container max-w-4xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Evaluate Contribution for Prize: {state.prize?.name}</h1>
-      {state.isLoading ? (
-        <div className="flex justify-center items-center h-full">
-          <FaSpinner className="animate-spin text-purple-600 text-3xl" />
-        </div>
-      ) : state.error ? (
-        <div className="text-red-500">{state.error}</div>
-      ) : state.canEvaluate ? (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="contribution" className="form-label">
-              Select Contribution:
-            </label>
-            <select
-              id="contribution"
-              value={state.selectedContribution?.id.toString() || ""}
-              onChange={handleContributionChange}
-              className="form-input"
-              required
-              disabled={state.isSubmitting}
-            >
-              <option value="">Select a contribution</option>
-              {state.contributions.map((contribution) => (
-                <option key={contribution.id.toString()} value={contribution.id.toString()}>
-                  Contribution {contribution.id.toString()} by {contribution.contestant}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {state.selectedContribution && (
-            <div>
-              <h2 className="text-xl font-semibold mb-2">Contribution Details</h2>
-              <p className="mb-2">
-                <strong>Contestant:</strong> {state.selectedContribution.contestant}
-              </p>
-              <p className="mb-4">
-                <strong>Description:</strong> {state.selectedContribution.description}
-              </p>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="prize-container max-w-4xl mx-auto p-8 bg-gradient-to-r from-purple-600 to-indigo-600 text-white min-h-screen rounded-lg shadow-lg"
+    >
+      <h1 className="section-title text-4xl font-bold mb-8">Evaluate Contribution for Prize: {prize?.name}</h1>
+      {canEvaluate ? (
+        <>
+          <div className="mb-8">
+            <h2 className="text-2xl font-semibold mb-2">Progress</h2>
+            <div className="bg-white rounded-full h-4">
+              <div
+                className="bg-green-400 h-4 rounded-full transition-all duration-500 ease-in-out"
+                style={{
+                  width: `${(evaluatedContributions.length / contributions.length) * 100}%`,
+                }}
+              ></div>
             </div>
-          )}
-
-          <div>
-            <h2 className="text-xl font-semibold mb-2">Evaluation Criteria</h2>
-            {state.prize?.criteriaNames.map((criterion, index) => (
-              <div key={index} className="mb-4">
-                <label htmlFor={`criterion-${index}`} className="form-label flex items-center">
-                  {criterion}
-                  <div
-                    className="ml-2 relative"
-                    onMouseEnter={() => dispatch({ type: "SET_HOVERED_CRITERION", payload: index })}
-                    onMouseLeave={() => dispatch({ type: "SET_HOVERED_CRITERION", payload: null })}
-                  >
-                    <FaInfoCircle className="text-purple-500" />
-                    {state.hoveredCriterion === index && (
-                      <div className="absolute left-6 top-0 bg-white border border-purple-300 p-2 rounded shadow-md z-10 w-64">
-                        <p className="text-sm text-gray-600">Rate this criterion from 1 (lowest) to 10 (highest).</p>
-                      </div>
-                    )}
-                  </div>
-                </label>
-                <input
-                  type="range"
-                  id={`criterion-${index}`}
-                  min="1"
-                  max="10"
-                  value={state.scores[index] || 5}
-                  onChange={(e) => handleScoreChange(index, parseInt(e.target.value))}
-                  className="w-full"
-                  required
-                  disabled={state.isSubmitting}
-                />
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>1</span>
-                  <span>5</span>
-                  <span>10</span>
-                </div>
-                <p className="text-center mt-1">Current score: {state.scores[index] || 5}</p>
-              </div>
-            ))}
+            <p className="text-sm mt-2">
+              {evaluatedContributions.length} out of {contributions.length} contributions evaluated
+            </p>
           </div>
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="bg-white bg-opacity-10 p-6 rounded-lg shadow-md">
+              <ContributionSelect
+                contributions={contributions}
+                selectedContributionId={selectedContribution?.id.toString() || ""}
+                onChange={handleContributionChange}
+                isSubmitting={isSubmitting}
+                evaluatedContributions={evaluatedContributions}
+              />
+            </div>
 
-          <button
-            type="submit"
-            className={`w-full py-2 px-4 rounded ${
-              isFormValid && !state.isSubmitting
-                ? "bg-purple-600 hover:bg-purple-700 text-white"
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-            }`}
-            disabled={!isFormValid || state.isSubmitting}
-          >
-            {state.isSubmitting ? "Submitting..." : "Submit Evaluation"}
-          </button>
-        </form>
+            {selectedContribution && (
+              <>
+                {evaluatedContributions.includes(selectedContribution.id) && <AlreadyEvaluatedBanner />}
+                <div className="bg-white bg-opacity-10 p-6 rounded-lg shadow-md">
+                  <ContributionDetails contribution={selectedContribution} />
+                </div>
+
+                <div className="bg-white bg-opacity-10 p-6 rounded-lg shadow-md">
+                  <EvaluationCriteria
+                    criteria={prize?.criteriaNames || []}
+                    scores={scores}
+                    onScoreChange={handleScoreChange}
+                    isSubmitting={isSubmitting}
+                  />
+                </div>
+
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  type="submit"
+                  className={`button-primary w-full ${
+                    isFormValid() && !isSubmitting && !evaluatedContributions.includes(selectedContribution.id)
+                      ? "hover:bg-purple-700"
+                      : "bg-gray-400 cursor-not-allowed"
+                  }`}
+                  disabled={!isFormValid() || isSubmitting || evaluatedContributions.includes(selectedContribution.id)}
+                >
+                  {isSubmitting ? "Submitting..." : "Submit Evaluation"}
+                </motion.button>
+              </>
+            )}
+          </form>
+        </>
       ) : (
-        <div className="text-red-500">You do not have permission to evaluate this prize.</div>
+        <div className="text-center text-red-300 text-xl">You do not have permission to evaluate this prize.</div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

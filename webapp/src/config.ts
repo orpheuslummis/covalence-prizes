@@ -1,6 +1,6 @@
 import { getDefaultConfig } from "connectkit";
-import { Address, createPublicClient, defineChain, http } from "viem";
 import { createConfig, http } from "wagmi";
+import { createPublicClient } from "viem";
 import DiamondABI from "../abi/Diamond.json";
 import DiamondCutFacetABI from "../abi/DiamondCutFacet.json";
 import DiamondLoupeFacetABI from "../abi/DiamondLoupeFacet.json";
@@ -15,12 +15,6 @@ import PrizeStrategyFacetABI from "../abi/PrizeStrategyFacet.json";
 import contractAddresses from "../contract-addresses.json";
 import { AllocationStrategy } from "./lib/types";
 
-declare module "wagmi" {
-  interface Register {
-    config: typeof config;
-  }
-}
-
 const ENV = {
   TESTNET_RPC_URL: import.meta.env.VITE_TESTNET_RPC_URL || "https://api.helium.fhenix.zone",
   CHAIN_ID: import.meta.env.VITE_CHAIN_ID || "8008135",
@@ -28,7 +22,7 @@ const ENV = {
   WALLET_CONNECT_PROJECT_ID: import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || "",
 };
 
-export const fhenixTestnet = defineChain({
+export const fhenixTestnet = {
   id: parseInt(ENV.CHAIN_ID, 10),
   name: "Fhenix Testnet",
   network: "fhenix-testnet",
@@ -45,11 +39,7 @@ export const fhenixTestnet = defineChain({
     default: { name: "Explorer", url: ENV.EXPLORER_URL },
   },
   testnet: true,
-  // Add fees if required by the Chain type
-  fees: {
-    gasPriceMultiplier: 1.0, // Example value, adjust as needed
-  },
-});
+} as const;
 
 export const wagmiConfig = createConfig(
   getDefaultConfig({
@@ -83,25 +73,30 @@ export const allocationStrategies: { label: string; value: AllocationStrategy }[
   { label: "Invalid", value: AllocationStrategy.Invalid },
 ];
 
+// Merge all ABIs
+const mergedABI = [
+  ...DiamondABI,
+  ...DiamondCutFacetABI,
+  ...DiamondLoupeFacetABI,
+  ...PrizeACLFacetABI,
+  ...PrizeManagerFacetABI,
+  ...PrizeContributionFacetABI,
+  ...PrizeRewardFacetABI,
+  ...PrizeEvaluationFacetABI,
+  ...PrizeStrategyFacetABI,
+  ...PrizeFundingFacetABI,
+  ...PrizeStateFacetABI,
+];
+
 export const config = {
   env: ENV,
   contracts: {
     Diamond: {
-      address: addresses.Diamond as Address,
-      abi: [
-        ...DiamondABI,
-        ...DiamondCutFacetABI,
-        ...DiamondLoupeFacetABI,
-        ...PrizeACLFacetABI,
-        ...PrizeManagerFacetABI,
-        ...PrizeContributionFacetABI,
-        ...PrizeRewardFacetABI,
-        ...PrizeEvaluationFacetABI,
-        ...PrizeStrategyFacetABI,
-        ...PrizeFundingFacetABI,
-        ...PrizeStateFacetABI,
-      ],
+      address: addresses.Diamond,
+      abi: mergedABI,
     },
   },
   allocationStrategies,
 };
+
+export { mergedABI as DiamondMergedABI };

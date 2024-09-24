@@ -28,7 +28,7 @@ contract PrizeACLFacet {
     }
 
     function addEvaluators(uint256 prizeId, address[] memory _evaluators) external {
-        require(LibPrize.isState(prizeId, LibPrize.State.Setup), "Invalid state");
+        require(LibPrize.isState(prizeId, LibPrize.State.Setup) || LibPrize.isState(prizeId, LibPrize.State.Open), "Invalid state");
         require(isPrizeOrganizer(prizeId, msg.sender), "Caller is not the prize organizer");
         for (uint256 i = 0; i < _evaluators.length; i++) {
             LibACL.addPrizeEvaluator(prizeId, _evaluators[i]);

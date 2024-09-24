@@ -6,6 +6,7 @@ import "../libraries/LibAppStorage.sol";
 import "../libraries/LibPrize.sol";
 
 contract PrizeContributionFacet {
+    // A contestant can submit multiple contributions
     function submitContribution(uint256 prizeId, string memory _description) external returns (uint256) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         require(LibPrize.isState(prizeId, LibPrize.State.Open), "Invalid state");

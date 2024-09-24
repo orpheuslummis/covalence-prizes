@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { formatEther } from "viem";
 import { useAccount } from "wagmi";
@@ -8,6 +8,7 @@ import { useAppContext } from "../contexts/AppContext";
 import { useWalletContext } from "../contexts/WalletContext";
 import PrizeDetailsComponent from "../components/PrizeDetails";
 import ContributionList from "../components/ContributionList";
+import toast from "react-hot-toast";
 
 const PrizePage: React.FC = () => {
   const { prizeId } = useParams<{ prizeId: string }>();
@@ -36,38 +37,25 @@ const PrizePage: React.FC = () => {
 
   const {
     data: roles,
-    isLoading: isRolesLoading,
     error: rolesError,
   } = useQuery({
     queryKey: ["prizeRoles", prizeIdBigInt?.toString(), address],
     queryFn: async () => {
-      console.log("Roles query function invoked");
       if (!prizeIdBigInt || !address || !prize) {
-        console.error("Invalid prize ID, address, or prize not found");
         throw new Error("Invalid prize ID, address, or prize not found");
       }
-      console.log(`Checking roles for prize ${prizeIdBigInt.toString()} and address ${address}`);
       const canSubmit = prize.organizer.toLowerCase() === address.toLowerCase();
       const canEvaluate = await prizeDiamond.isPrizeEvaluator(prizeIdBigInt, address);
-      console.log(`Roles for prize ${prizeIdBigInt.toString()}:`, {
-        canSubmit,
-        canEvaluate,
-        canManagePrize: canSubmit,
-      });
-      return { canSubmit, canEvaluate, canManagePrize: canSubmit };
+      const canManagePrize = await prizeDiamond.isPrizeOrganizer(prizeIdBigInt, address);
+      return { canSubmit, canEvaluate, canManagePrize };
     },
     enabled: !!prizeIdBigInt && !!address && isConnected && !!prize,
   });
 
-  useEffect(() => {
-    if (rolesError) {
-      console.error("Error fetching roles:", rolesError);
-    }
-  }, [rolesError]);
-
   const {
     data: prizeDetails,
-    isLoading: _isPrizeLoading,
+    refetch: refetchPrizeDetails,
+    error: prizeDetailsError,
   } = useQuery({
     queryKey: ["prizeDetails", prizeIdBigInt?.toString()],
     queryFn: async () => {
@@ -77,66 +65,96 @@ const PrizePage: React.FC = () => {
       console.log("Fetched prize details:", result);
       return result as PrizeDetails;
     },
-    enabled: !!prizeIdBigInt && !prize,
+    enabled: !!prizeIdBigInt,
     retry: 3,
     retryDelay: 1000,
   });
 
-  const { data: isEvaluator, isLoading: isEvaluatorLoading } = useQuery({
-    queryKey: ["isEvaluator", prizeIdBigInt?.toString(), walletAddress],
+  useEffect(() => {
+    if (prizeIdBigInt) {
+      refetchPrizeDetails();
+    }
+  }, [prizeIdBigInt, refetchPrizeDetails]);
+
+  useEffect(() => {
+    console.log("Prize details:", prizeDetails);
+    console.log("Contribution count:", prizeDetails?.contributionCount.toString());
+  }, [prizeDetails]);
+
+  const [canClaim, setCanClaim] = useState(false);
+
+  const { data: claimableReward, refetch: refetchClaimableReward } = useQuery({
+    queryKey: ["claimableReward", prizeIdBigInt?.toString(), address],
     queryFn: async () => {
-      if (!prizeIdBigInt || !walletAddress) {
-        return false;
-      }
-      return await prizeDiamond.isPrizeEvaluator(prizeIdBigInt, walletAddress);
+      if (!prizeIdBigInt || !address) return false;
+      return await prizeDiamond.hasClaimableReward(prizeIdBigInt, address);
     },
-    enabled: !!prizeIdBigInt && !!walletAddress,
+    enabled: !!prizeIdBigInt && !!address && prizeDetails?.state === State.Claiming,
   });
 
-  if (isLoading || isPrizesLoading || isRolesLoading) {
-    return <div className="text-center py-10 text-purple-100">Loading...</div>;
-  }
+  useEffect(() => {
+    setCanClaim(!!claimableReward);
+  }, [claimableReward]);
 
-  if (rolesError) {
+  const handleClaimReward = async () => {
+    if (!prizeIdBigInt) return;
+    try {
+      await prizeDiamond.computeContestantClaimRewardAsync({ prizeId: prizeIdBigInt });
+      toast.success("Reward claimed successfully!");
+      setCanClaim(false);
+      refetchClaimableReward();
+      refetchPrizeDetails();
+    } catch (error) {
+      console.error("Error claiming reward:", error);
+      toast.error("Failed to claim reward. Please try again.");
+    }
+  };
+
+  const [claimedReward, setClaimedReward] = useState<bigint | null>(null);
+
+  const handleViewClaimReward = useCallback(async () => {
+    if (!prizeIdBigInt) return;
+    try {
+      const reward = await prizeDiamond.viewAndDecryptClaimedReward(prizeIdBigInt);
+      setClaimedReward(reward);
+      toast.success("Claimed reward retrieved successfully");
+    } catch (error) {
+      console.error("Error viewing claimed reward:", error);
+      toast.error("Failed to view claimed reward. Please try again.");
+    }
+  }, [prizeIdBigInt, prizeDiamond]);
+
+  if (rolesError || prizeDetailsError) {
     console.error("Error fetching roles:", rolesError);
+    console.error("Error fetching prize details:", prizeDetailsError);
     return (
       <div className="text-center py-10 text-red-300">
-        Error loading roles: {(rolesError as Error).message}
+        Error loading data: {((rolesError || prizeDetailsError) as Error).message}
       </div>
     );
   }
 
   if (!prize && !prizeDetails) {
-    return (
-      <div className="text-center py-10 text-purple-100">
-        Prize not found. Please check the ID and try again.
-      </div>
-    );
+    console.error("Prize not found. Prize:", prize, "PrizeDetails:", prizeDetails);
+    return <div className="text-center py-10 text-purple-100">Prize not found. Please check the ID and try again.</div>;
   }
 
   const displayPrize = prize || prizeDetails;
 
   if (!displayPrize) {
-    return (
-      <div className="text-center py-10 text-purple-100">
-        Unable to display prize information.
-      </div>
-    );
+    console.error("Unable to display prize information. Prize:", prize, "PrizeDetails:", prizeDetails);
+    return <div className="text-center py-10 text-purple-100">Unable to display prize information.</div>;
   }
 
   console.log("Rendering prize data:", displayPrize);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden text-gray-800">
         <div className="prize-card-header" style={generateGradient(displayPrize)}>
           <div className="prize-card-header-content">
-            <h1 className="prize-card-title text-4xl">
-              {displayPrize.name || "Unnamed Prize"}
-            </h1>
-            <p className="prize-card-description text-xl">
-              {displayPrize.description || "No description available"}
-            </p>
+            <h1 className="prize-card-title text-4xl">{displayPrize.name || "Unnamed Prize"}</h1>
+            <p className="prize-card-description text-xl">{displayPrize.description || "No description available"}</p>
           </div>
           <div className="prize-card-header-overlay"></div>
         </div>
@@ -146,28 +164,33 @@ const PrizePage: React.FC = () => {
             <div className="bg-purple-50 rounded-lg p-4">
               <h2 className="text-2xl font-semibold text-purple-800 mb-4">Actions</h2>
               <div className="flex flex-wrap gap-4">
-                {roles?.canSubmit && (
-                  <button
-                    className="button-primary"
-                    onClick={() => navigate(`/prize/${prizeId}/submit`)}
-                  >
+                {roles?.canSubmit && displayPrize.state === State.Open && (
+                  <Link to={`/prize/${prizeId}/submit`} className="button-primary">
                     Submit Contribution
-                  </button>
+                  </Link>
                 )}
                 {roles?.canEvaluate && (
                   <button
-                    className="button-primary"
-                    onClick={() => navigate(`/prize/${prizeId}/evaluate`)}
+                    className={`button-primary ${displayPrize.state !== State.Evaluating ? "opacity-50 cursor-not-allowed" : ""}`}
+                    onClick={() => displayPrize.state === State.Evaluating && navigate(`/prize/${prizeId}/evaluate`)}
+                    disabled={displayPrize.state !== State.Evaluating}
                   >
                     Evaluate Contributions
                   </button>
                 )}
                 {roles?.canManagePrize && (
-                  <button
-                    className="button-primary"
-                    onClick={() => navigate(`/prize/${prizeId}/manage`)}
-                  >
+                  <button className="button-primary" onClick={() => navigate(`/prize/${prizeId}/manage`)}>
                     Manage Prize
+                  </button>
+                )}
+                {canClaim && (
+                  <button onClick={handleClaimReward} className="button-primary">
+                    Claim Reward
+                  </button>
+                )}
+                {canClaim && (
+                  <button onClick={handleViewClaimReward} className="button-secondary ml-2">
+                    View Claimed Reward
                   </button>
                 )}
               </div>
@@ -185,20 +208,28 @@ const PrizePage: React.FC = () => {
             </div>
           </div>
 
-          {prizeIdBigInt !== undefined && <ContributionList prizeId={prizeIdBigInt} />}
+          {prizeIdBigInt !== undefined && (
+            <div>
+              <h2 className="text-2xl font-semibold text-purple-800 mb-4">Contributions</h2>
+              <ContributionList prizeId={prizeIdBigInt} key={`contributions-${displayPrize.contributionCount}`} />
+            </div>
+          )}
 
           <div className="bg-purple-50 rounded-lg p-4 mt-8">
             <h2 className="text-2xl font-semibold text-purple-800 mb-4">Evaluator Status</h2>
-            {isEvaluatorLoading ? (
-              <p>Loading evaluator status...</p>
-            ) : isEvaluator ? (
-              <p className="text-green-600 font-semibold">
-                You are an evaluator for this prize
-              </p>
+            {roles?.canEvaluate ? (
+              <p className="text-green-600 font-semibold">You are an evaluator for this prize</p>
             ) : (
               <p className="text-gray-600">You are not an evaluator for this prize</p>
             )}
           </div>
+
+          {claimedReward !== null && (
+            <div className="mt-4 p-4 bg-purple-100 rounded-lg">
+              <h3 className="text-xl font-semibold text-purple-800">Your Claimed Reward</h3>
+              <p className="text-2xl font-bold text-purple-600">{formatEther(claimedReward)} ETH</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -228,9 +259,7 @@ const PrizeAmount: React.FC<{ amount: bigint }> = ({ amount }) => {
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <h2 className="text-2xl font-semibold text-purple-800 mb-4">Prize Amount</h2>
-      <p className="text-3xl font-bold text-purple-600">
-        {formatEther(amount)} ETH
-      </p>
+      <p className="text-3xl font-bold text-purple-600">{formatEther(amount)} ETH</p>
     </div>
   );
 };
@@ -258,26 +287,28 @@ const PrizeInPageStatus: React.FC<{ currentState: State }> = ({ currentState }) 
     <div className="bg-white rounded-lg shadow p-6 mt-6">
       <h2 className="text-2xl font-semibold text-purple-800 mb-4">Prize Status</h2>
       <div className="space-y-2">
-        {Object.values(State).filter((value) => typeof value === "number").map((state) => {
-          const numericState = state as State;
-          return (
-            <div
-              key={numericState}
-              className={`flex items-center p-2 rounded-md ${
-                currentState === numericState
-                  ? `${statusColors[numericState]} font-semibold`
-                  : "bg-gray-50 text-gray-500"
-              }`}
-            >
+        {Object.values(State)
+          .filter((value) => typeof value === "number")
+          .map((state) => {
+            const numericState = state as State;
+            return (
               <div
-                className={`w-3 h-3 rounded-full mr-2 ${
-                  currentState === numericState ? "bg-current" : "bg-gray-300"
+                key={numericState}
+                className={`flex items-center p-2 rounded-md ${
+                  currentState === numericState
+                    ? `${statusColors[numericState]} font-semibold`
+                    : "bg-gray-50 text-gray-500"
                 }`}
-              ></div>
-              <span>{stateLabels[numericState]}</span>
-            </div>
-          );
-        })}
+              >
+                <div
+                  className={`w-3 h-3 rounded-full mr-2 ${
+                    currentState === numericState ? "bg-current" : "bg-gray-300"
+                  }`}
+                ></div>
+                <span>{stateLabels[numericState]}</span>
+              </div>
+            );
+          })}
       </div>
     </div>
   );

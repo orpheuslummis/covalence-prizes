@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { formatEther } from "viem";
 import { shortenAddress } from "../lib/lib";
-import { PrizeDetails, State } from "../lib/types";
+import { PrizeDetails, State, AllocationStrategy } from "../lib/types";
 
 interface PrizeCardProps {
   prize: PrizeDetails;
@@ -29,8 +29,8 @@ const PrizeCard: React.FC<PrizeCardProps> = React.memo(({ prize }) => {
     const lightness2 = lightness1 + 10;
 
     return `linear-gradient(135deg, 
-                hsl(${hue1}, ${saturation}%, ${lightness1}%), 
-                hsl(${hue2}, ${saturation}%, ${lightness2}%))`;
+                hsla(${hue1}, ${saturation}%, ${lightness1}%, 0.8), 
+                hsla(${hue2}, ${saturation}%, ${lightness2}%, 0.8))`;
   };
 
   const gradientStyle = {
@@ -53,11 +53,11 @@ const PrizeCard: React.FC<PrizeCardProps> = React.memo(({ prize }) => {
   };
 
   return (
-    <Link to={`/prize/${prize.id}`} className="prize-card">
+    <Link to={`/prize/${prize.id}`} className="prize-card group">
       <div className="prize-card-header" style={gradientStyle}>
         <div className="prize-card-header-content">
-          <h2 className="prize-card-title">{prize.name}</h2>
-          <p className="prize-card-description">{prize.description}</p>
+          <h2 className="prize-card-title group-hover:text-white transition-colors">{prize.name}</h2>
+          <p className="prize-card-description group-hover:text-white transition-colors">{prize.description}</p>
         </div>
         <div className="prize-card-header-overlay"></div>
       </div>
@@ -72,7 +72,7 @@ const PrizeCard: React.FC<PrizeCardProps> = React.memo(({ prize }) => {
           </div>
           <div className="prize-card-detail-item">
             <p className="prize-card-detail-label">Strategy</p>
-            <p className="prize-card-detail-value">{prize.strategy}</p>
+            <p className="prize-card-detail-value">{AllocationStrategy[prize.strategy]}</p>
           </div>
         </div>
 

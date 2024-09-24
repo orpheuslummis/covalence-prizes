@@ -18,6 +18,17 @@ contract PrizeRewardFacet is Permissioned {
     // Chosen to balance precision, range, and gas efficiency within euint32 constraints
     uint256 constant PRECISION_FACTOR = 10 ** 6; // 1 ETH = 1,000,000 units
 
+    /**
+     * @dev Allocates rewards for a batch of contributions in a prize.
+     * @param prizeId The ID of the prize.
+     * @param batchSize The number of contributions to process in this batch.
+     *
+     * This function:
+     * 1. Validates the prize state and caller's permissions.
+     * 2. Processes a batch of contributions, calculating each one's reward.
+     * 3. Uses FHE operations to maintain privacy of scores and rewards.
+     * 4. Updates the prize state, potentially marking rewards as fully allocated.
+     */
     function allocateRewardsBatch(uint256 prizeId, uint256 batchSize) external {
         AppStorage storage s = LibAppStorage.diamondStorage();
         Prize storage prize = s.prizes[prizeId];
@@ -52,6 +63,17 @@ contract PrizeRewardFacet is Permissioned {
         }
     }
 
+    /**
+     * @dev Computes the total reward for a contestant across all their contributions.
+     * @param prizeId The ID of the prize.
+     *
+     * This function:
+     * 1. Checks if the prize is in the correct state for claiming.
+     * 2. Aggregates the rewards from all of the caller's unclaimed contributions.
+     * 3. Marks each processed contribution as claimed.
+     * 4. Stores the total encrypted reward for the contestant.
+     * 5. Emits an event to signal the reward claim.
+     */
     function computeContestantClaimReward(uint256 prizeId) external {
         require(LibPrize.isState(prizeId, LibPrize.State.Claiming), "Invalid state");
         AppStorage storage s = LibAppStorage.diamondStorage();
@@ -76,6 +98,17 @@ contract PrizeRewardFacet is Permissioned {
         emit LibPrize.RewardClaimed(prizeId, msg.sender);
     }
 
+    /**
+     * @dev Allows a contestant to view their claimed reward for a specific prize.
+     * @param prizeId The ID of the prize.
+     * @param permission The permission object containing the caller's public key.
+     * @return A sealed string representation of the claimed reward.
+     *
+     * This function:
+     * 1. Checks if rewards have been allocated for the prize.
+     * 2. Retrieves the encrypted claimed reward for the caller.
+     * 3. Seals the output using FHE, allowing only the caller to decrypt it.
+     */
     function viewContestantClaimReward(
         uint256 prizeId,
         Permission calldata permission
@@ -88,6 +121,15 @@ contract PrizeRewardFacet is Permissioned {
         return FHE.sealoutput(claimedReward, permission.publicKey);
     }
 
+    /**
+     * @dev Checks if all rewards for a prize have been claimed.
+     * @param prizeId The ID of the prize.
+     * @return A boolean indicating whether all rewards have been claimed.
+     *
+     * This function:
+     * 1. Compares the number of claimed rewards to the total number of contributions.
+     * 2. Returns true if they are equal, indicating all rewards have been claimed.
+     */
     function areAllRewardsClaimed(uint256 prizeId) external view returns (bool) {
         AppStorage storage s = LibAppStorage.diamondStorage();
         Prize storage prize = s.prizes[prizeId];

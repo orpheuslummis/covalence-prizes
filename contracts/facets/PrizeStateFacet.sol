@@ -17,11 +17,8 @@ contract PrizeStateFacet {
         LibPrize.State newState;
 
         if (prize.state == LibPrize.State.Setup) {
-            require(LibPrize.getPrizeMonetaryRewardPool(prizeId) > 0, "Prize pool must be funded before opening");
-            require(
-                LibPrize.getPrizeAllocationStrategy(prizeId) != LibPrize.AllocationStrategy.Invalid,
-                "Invalid allocation strategy"
-            );
+            require(prize.monetaryRewardPool > 0, "Prize pool must be funded before opening");
+            require(prize.allocationStrategy != LibPrize.AllocationStrategy.Invalid, "Invalid allocation strategy");
             newState = LibPrize.State.Open;
         } else if (prize.state == LibPrize.State.Open) {
             require(prize.contributionCount > 0, "At least one contribution is required");

@@ -8,12 +8,12 @@ type HardhatFhenixClient = FhenixClient & Partial<FhenixHardhatRuntimeEnvironmen
 export async function createFheInstance(
   hre: HardhatRuntimeEnvironment,
   contractAddress: string,
-  signer: ethers.Signer
+  signer: ethers.Signer,
 ): Promise<FhenixClient> {
   let instance: HardhatFhenixClient;
 
-  if (hre.fhenixjs) {
-    instance = hre.fhenixjs as unknown as HardhatFhenixClient;
+  if ((hre as any).fhenixjs) {
+    instance = (hre as any).fhenixjs as HardhatFhenixClient;
   } else {
     console.log("fhenixjs not found in HRE, creating a new FhenixClient instance");
     const params: InstanceParams = {

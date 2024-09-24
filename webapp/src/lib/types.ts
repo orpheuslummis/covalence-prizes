@@ -12,7 +12,7 @@ export enum State {
   Evaluating,
   Allocating,
   Claiming,
-  Closed
+  Closed,
 }
 
 export enum AllocationStrategy {
@@ -28,8 +28,6 @@ export interface PrizeParams {
   criteria: string[];
   criteriaWeights: number[];
   strategy: AllocationStrategy;
-  monetaryRewardPool: bigint;
-  allocationStrategy: AllocationStrategy;
 }
 
 export interface Contribution {
@@ -60,9 +58,10 @@ export interface PrizeDetails {
   evaluatedContributionsCount: number;
   claimedRewardsCount: number;
   rewardsAllocated: boolean;
+  lastProcessedIndex: bigint;
 }
 
-export type AppContextType = {
+export interface AppContextType {
   contracts: typeof config.contracts;
   prizeDiamond: ReturnType<typeof usePrizeDiamond>;
   isLoading: boolean;
@@ -73,6 +72,10 @@ export type AppContextType = {
   blockNumber: number | undefined;
   refetchPrizes: () => Promise<unknown>;
   isPrizesLoading: boolean;
-};
+  allocateRewardsBatch: (params: { prizeId: bigint; batchSize: bigint }) => Promise<void>;
+  getAllocationDetails: (prizeId: bigint) => Promise<{ lastProcessedIndex: bigint; contributionCount: bigint; rewardsAllocated: boolean }>;
+  hasClaimableReward: (prizeId: bigint, address: Address) => Promise<boolean>;
+  claimReward: (prizeId: bigint) => Promise<void>;
+}
 
 export type UsePrizeDiamondReturn = ReturnType<typeof usePrizeDiamond>;
