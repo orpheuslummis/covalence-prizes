@@ -84,7 +84,7 @@ contract PrizeManagerFacet {
             evaluatedContributionsCount: prize.evaluatedContributionsCount,
             claimedRewardsCount: prize.claimedRewardsCount,
             rewardsAllocated: prize.rewardsAllocated,
-            lastProcessedIndex: prize.lastProcessedIndex // Added lastProcessedIndex field
+            lastProcessedIndex: prize.lastProcessedIndex
         });
         return prizeDetails;
     }

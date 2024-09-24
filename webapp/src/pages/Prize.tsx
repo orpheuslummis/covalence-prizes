@@ -5,40 +5,24 @@ import { formatEther } from "viem";
 import { useAccount } from "wagmi";
 import { State, PrizeDetails } from "../lib/types";
 import { useAppContext } from "../contexts/AppContext";
-import { useWalletContext } from "../contexts/WalletContext";
 import PrizeDetailsComponent from "../components/PrizeDetails";
 import ContributionList from "../components/ContributionList";
 import toast from "react-hot-toast";
 
 const PrizePage: React.FC = () => {
   const { prizeId } = useParams<{ prizeId: string }>();
-  const { prizeDiamond, prizes, isLoading, isPrizesLoading } = useAppContext();
-  const { address, isConnected } = useAccount();
   const navigate = useNavigate();
-  const { account } = useWalletContext();
-  const { address: walletAddress } = account;
+  const { address, isConnected } = useAccount();
+  const { prizeDiamond } = useAppContext();
 
-  useEffect(() => {
-    console.log("AppContext state:", { prizes, isLoading, isPrizesLoading });
-    console.log("Wallet state:", { address, isConnected, walletAddress });
-  }, [prizes, isLoading, isPrizesLoading, address, isConnected, walletAddress]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [prize, setPrize] = useState<PrizeDetails | undefined>(undefined);
+  const [isOrganizer, setIsOrganizer] = useState(false);
+  const [canClaim, setCanClaim] = useState(false);
+  const [claimedReward, setClaimedReward] = useState<bigint | null>(null);
+  const prizeIdBigInt = useMemo(() => BigInt(prizeId || "0"), [prizeId]);
 
-  const prizeIdBigInt = useMemo(() => {
-    const result = typeof prizeId === "string" ? BigInt(prizeId) : undefined;
-    console.log("prizeIdBigInt:", result?.toString());
-    return result;
-  }, [prizeId]);
-
-  const prize = useMemo(() => {
-    const foundPrize = prizes?.find((p) => p.id === prizeIdBigInt);
-    console.log("Found prize:", foundPrize);
-    return foundPrize;
-  }, [prizes, prizeIdBigInt]);
-
-  const {
-    data: roles,
-    error: rolesError,
-  } = useQuery({
+  const { data: roles, error: rolesError } = useQuery({
     queryKey: ["prizeRoles", prizeIdBigInt?.toString(), address],
     queryFn: async () => {
       if (!prizeIdBigInt || !address || !prize) {
@@ -70,19 +54,6 @@ const PrizePage: React.FC = () => {
     retryDelay: 1000,
   });
 
-  useEffect(() => {
-    if (prizeIdBigInt) {
-      refetchPrizeDetails();
-    }
-  }, [prizeIdBigInt, refetchPrizeDetails]);
-
-  useEffect(() => {
-    console.log("Prize details:", prizeDetails);
-    console.log("Contribution count:", prizeDetails?.contributionCount.toString());
-  }, [prizeDetails]);
-
-  const [canClaim, setCanClaim] = useState(false);
-
   const { data: claimableReward, refetch: refetchClaimableReward } = useQuery({
     queryKey: ["claimableReward", prizeIdBigInt?.toString(), address],
     queryFn: async () => {
@@ -93,10 +64,29 @@ const PrizePage: React.FC = () => {
   });
 
   useEffect(() => {
+    if (prizeIdBigInt) {
+      refetchPrizeDetails();
+    }
+  }, [prizeIdBigInt, refetchPrizeDetails]);
+
+  useEffect(() => {
+    if (prizeDetails) {
+      console.log("Prize details:", prizeDetails);
+      console.log("Contribution count:", prizeDetails.contributionCount.toString());
+      setPrize(prizeDetails);
+      setIsOrganizer(prizeDetails.organizer.toLowerCase() === address?.toLowerCase());
+    }
+  }, [prizeDetails, address]);
+
+  useEffect(() => {
     setCanClaim(!!claimableReward);
   }, [claimableReward]);
 
-  const handleClaimReward = async () => {
+  useEffect(() => {
+    setIsLoading(!prizeDetails);
+  }, [prizeDetails]);
+
+  const handleClaimReward = useCallback(async () => {
     if (!prizeIdBigInt) return;
     try {
       await prizeDiamond.computeContestantClaimRewardAsync({ prizeId: prizeIdBigInt });
@@ -108,9 +98,7 @@ const PrizePage: React.FC = () => {
       console.error("Error claiming reward:", error);
       toast.error("Failed to claim reward. Please try again.");
     }
-  };
-
-  const [claimedReward, setClaimedReward] = useState<bigint | null>(null);
+  }, [prizeIdBigInt, prizeDiamond, refetchClaimableReward, refetchPrizeDetails]);
 
   const handleViewClaimReward = useCallback(async () => {
     if (!prizeIdBigInt) return;
@@ -123,16 +111,6 @@ const PrizePage: React.FC = () => {
       toast.error("Failed to view claimed reward. Please try again.");
     }
   }, [prizeIdBigInt, prizeDiamond]);
-
-  if (rolesError || prizeDetailsError) {
-    console.error("Error fetching roles:", rolesError);
-    console.error("Error fetching prize details:", prizeDetailsError);
-    return (
-      <div className="text-center py-10 text-red-300">
-        Error loading data: {((rolesError || prizeDetailsError) as Error).message}
-      </div>
-    );
-  }
 
   if (!prize && !prizeDetails) {
     console.error("Prize not found. Prize:", prize, "PrizeDetails:", prizeDetails);
@@ -178,7 +156,7 @@ const PrizePage: React.FC = () => {
                     Evaluate Contributions
                   </button>
                 )}
-                {roles?.canManagePrize && (
+                {isOrganizer && (
                   <button className="button-primary" onClick={() => navigate(`/prize/${prizeId}/manage`)}>
                     Manage Prize
                   </button>

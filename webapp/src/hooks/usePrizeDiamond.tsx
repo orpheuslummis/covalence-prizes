@@ -94,6 +94,7 @@ export const usePrizeDiamond = () => {
     async (prizeId: bigint): Promise<PrizeDetails> => {
       try {
         const details = await readDiamond("getPrizeDetails", [prizeId.toString()]);
+        console.log("Prize details fetched:", details);
         return {
           id: BigInt(details.id),
           organizer: details.organizer as Address,
@@ -374,32 +375,6 @@ export const usePrizeDiamond = () => {
     [readDiamond, getState, address, isConnected],
   );
 
-  const evaluate = useMutation<
-    void,
-    Error,
-    { prizeId: bigint; contributionId: bigint; encryptedScores: EncryptedUint32[] }
-  >({
-    mutationFn: async ({ prizeId, contributionId, encryptedScores }) => {
-      const canEvaluateNow = await canEvaluate(prizeId);
-      if (!canEvaluateNow) {
-        throw new Error("You cannot evaluate contributions at this time.");
-      }
-      await evaluateContribution.mutateAsync({
-        prizeId,
-        contributionId,
-        encryptedScores,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prizeDetails"] });
-      toast.success("Contribution evaluated successfully");
-    },
-    onError: (error) => {
-      console.error("Error evaluating contribution:", error);
-      toast.error(`Failed to evaluate contribution: ${error.message}`);
-    },
-  });
-
   const isPrizeOrganizer = async (prizeId: bigint, address: Address): Promise<boolean> => {
     try {
       const prizeDetails = await getPrizeDetails(prizeId);
@@ -489,6 +464,10 @@ export const usePrizeDiamond = () => {
     [fhenixClient],
   );
 
+  function formatForContractCall(encryptedString: EncryptedUint32[]): { data: Hash }[] {
+    return encryptedString.map((encNum) => ({ data: `0x${Buffer.from(encNum.data).toString("hex")}` }));
+  }
+
   const evaluateContribution = useMutation<
     void,
     Error,
@@ -497,15 +476,17 @@ export const usePrizeDiamond = () => {
     mutationFn: async ({ prizeId, contributionId, encryptedScores }) => {
       if (!walletClient) throw new Error("Wallet not connected");
 
+      const encryptedScoresHex = formatForContractCall(encryptedScores);
+
       await writeContractAsync({
         address: diamondAddress as Address,
         abi: diamondAbi,
         functionName: "evaluateContribution",
-        args: [prizeId, contributionId, encryptedScores],
+        args: [prizeId, contributionId, encryptedScoresHex],
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prizeDetails"] });
+    onSuccess: (_, { prizeId }) => {
+      queryClient.invalidateQueries({ queryKey: ["prizeDetails", prizeId.toString()] });
       toast.success("Contribution evaluated successfully");
     },
     onError: (error) => {
@@ -660,17 +641,12 @@ export const usePrizeDiamond = () => {
 
     encryptScores,
     decryptReward,
-    evaluateContributionFHE: evaluateContribution.mutate,
-    claimRewardFHE: computeContestantClaimReward.mutate,
-    viewContestantClaimRewardFHE: viewContestantClaimReward,
 
     waitForTransaction,
 
     blockNumber: blockNumber ? Number(blockNumber) : undefined,
 
     canEvaluate,
-    evaluate: evaluate.mutate,
-    evaluateAsync: evaluate.mutateAsync,
     isPrizeOrganizer,
     addEvaluatorsAsync,
     getEvaluatedContributions,

@@ -14,7 +14,7 @@ const CreatePrizePage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { account, isLoading: walletLoading } = useWalletContext();
   const { address, isConnected } = account;
-  const { createPrizeAsync, getPrizes } = usePrizeDiamond();
+  const { createPrizeAsync, getPrizeCount, getPrizeDetails } = usePrizeDiamond();
   const [transactionHash, setTransactionHash] = useState<`0x${string}` | undefined>(undefined);
   const { data: balance } = useBalance({ address });
 
@@ -62,23 +62,27 @@ const CreatePrizePage = () => {
   const handleTransactionSuccess = useCallback(async () => {
     toast.success("Prize created successfully");
     try {
-      const prizesResult = await getPrizes(1n, 1n);
-      if (prizesResult && prizesResult.length > 0) {
-        const createdPrize = prizesResult[0];
-        if (createdPrize && createdPrize.id) {
-          navigate(`/prize/${createdPrize.id}`);
+      const prizeCount = await getPrizeCount();
+      if (prizeCount > 0n) {
+        const latestPrizeId = prizeCount - 1n;
+        const createdPrize = await getPrizeDetails(latestPrizeId);
+        console.log("Created prize:", createdPrize);
+        if (createdPrize && createdPrize.id !== undefined) {
+          const navigateUrl = `/prize/${createdPrize.id.toString()}`;
+          console.log("Navigating to:", navigateUrl);
+          navigate(navigateUrl);
         } else {
           throw new Error("Failed to retrieve the created prize");
         }
       } else {
-        throw new Error("Failed to fetch the created prize");
+        throw new Error("No prizes found after creation");
       }
     } catch (error) {
       console.error("Error after transaction success:", error);
       toast.error("Prize created, but there was an error loading the details.");
       navigate("/");
     }
-  }, [getPrizes, navigate]);
+  }, [getPrizeCount, getPrizeDetails, navigate]);
 
   useEffect(() => {
     if (isSuccess && transactionReceipt) {
@@ -260,11 +264,13 @@ const CreatePrizePage = () => {
                   className="form-input w-full mt-1 text-gray-900"
                   required
                 >
-                  {allocationStrategies.map((strategy) => (
-                    <option key={strategy.value} value={strategy.value}>
-                      {strategy.label}
-                    </option>
-                  ))}
+                  {allocationStrategies
+                    .filter((strategy) => strategy.value !== AllocationStrategy.Invalid)
+                    .map((strategy) => (
+                      <option key={strategy.value} value={strategy.value}>
+                        {strategy.label}
+                      </option>
+                    ))}
                 </select>
               </div>
               <div className="form-group">

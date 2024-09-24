@@ -7,6 +7,7 @@ import { config } from "../config";
 import { usePrizeDiamond } from "../hooks/usePrizeDiamond";
 import { PrizeDetails, Role } from "../lib/types";
 import { Address } from "viem";
+// import { debounce } from "lodash";
 
 export interface AppContextType {
   contracts: typeof config.contracts;
@@ -68,12 +69,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!prizeDiamond.getPrizeCount || !prizeDiamond.getPrizes) {
       throw new Error("PrizeDiamond not fully initialized");
     }
-    console.log("Fetching prizes...");
     const count = await prizeDiamond.getPrizeCount();
-    console.log("Prize count:", count);
-    const prizes = await prizeDiamond.getPrizes(0n, count);
-    console.log("Fetched prizes:", prizes);
-    return prizes;
+    return prizeDiamond.getPrizes(0n, count);
   }, [prizeDiamond]);
 
   const {
@@ -89,8 +86,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
 
   useEffect(() => {
-    if (blockNumber) {
-      console.log("New block:", blockNumber.toString());
+    if (blockNumber && blockNumber % 10n === 0n) {
       refetchPrizesQuery();
     }
   }, [blockNumber, refetchPrizesQuery]);
@@ -111,33 +107,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, []);
 
   const refetchPrizes = useCallback(async () => {
-    console.log("Manually refetching prizes...");
     await refetchPrizesQuery();
   }, [refetchPrizesQuery]);
 
-  useEffect(() => {
-    console.log("Current prizes:", prizesData);
-  }, [prizesData]);
-
-  const contextValue = useMemo<AppContextType>(
-    () => ({
-      contracts: config.contracts,
-      prizeDiamond,
-      isLoading: isPrizesLoading,
-      setIsLoading: () => {}, // Implement if needed
-      prizes: prizesData || [],
-      userRoles,
-      setUserRoles,
-      blockNumber: blockNumber ? Number(blockNumber) : undefined,
-      refetchPrizes,
-      isPrizesLoading,
-      allocateRewardsBatch: (params) => prizeDiamond.allocateRewardsBatchAsync(params),
-      getAllocationDetails: (prizeId) => prizeDiamond.getAllocationDetails(prizeId),
-      hasClaimableReward: prizeDiamond.hasClaimableReward,
-      claimReward: (prizeId) => prizeDiamond.computeContestantClaimRewardAsync({ prizeId }),
-    }),
-    [prizeDiamond, isPrizesLoading, prizesData, userRoles, blockNumber, refetchPrizes],
-  );
+  const contextValue = useMemo<AppContextType>(() => ({
+    contracts: config.contracts,
+    prizeDiamond,
+    isLoading: isPrizesLoading,
+    setIsLoading: () => {}, // Implement if needed
+    prizes: prizesData || [],
+    userRoles,
+    setUserRoles,
+    blockNumber: blockNumber ? Number(blockNumber) : undefined,
+    refetchPrizes,
+    isPrizesLoading,
+    allocateRewardsBatch: (params) => prizeDiamond.allocateRewardsBatchAsync(params),
+    getAllocationDetails: (prizeId) => prizeDiamond.getAllocationDetails(prizeId),
+    hasClaimableReward: prizeDiamond.hasClaimableReward,
+    claimReward: (prizeId) => prizeDiamond.computeContestantClaimRewardAsync({ prizeId }),
+  }), [
+    prizeDiamond,
+    isPrizesLoading,
+    prizesData,
+    userRoles,
+    blockNumber,
+    refetchPrizes,
+  ]);
 
   return (
     <QueryClientProvider client={queryClient}>

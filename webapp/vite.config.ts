@@ -2,8 +2,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "tailwindcss";
 import autoprefixer from "autoprefixer";
-// import wasm from "vite-plugin-wasm";
-// import topLevelAwait from "vite-plugin-top-level-await";
+import { NodeGlobalsPolyfillPlugin } from "@esbuild-plugins/node-globals-polyfill";
+import { NodeModulesPolyfillPlugin } from "@esbuild-plugins/node-modules-polyfill";
 
 export default defineConfig({
   plugins: [react()],
@@ -12,12 +12,35 @@ export default defineConfig({
       plugins: [tailwindcss(), autoprefixer()],
     },
   },
-  // resolve: {
-  //   alias: {
-  //     util: "util",
-  //   },
-  // },
-  // optimizeDeps: {
-  //   exclude: ["fhenixjs"],
-  // },
+  resolve: {
+    alias: {
+      // Polyfill or mock Node.js built-in modules
+      util: "rollup-plugin-node-polyfills/polyfills/util",
+      stream: "rollup-plugin-node-polyfills/polyfills/stream",
+      events: "rollup-plugin-node-polyfills/polyfills/events",
+    },
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      // Node.js global to browser globalThis
+      define: {
+        global: "globalThis",
+      },
+      // Enable esbuild polyfill plugins
+      plugins: [
+        NodeGlobalsPolyfillPlugin({
+          process: true,
+          buffer: true,
+        }),
+        NodeModulesPolyfillPlugin(),
+      ],
+    },
+  },
+  build: {
+    rollupOptions: {
+      plugins: [
+        // You can add Rollup plugins here if needed
+      ],
+    },
+  },
 });

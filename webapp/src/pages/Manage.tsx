@@ -1,3 +1,4 @@
+// src/pages/ManagePrizePage.tsx
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 import { ContractFunctionExecutionError, formatEther, parseEther } from "viem";
@@ -5,7 +6,10 @@ import { useAccount } from "wagmi";
 import { config } from "../config";
 import { AllocationStrategy, PrizeDetails, State } from "../lib/types";
 import { useAppContext } from "../contexts/AppContext";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import ProgressBar from "../components/ProgressBar";
+import ManagementCard from "../components/ManagementCard";
+import StatusItem from "../components/StatusItem";
 
 const getStrategyName = (strategy: AllocationStrategy): string => {
   return config.allocationStrategies[strategy].label;
@@ -122,6 +126,12 @@ export default function ManagePrizePage() {
   }, [parsedPrizeId, isPrizesLoading, fetchPrizeDetails]);
 
   useEffect(() => {
+    console.log("isOrganizer:", isOrganizer);
+    console.log("prize:", prize);
+    console.log("address:", address);
+  }, [isOrganizer, prize, address]);
+
+  useEffect(() => {
     console.log("Current state:", {
       prize,
       weights,
@@ -227,6 +237,8 @@ export default function ManagePrizePage() {
       case State.Open:
         return prize.contributionCount > 0n;
       case State.Evaluating:
+        console.log("Evaluated Contributions:", prize.evaluatedContributionsCount);
+        console.log("Total Contributions:", Number(prize.contributionCount));
         return prize.evaluatedContributionsCount === Number(prize.contributionCount);
       case State.Allocating:
         return prize.rewardsAllocated;
@@ -359,7 +371,7 @@ export default function ManagePrizePage() {
     return <div className="flex justify-center items-center h-screen text-red-500 text-2xl">{error}</div>;
   }
 
-  if (!prize) {
+  if (!prize && !isLoading) {
     return <div className="flex justify-center items-center h-screen text-white text-2xl">Prize not found</div>;
   }
 
@@ -367,15 +379,32 @@ export default function ManagePrizePage() {
     isOrganizer,
     prizeState: prize?.state,
     rewardsAllocated: prize?.rewardsAllocated,
+    allocationDetails: allocationDetails, // Log allocation details
   });
 
   return (
     <div className="container mx-auto px-4 py-8 bg-gradient-to-br from-purple-800 to-purple-900 min-h-screen text-white">
       <div className="max-w-5xl mx-auto">
+        <div className="text-center mb-4">
+          <Link to={`/prize/${prizeId}`} className="text-purple-300 hover:underline">
+            Back to Prize
+          </Link>
+        </div>
+
         <h1 className="text-5xl font-bold mb-8 text-center">Manage Prize: {prize.name}</h1>
 
-        <ProgressBar states={stateProgress} />
+        {/* Unified ProgressBar with State Management */}
+        <ProgressBar
+          states={stateProgress}
+          currentState={{
+            state: prize.state,
+            requirements: getNextStateRequirements(),
+            canMoveToNext: canMoveToNextState(),
+            handleMoveToNextState,
+          }}
+        />
 
+        {/* Prize Details */}
         <ManagementCard title="Prize Details" className="mt-12 mb-12">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatusItem label="Organizer" value={prize.organizer} />
@@ -389,60 +418,69 @@ export default function ManagePrizePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Fund Prize */}
-          <ManagementCard title="Fund Prize">
-            <div className="space-y-2">
-              <StatusItem label="Required" value={`${formatEther(prize.monetaryRewardPool)} ETH`} />
-              <StatusItem label="Current" value={`${formatEther(prize.fundedAmount)} ETH`} />
-              <StatusItem
-                label="Status"
-                value={isFunded ? "Fully Funded" : "Not Fully Funded"}
-                status={isFunded ? "success" : "warning"}
-              />
-            </div>
-            {!isFunded && prize.state === State.Setup && (
-              <div className="mt-4">
-                <label className="block mb-2">Fund Amount: {fundAmount} ETH</label>
-                <input
-                  type="range"
-                  min="0"
-                  max={Number(formatEther(prize.monetaryRewardPool))}
-                  step="0.0001"
-                  value={fundAmount}
-                  onChange={(e) => setFundAmount(e.target.value)}
-                  className="w-full"
+          {isOrganizer && (
+            <ManagementCard title="Fund Prize">
+              <div className="space-y-2">
+                <StatusItem label="Required" value={`${formatEther(prize.monetaryRewardPool)} ETH`} />
+                <StatusItem label="Current" value={`${formatEther(prize.fundedAmount)} ETH`} />
+                <StatusItem
+                  label="Status"
+                  value={isFunded ? "Fully Funded" : "Not Fully Funded"}
+                  status={isFunded ? "success" : "warning"}
                 />
-                <button
-                  onClick={handleFundPrize}
-                  className="w-full mt-4 bg-purple-600 hover:bg-purple-700 p-3 rounded-md transition duration-200 ease-in-out"
-                >
-                  Fund Prize
-                </button>
               </div>
-            )}
-          </ManagementCard>
+              {!isFunded && (
+                <div className="mt-4">
+                  <label className="block mb-2">Fund Amount: {fundAmount} ETH</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max={Number(formatEther(prize.monetaryRewardPool))}
+                    step="0.0001"
+                    value={fundAmount}
+                    onChange={(e) => setFundAmount(e.target.value)}
+                    className="w-full"
+                  />
+                  <button
+                    onClick={handleFundPrize}
+                    className="w-full mt-4 bg-purple-600 hover:bg-purple-700 p-3 rounded-md transition duration-200 ease-in-out"
+                  >
+                    Fund Prize
+                  </button>
+                </div>
+              )}
+            </ManagementCard>
+          )}
 
           {/* Assign Criteria Weights */}
           <ManagementCard title="Assign Criteria Weights">
             {prize.criteriaNames.length > 1 ? (
-              prize.criteriaNames.map((name, index) => (
-                <div key={index} className="mb-4">
-                  <label className="block mb-1">{name}:</label>
-                  <input
-                    type="number"
-                    value={weights[index] || ""}
-                    onChange={(e) => handleWeightChange(index, e.target.value)}
-                    className="w-full p-3 text-gray-900 bg-white rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-                    min="0"
-                    max="10"
-                  />
-                </div>
-              ))
+              <>
+                {prize.criteriaNames.map((name, index) => (
+                  <div key={index} className="mb-4">
+                    <label className="block mb-1">
+                      {name}: {weights[index] || 0}
+                    </label>
+                    <input
+                      type="range"
+                      value={weights[index] || 0}
+                      onChange={(e) => handleWeightChange(index, e.target.value)}
+                      className="w-full"
+                      min="0"
+                      max="10"
+                      step="1"
+                    />
+                  </div>
+                ))}
+              </>
             ) : (
               <p className="text-yellow-400">Criteria weights cannot be changed when there is only one dimension.</p>
             )}
             <button
               onClick={handleAssignWeights}
-              className={`w-full mt-2 bg-purple-600 hover:bg-purple-700 p-3 rounded-md transition duration-200 ease-in-out ${prize.criteriaNames.length <= 1 ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`w-full mt-2 bg-purple-600 hover:bg-purple-700 p-3 rounded-md transition duration-200 ease-in-out ${
+                prize.criteriaNames.length <= 1 ? "opacity-50 cursor-not-allowed" : ""
+              }`}
               disabled={prize.criteriaNames.length <= 1}
             >
               Assign Weights
@@ -473,149 +511,41 @@ export default function ManagePrizePage() {
               Add Evaluators
             </button>
           </ManagementCard>
-
-          {/* Move to Next State */}
-          <ManagementCard title={`Current State: ${State[prize.state]}`}>
-            <div className="current-state-card">
-              <h3 className="current-state-title">Current State: {State[prize.state]}</h3>
-              <div className="current-state-content">
-                <p className="mb-6">{getNextStateRequirements()}</p>
-                <button
-                  onClick={handleMoveToNextState}
-                  disabled={!canMoveToNextState()}
-                  className={`current-state-button ${!canMoveToNextState() ? "current-state-button-disabled" : ""}`}
-                >
-                  Move to Next State
-                </button>
-              </div>
-            </div>
-          </ManagementCard>
         </div>
 
-        {isOrganizer && prize?.state === State.Allocating && (
-          <ManagementCard title="Allocate Rewards" className="mt-12">
-            <div className="space-y-4">
-              <div>
-                <label className="block mb-2">Batch Size:</label>
-                <input
-                  type="number"
-                  min="1"
-                  max={Number(prize.contributionCount - (prize.lastProcessedIndex || 0n))}
-                  value={batchSize}
-                  onChange={(e) => setBatchSize(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                  className="w-full p-3 text-gray-900 bg-white rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              <button
-                onClick={handleAllocateRewards}
-                className="w-full bg-purple-600 hover:bg-purple-700 p-3 rounded-md transition duration-200 ease-in-out"
-                disabled={allocationInProgress || prize.rewardsAllocated}
-              >
-                {allocationInProgress ? "Allocating..." : "Allocate Rewards"}
-              </button>
-              <div className="mt-4">
-                <p>
-                  Allocated {prize.lastProcessedIndex.toString()} out of {prize.contributionCount.toString()}{" "}
-                  contributions.
-                </p>
-                {!prize.rewardsAllocated && prize.lastProcessedIndex < prize.contributionCount && (
-                  <p className="text-yellow-400">Allocation in progress...</p>
-                )}
-                {prize.rewardsAllocated && <p className="text-green-400">All rewards have been allocated.</p>}
-              </div>
-            </div>
-          </ManagementCard>
-        )}
+        <ManagementCard title="Allocate Rewards" className="mt-12">
+          <div>
+            <label className="block mb-2">Batch Size:</label>
+            <input
+              type="number"
+              min="1"
+              max={Number(prize.contributionCount - (prize.lastProcessedIndex || 0n))}
+              value={batchSize}
+              onChange={(e) => setBatchSize(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              className="w-full p-3 text-gray-900 bg-white rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+          <button
+            onClick={handleAllocateRewards}
+            className="w-full bg-purple-600 hover:bg-purple-700 p-3 rounded-md transition duration-200 ease-in-out"
+            disabled={allocationInProgress || prize.rewardsAllocated}
+          >
+            {allocationInProgress ? "Allocating..." : "Allocate Rewards"}
+          </button>
+          <div className="mt-4">
+            <p>
+              {/* Use allocationDetails for more accurate display */}
+              Allocated {allocationDetails?.lastProcessedIndex.toString() || "0"} out of{" "}
+              {allocationDetails?.contributionCount.toString() || "0"} contributions.
+            </p>
+            {!allocationDetails?.rewardsAllocated &&
+              (allocationDetails?.lastProcessedIndex || 0n) < (allocationDetails?.contributionCount || 0n) && (
+                <p className="text-yellow-400">Allocation in progress...</p>
+              )}
+            {allocationDetails?.rewardsAllocated && <p className="text-green-400">All rewards have been allocated.</p>}
+          </div>
+        </ManagementCard>
       </div>
     </div>
   );
 }
-
-interface ProgressBarProps {
-  states: Array<{
-    state: State;
-    active: boolean;
-    completed: boolean;
-  }>;
-}
-
-const ProgressBar: React.FC<ProgressBarProps> = ({ states }) => {
-  return (
-    <div className="progress-bar">
-      {states.map((item, index) => (
-        <div key={item.state} className="progress-step">
-          <div
-            className={`progress-circle ${
-              item.active
-                ? "progress-circle-active"
-                : item.completed
-                  ? "progress-circle-completed"
-                  : "progress-circle-inactive"
-            }`}
-          >
-            {item.completed ? <CheckIcon className="w-8 h-8" /> : <span>{index + 1}</span>}
-          </div>
-          <span
-            className={`progress-label ${
-              item.active
-                ? "progress-label-active"
-                : item.completed
-                  ? "progress-label-completed"
-                  : "progress-label-inactive"
-            }`}
-          >
-            {State[item.state]}
-          </span>
-          {index < states.length - 1 && (
-            <div className={`progress-connector ${item.completed ? "progress-connector-completed" : ""}`}></div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-};
-
-interface ManagementCardProps {
-  title: string;
-  children: React.ReactNode;
-  className?: string;
-}
-
-const ManagementCard: React.FC<ManagementCardProps> = ({ title, children, className = "" }) => {
-  return (
-    <div className={`bg-purple-800 rounded-lg p-6 shadow-lg ${className}`}>
-      <h2 className="text-2xl font-semibold mb-4">{title}</h2>
-      {children}
-    </div>
-  );
-};
-
-interface StatusItemProps {
-  label: string;
-  value: string | number;
-  status?: "default" | "success" | "warning" | "error";
-}
-
-const StatusItem: React.FC<StatusItemProps> = ({ label, value, status = "default" }) => {
-  const statusColors: Record<string, string> = {
-    default: "text-white",
-    success: "text-green-400",
-    warning: "text-yellow-400",
-    error: "text-red-400",
-  };
-
-  return (
-    <div className="flex justify-between items-center py-2 px-4 bg-purple-700 rounded-md">
-      <span className="font-medium">{label}: </span>
-      <span className={`${statusColors[status]} truncate max-w-xs`}>{value}</span>
-    </div>
-  );
-};
-
-const CheckIcon: React.FC<{ className: string }> = ({ className }) => {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-    </svg>
-  );
-};

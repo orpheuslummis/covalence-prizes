@@ -40,6 +40,11 @@ const EvaluatePage: React.FC = () => {
     try {
       setIsLoading(true);
       const prizeDetails = await prizeDiamond.getPrizeDetails(BigInt(prizeId));
+      console.log("Fetching prize details for ID:", prizeId);
+      console.log("Prize details fetched:", prizeDetails);
+      console.log("Evaluated Contributions Count:", prizeDetails.evaluatedContributionsCount);
+      console.log("Total Contributions Count:", prizeDetails.contributionCount);
+
       setPrize(prizeDetails);
 
       const contributionCount = await prizeDiamond.getContributionCount(BigInt(prizeId));
@@ -119,13 +124,12 @@ const EvaluatePage: React.FC = () => {
     if (!isFormValid() || !prize || !selectedContribution) return;
     try {
       setIsSubmitting(true);
-      // Add an additional check here
       const canStillEvaluate = await prizeDiamond.canEvaluate(BigInt(prizeId as string));
       if (!canStillEvaluate) {
         throw new Error("Evaluation is no longer allowed for this prize");
       }
       const encrypted = await prizeDiamond.encryptScores(scores);
-      await prizeDiamond.evaluate({
+      await prizeDiamond.evaluateContributionAsync({
         prizeId: BigInt(prizeId as string),
         contributionId: selectedContribution.id,
         encryptedScores: encrypted,
