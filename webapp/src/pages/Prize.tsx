@@ -18,11 +18,37 @@ const PrizePage: React.FC = () => {
   const { address, isConnected } = useAccount();
   const { prizeDiamond } = useAppContext();
 
+  const prizeIdBigInt = useMemo(() => {
+    return prizeId !== undefined && prizeId !== null && prizeId !== "" ? BigInt(prizeId) : undefined;
+  }, [prizeId]);
+
+  const { data: prizeDetails, isLoading, error } = useQuery({
+    queryKey: ["prizeDetails", prizeIdBigInt?.toString()],
+    queryFn: async () => {
+      if (prizeIdBigInt === undefined) throw new Error("Invalid prize ID");
+      console.log("Fetching prize details for ID:", prizeIdBigInt.toString());
+      const result = await prizeDiamond.getPrizeDetails(prizeIdBigInt);
+      console.log("Fetched prize details:", result);
+      return result as PrizeDetails;
+    },
+    enabled: prizeIdBigInt !== undefined && !!prizeDiamond,
+    retry: 3,
+    retryDelay: 1000,
+  });
+
   const [prize, setPrize] = useState<PrizeDetails | undefined>(undefined);
   const [isOrganizer, setIsOrganizer] = useState(false);
   const [canClaim, setCanClaim] = useState(false);
   const [claimedReward, setClaimedReward] = useState<bigint | null>(null);
-  const prizeIdBigInt = useMemo(() => BigInt(prizeId || "0"), [prizeId]);
+
+  useEffect(() => {
+    if (prizeDetails) {
+      console.log("Prize details:", prizeDetails);
+      console.log("Contribution count:", prizeDetails.contributionCount.toString());
+      setPrize(prizeDetails);
+      setIsOrganizer(prizeDetails.organizer.toLowerCase() === address?.toLowerCase());
+    }
+  }, [prizeDetails, address]);
 
   const { data: roles } = useQuery({
     queryKey: ["prizeRoles", prizeIdBigInt?.toString(), address],
@@ -38,20 +64,6 @@ const PrizePage: React.FC = () => {
     enabled: !!prizeIdBigInt && !!address && isConnected && !!prize,
   });
 
-  const { data: prizeDetails, refetch: refetchPrizeDetails } = useQuery({
-    queryKey: ["prizeDetails", prizeIdBigInt?.toString()],
-    queryFn: async () => {
-      if (!prizeIdBigInt) throw new Error("Invalid prize ID");
-      console.log("Fetching prize details for ID:", prizeIdBigInt.toString());
-      const result = await prizeDiamond.getPrizeDetails(prizeIdBigInt);
-      console.log("Fetched prize details:", result);
-      return result as PrizeDetails;
-    },
-    enabled: !!prizeIdBigInt,
-    retry: 3,
-    retryDelay: 1000,
-  });
-
   const { data: claimableReward, refetch: refetchClaimableReward } = useQuery({
     queryKey: ["claimableReward", prizeIdBigInt?.toString(), address],
     queryFn: async () => {
@@ -60,21 +72,6 @@ const PrizePage: React.FC = () => {
     },
     enabled: !!prizeIdBigInt && !!address && prizeDetails?.state === State.Claiming,
   });
-
-  useEffect(() => {
-    if (prizeIdBigInt) {
-      refetchPrizeDetails();
-    }
-  }, [prizeIdBigInt, refetchPrizeDetails]);
-
-  useEffect(() => {
-    if (prizeDetails) {
-      console.log("Prize details:", prizeDetails);
-      console.log("Contribution count:", prizeDetails.contributionCount.toString());
-      setPrize(prizeDetails);
-      setIsOrganizer(prizeDetails.organizer.toLowerCase() === address?.toLowerCase());
-    }
-  }, [prizeDetails, address]);
 
   useEffect(() => {
     setCanClaim(!!claimableReward);
@@ -87,12 +84,11 @@ const PrizePage: React.FC = () => {
       toast.success("Reward claimed successfully!");
       setCanClaim(false);
       refetchClaimableReward();
-      refetchPrizeDetails();
     } catch (error) {
       console.error("Error claiming reward:", error);
       toast.error("Failed to claim reward. Please try again.");
     }
-  }, [prizeIdBigInt, prizeDiamond, refetchClaimableReward, refetchPrizeDetails]);
+  }, [prizeIdBigInt, prizeDiamond, refetchClaimableReward]);
 
   const handleViewClaimReward = useCallback(async () => {
     if (!prizeIdBigInt) return;
@@ -106,56 +102,56 @@ const PrizePage: React.FC = () => {
     }
   }, [prizeIdBigInt, prizeDiamond]);
 
-  if (!prize && !prizeDetails) {
-    console.error("Prize not found. Prize:", prize, "PrizeDetails:", prizeDetails);
-    return (
-      <div className="text-center py-10 text-neutral-100">Prize not found. Please check the ID and try again.</div>
-    );
+  if (isLoading) {
+    return <div className="text-center py-10 text-neutral-100">Loading prize details...</div>;
   }
 
-  const displayPrize = prize || prizeDetails;
-
-  if (!displayPrize) {
-    console.error("Unable to display prize information. Prize:", prize, "PrizeDetails:", prizeDetails);
-    return <div className="text-center py-10 text-neutral-100">Unable to display prize information.</div>;
+  if (error) {
+    console.error("Error fetching prize details:", error);
+    return <div className="text-center py-10 text-neutral-100">Error loading prize details. Please try again later.</div>;
   }
 
-  console.log("Rendering prize data:", displayPrize);
+  if (!prizeDetails) {
+    console.error("Prize not found. PrizeDetails:", prizeDetails);
+    return <div className="text-center py-10 text-neutral-100">Prize not found. Please check the ID and try again.</div>;
+  }
+
+  console.log("Rendering prize data:", prizeDetails);
 
   return (
     <div className="container-default">
       <div className="bg-neutral-50 rounded-xl shadow-lg overflow-hidden text-neutral-800">
         <div className="prize-page-header relative h-72">
-          <FractalPatternBackground prize={displayPrize} />
+          <FractalPatternBackground prize={prizeDetails} />
           {/* Overlay for text readability */}
           <div className="absolute inset-0 bg-black opacity-40"></div>
           <div className="relative z-10 flex flex-col justify-center items-center h-full text-center px-4">
             <h1 className="prize-page-title text-4xl font-bold text-white bg-black bg-opacity-50 px-3 py-1 rounded">
-              {displayPrize.name || "Unnamed Prize"}
+              {prizeDetails.name || "Unnamed Prize"}
             </h1>
             <p className="prize-page-description mt-4 text-xl text-white bg-black bg-opacity-50 px-3 py-1 rounded">
-              {displayPrize.description || "No description available"}
+              {prizeDetails.description || "No description available"}
             </p>
           </div>
         </div>
 
         <div className="p-6 space-y-8">
-          {isConnected && (
+          {isConnected && prizeIdBigInt !== undefined && (
             <div className="bg-primary-100 rounded-lg p-4">
               <h2 className="text-2xl font-semibold text-primary-800 mb-4">Actions</h2>
               <div className="flex flex-wrap gap-4">
-                {roles?.canSubmit && displayPrize.state === State.Open && (
-                  <Link to={`/prize/${prizeId}/submit`} className="button-primary">
+                {prizeDetails.state === State.Open && (
+                  <Link to={`/prize/${prizeIdBigInt.toString()}/submit`} className="button-primary">
                     Submit Contribution
                   </Link>
                 )}
                 {roles?.canEvaluate && (
-                  <Link to={`/prize/${prizeId}/evaluator`} className="button-secondary">
+                  <Link to={`/prize/${prizeIdBigInt.toString()}/evaluator`} className="button-secondary">
                     Evaluate Contributions
                   </Link>
                 )}
                 {isOrganizer && (
-                  <button className="button-primary" onClick={() => navigate(`/prize/${prizeId}/manage`)}>
+                  <button className="button-primary" onClick={() => navigate(`/prize/${prizeIdBigInt.toString()}/manage`)}>
                     Manage Prize
                   </button>
                 )}
@@ -181,19 +177,19 @@ const PrizePage: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2">
-              <PrizeDetailsComponent prize={displayPrize} />
-              <EvaluationCriteria criteria={displayPrize.criteriaNames || []} />
+              <PrizeDetailsComponent prize={prizeDetails} />
+              <EvaluationCriteria criteria={prizeDetails.criteriaNames || []} />
             </div>
             <div>
-              <PrizeAmount amount={displayPrize.monetaryRewardPool} />
-              <PrizeInPageStatus currentState={displayPrize.state} />
+              <PrizeAmount amount={prizeDetails.monetaryRewardPool} />
+              <PrizeInPageStatus currentState={prizeDetails.state} />
             </div>
           </div>
 
           {prizeIdBigInt !== undefined && (
             <div>
               <h2 className="text-2xl font-semibold text-primary-800 mb-4">Contributions</h2>
-              <ContributionList prizeId={prizeIdBigInt} key={`contributions-${displayPrize.contributionCount}`} />
+              <ContributionList prizeId={prizeIdBigInt} key={`contributions-${prizeDetails.contributionCount}`} />
             </div>
           )}
 

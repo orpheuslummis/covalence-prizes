@@ -145,9 +145,6 @@ export const usePrizeDiamond = () => {
 
   const getPrizes = useCallback(
     async (startIndex: bigint, count: bigint): Promise<PrizeDetails[]> => {
-      // Remove this line
-      // const queryClient = useQueryClient();
-
       const cachedPrizes = queryClient.getQueryData<PrizeDetails[]>(["allPrizes"]);
 
       if (cachedPrizes) {
@@ -159,11 +156,11 @@ export const usePrizeDiamond = () => {
       try {
         const prizeCount = await getPrizeCount();
         if (prizeCount === 0n) {
-          return []; // Return an empty array if there are no prizes
+          return [];
         }
 
         if (startIndex >= prizeCount) {
-          return []; // Return an empty array if startIndex is out of bounds
+          return [];
         }
 
         const actualCount = count > prizeCount - startIndex ? prizeCount - startIndex : count;
@@ -194,17 +191,6 @@ export const usePrizeDiamond = () => {
     [readDiamond, getPrizeDetails, getPrizeCount, queryClient],
   );
 
-  // const useAllPrizes = () => {
-  //   return useQuery<PrizeDetails[], Error>({
-  //     queryKey: ["allPrizes"],
-  //     queryFn: async () => {
-  //       const count = await getPrizeCount();
-  //       return getPrizes(0n, count);
-  //     },
-  //     staleTime: 300000, // 5 minutes
-  //   });
-  // };
-
   const getContestants = useCallback(
     async (prizeId: bigint): Promise<Address[]> => {
       try {
@@ -226,8 +212,6 @@ export const usePrizeDiamond = () => {
     },
     [getContributionCount, getContributionByIndex],
   );
-
-  // Mutations
 
   const fundTotally = useMutation<string, Error, { prizeId: bigint; amount: bigint }>({
     mutationFn: async ({ prizeId, amount }) => {
@@ -346,8 +330,6 @@ export const usePrizeDiamond = () => {
       toast.error(`Failed to submit contribution: ${error.message}`);
     },
   });
-
-  // Additional Mutations
 
   const moveToNextState = useMutation<string, Error, { prizeId: bigint }>({
     mutationFn: async ({ prizeId }) => {
@@ -486,8 +468,6 @@ export const usePrizeDiamond = () => {
     },
     [getPrizeDetails, getContributionIdsForContestant],
   );
-
-  // FHE-specific functions
 
   const encryptScores = useCallback(
     async (scores: number[]): Promise<EncryptedUint32[]> => {

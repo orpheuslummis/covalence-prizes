@@ -69,10 +69,16 @@ export default function ManagePrizePage() {
   }, [prizeId, isPrizesLoading, prizes]);
 
   const fetchPrizeDetails = useCallback(async () => {
-    if (!parsedPrizeId || !memoizedPrizeDiamond) return;
+    if (parsedPrizeId === undefined || !memoizedPrizeDiamond) {
+      console.log("Cannot fetch prize details: parsedPrizeId is undefined or memoizedPrizeDiamond is not available");
+      return;
+    }
 
     setIsLoading(true);
+    setError(null);
     try {
+      console.log("Fetching prize details for prizeId:", parsedPrizeId.toString());
+
       const [prizeDetails, fetchedWeights, isOrganizerResult, evaluatorsList, allocationDetails] = await Promise.all([
         memoizedPrizeDiamond.getPrizeDetails(parsedPrizeId),
         memoizedPrizeDiamond.getCriteriaWeights(parsedPrizeId),
@@ -80,6 +86,12 @@ export default function ManagePrizePage() {
         memoizedPrizeDiamond.getPrizeEvaluators(parsedPrizeId),
         memoizedPrizeDiamond.getAllocationDetails(parsedPrizeId),
       ]);
+
+      console.log("Fetched prize details:", prizeDetails);
+      console.log("Fetched weights:", fetchedWeights);
+      console.log("Is organizer:", isOrganizerResult);
+      console.log("Evaluators list:", evaluatorsList);
+      console.log("Allocation details:", allocationDetails);
 
       setPrize(prizeDetails);
       setWeights(fetchedWeights);
@@ -99,7 +111,9 @@ export default function ManagePrizePage() {
   }, [parsedPrizeId, memoizedPrizeDiamond, address]);
 
   useEffect(() => {
-    if (parsedPrizeId && !isPrizesLoading) {
+    console.log("Effect triggered. parsedPrizeId:", parsedPrizeId, "isPrizesLoading:", isPrizesLoading);
+    if (parsedPrizeId !== undefined && !isPrizesLoading) {
+      console.log("Calling fetchPrizeDetails");
       fetchPrizeDetails();
     }
   }, [parsedPrizeId, isPrizesLoading, fetchPrizeDetails]);
@@ -367,16 +381,24 @@ export default function ManagePrizePage() {
     return <div className="flex justify-center items-center h-screen text-white text-2xl">Prize not found</div>;
   }
 
+  console.log("Rendering prize data:", prize);
+
   return (
     <div className="container mx-auto px-4 py-8 bg-gradient-to-br from-primary-100 via-primary-300 to-primary-500 min-h-screen">
       <div className="max-w-4xl mx-auto space-y-8">
-        <div className="text-center mb-4">
-          <Link to={`/prize/${prizeId}`} className="text-primary-700 hover:underline">
-            Back to Prize
+        <div className="flex items-center mb-8">
+          <Link to={`/prize/${prizeId}`} className="text-primary-700 hover:text-primary-900 transition-colors duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
           </Link>
+          <div className="flex-grow text-center">
+            <h2 className="text-2xl font-semibold text-primary-800 mb-2">Manage</h2>
+            <h1 className="text-4xl sm:text-5xl font-bold text-primary-900 bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-secondary-600">
+              {prize.name}
+            </h1>
+          </div>
         </div>
-
-        <h1 className="text-5xl font-bold mb-8 text-center text-primary-900">Manage Prize: {prize.name}</h1>
 
         {/* Unified ProgressBar with State Management */}
         <ProgressBar
@@ -497,39 +519,40 @@ export default function ManagePrizePage() {
               Add Evaluators
             </button>
           </ManagementCard>
-        </div>
 
-        <ManagementCard title="Allocate Rewards" className="mt-12">
-          <div>
-            <label className="block mb-2 text-white">Batch Size:</label>
-            <input
-              type="number"
-              min="1"
-              max={Number(prize.contributionCount - (prize.lastProcessedIndex || 0n))}
-              value={batchSize}
-              onChange={(e) => setBatchSize(Math.max(1, parseInt(e.target.value, 10) || 1))}
-              className="w-full p-3 text-gray-900 bg-white rounded-md shadow-sm focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
-          <button
-            onClick={handleAllocateRewards}
-            className="w-full button-primary mt-4"
-            disabled={allocationInProgress || prize.rewardsAllocated}
-          >
-            {allocationInProgress ? "Allocating..." : "Allocate Rewards"}
-          </button>
-          <div className="mt-4 text-white">
-            <p>
-              Allocated {allocationDetails?.lastProcessedIndex.toString() || "0"} out of{" "}
-              {allocationDetails?.contributionCount.toString() || "0"} contributions.
-            </p>
-            {!allocationDetails?.rewardsAllocated &&
-              (allocationDetails?.lastProcessedIndex || 0n) < (allocationDetails?.contributionCount || 0n) && (
-                <p className="text-accent-300">Allocation in progress...</p>
-              )}
-            {allocationDetails?.rewardsAllocated && <p className="text-accent-300">All rewards have been allocated.</p>}
-          </div>
-        </ManagementCard>
+          {/* Allocate Rewards */}
+          <ManagementCard title="Allocate Rewards">
+            <div>
+              <label className="block mb-2 text-white">Batch Size:</label>
+              <input
+                type="number"
+                min="1"
+                max={Number(prize.contributionCount - (prize.lastProcessedIndex || 0n))}
+                value={batchSize}
+                onChange={(e) => setBatchSize(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                className="w-full p-3 text-gray-900 bg-white rounded-md shadow-sm focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            <button
+              onClick={handleAllocateRewards}
+              className="w-full button-primary mt-4"
+              disabled={allocationInProgress || prize.rewardsAllocated}
+            >
+              {allocationInProgress ? "Allocating..." : "Allocate Rewards"}
+            </button>
+            <div className="mt-4 text-white">
+              <p>
+                Allocated {allocationDetails?.lastProcessedIndex.toString() || "0"} out of{" "}
+                {allocationDetails?.contributionCount.toString() || "0"} contributions.
+              </p>
+              {!allocationDetails?.rewardsAllocated &&
+                (allocationDetails?.lastProcessedIndex || 0n) < (allocationDetails?.contributionCount || 0n) && (
+                  <p className="text-accent-300">Allocation in progress...</p>
+                )}
+              {allocationDetails?.rewardsAllocated && <p className="text-accent-300">All rewards have been allocated.</p>}
+            </div>
+          </ManagementCard>
+        </div>
       </div>
     </div>
   );
