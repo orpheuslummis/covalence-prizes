@@ -11,7 +11,7 @@ contract PrizeContributionFacet {
         AppStorage storage s = LibAppStorage.diamondStorage();
         require(LibPrize.isState(prizeId, LibPrize.State.Open), "Invalid state");
         require(bytes(_description).length > 0, "Description cannot be empty");
-        require(bytes(_description).length < 200, "Description cannot be longer than 200 characters");
+        require(bytes(_description).length < 512, "Description cannot be longer than 512 characters");
 
         Prize storage prize = s.prizes[prizeId];
 

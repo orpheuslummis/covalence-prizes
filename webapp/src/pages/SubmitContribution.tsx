@@ -11,6 +11,7 @@ const SubmitContributionPage: React.FC = () => {
   const navigate = useNavigate();
   const { isConnected } = useAccount();
   const [description, setDescription] = useState("");
+  const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { prizeDiamond } = useAppContext();
 
@@ -38,6 +39,12 @@ const SubmitContributionPage: React.FC = () => {
   const handleSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
+      setError("");
+      if (description.length > 512) {
+        setError("Description cannot be longer than 512 characters");
+        return;
+      }
+
       setIsSubmitting(true);
       try {
         const txHash = await submitContributionAsync({
@@ -112,9 +119,12 @@ const SubmitContributionPage: React.FC = () => {
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
+                  maxLength={200}
                   required
                   placeholder="Describe your contribution here..."
                 />
+                {error && <p className="text-red-500">{error}</p>}
+                <p className="text-sm text-gray-500">{description.length}/200 characters</p>
               </div>
               <button
                 type="submit"
