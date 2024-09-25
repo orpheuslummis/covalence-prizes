@@ -35,7 +35,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ states, currentState }) => {
                       : "bg-primary-600 text-primary-300"
                 }`}
               >
-                {item.completed ? <CheckIcon /> : <span className="text-lg font-bold">{index + 1}</span>}
+                {item.completed ? <CheckIcon className="text-green-500" /> : <span className="text-lg font-bold">{index + 1}</span>}
               </div>
               {index < states.length - 1 && (
                 <div className={`w-16 h-1 ${item.completed ? "bg-accent-500" : "bg-primary-600"}`}></div>

@@ -22,7 +22,7 @@ const FractalPatternBackground: React.FC<FractalPatternBackgroundProps> = React.
       return Math.abs(hash);
     };
 
-    const { triangles, colors } = useMemo(() => {
+    const { triangles } = useMemo(() => {
       const seed = getSeed(prize);
       const hueBase = seed % 360;
       const saturation = 65; // Reduced for subtlety
@@ -72,7 +72,7 @@ const FractalPatternBackground: React.FC<FractalPatternBackgroundProps> = React.
 
       generateTriangles(startX, startY, initialSize, depth, trianglesArray);
 
-      return { triangles: trianglesArray, colors };
+      return { triangles: trianglesArray };
     }, [prize, depth, width, height]);
 
     return (

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
 import { FaSpinner } from "react-icons/fa";
@@ -22,7 +22,6 @@ const AlreadyEvaluatedBanner: React.FC = () => (
 
 const Evaluator: React.FC = () => {
   const { prizeId } = useParams<{ prizeId: string }>();
-  const navigate = useNavigate();
   const { address, isConnected } = useAccount();
   const { prizeDiamond, isPrizesLoading } = useAppContext();
 

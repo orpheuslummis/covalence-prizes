@@ -55,6 +55,7 @@ export const wagmiConfig = createConfig(
 
 export const publicClient = createPublicClient({
   chain: fhenixTestnet,
+  // @ts-ignore
   transport: http(ENV.TESTNET_RPC_URL),
 });
 

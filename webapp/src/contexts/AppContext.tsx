@@ -134,7 +134,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       allocateRewardsBatch: (params) => prizeDiamond.allocateRewardsBatchAsync(params),
       getAllocationDetails: (prizeId) => prizeDiamond.getAllocationDetails(prizeId),
       hasClaimableReward: prizeDiamond.hasClaimableReward,
-      claimReward: (prizeId) => prizeDiamond.computeContestantClaimRewardAsync({ prizeId }),
+      claimReward: (prizeId) => prizeDiamond.computeContestantClaimRewardAsync({ prizeId }).then(() => {}),
     }),
     [prizeDiamond, isPrizesLoading, prizesData, userRoles, blockNumber, refetchPrizes],
   );
