@@ -180,6 +180,11 @@
             "internalType": "bool",
             "name": "rewardsAllocated",
             "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lastProcessedIndex",
+            "type": "uint256"
           }
         ],
         "internalType": "struct PrizeManagerFacet.PrizeDetails",
@@ -281,6 +286,11 @@
             "internalType": "bool",
             "name": "rewardsAllocated",
             "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "lastProcessedIndex",
+            "type": "uint256"
           }
         ],
         "internalType": "struct PrizeManagerFacet.PrizeDetails[]",
