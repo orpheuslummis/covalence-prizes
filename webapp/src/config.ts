@@ -24,12 +24,11 @@ const ENV = {
 
 export const fhenixTestnet = {
   id: parseInt(ENV.CHAIN_ID, 10),
-  name: "Fhenix Testnet",
-  network: "fhenix-testnet",
+  name: "Fhenix Helium",
   nativeCurrency: {
     decimals: 18,
     name: "Fhenix",
-    symbol: "FHE",
+    symbol: "tFHE",
   },
   rpcUrls: {
     default: { http: [ENV.TESTNET_RPC_URL] },
