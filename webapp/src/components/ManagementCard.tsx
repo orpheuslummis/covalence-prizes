@@ -9,8 +9,8 @@ interface ManagementCardProps {
 
 const ManagementCard: React.FC<ManagementCardProps> = ({ title, children, className = "" }) => {
   return (
-    <div className={`bg-purple-800 rounded-lg p-6 shadow-lg ${className}`}>
-      <h2 className="text-2xl font-semibold mb-4">{title}</h2>
+    <div className={`bg-gradient-to-br from-primary-700 to-primary-600 rounded-lg p-6 shadow-lg ${className}`}>
+      <h2 className="text-2xl font-semibold mb-4 text-white">{title}</h2>
       {children}
     </div>
   );

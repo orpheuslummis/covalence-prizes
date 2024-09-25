@@ -159,9 +159,9 @@ const TestPrizeCreation: React.FC = () => {
             <p className="text-green-700 text-2xl font-bold">{getStrategyName(testPrize.allocationStrategy)}</p>
           </div>
         </div>
-        <div className="mb-6 bg-yellow-100 p-6 rounded-lg">
-          <h2 className="font-semibold text-yellow-800 mb-3 text-xl">Evaluation Criteria</h2>
-          <ul className="list-disc list-inside text-yellow-700 text-lg">
+        <div className="mb-6 bg-primary-100 p-6 rounded-lg">
+          <h2 className="font-semibold text-primary-800 mb-3 text-xl">Evaluation Criteria</h2>
+          <ul className="list-disc list-inside text-primary-700 text-lg">
             {testPrize.criteria.map((criterion, index) => (
               <li key={index} className="mb-2">
                 {criterion}
@@ -172,13 +172,13 @@ const TestPrizeCreation: React.FC = () => {
         <div className="flex space-x-4 mb-6">
           <button
             onClick={handleGenerateNewPrize}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition duration-300"
+            className="flex-1 button-secondary"
           >
             Generate New Prize
           </button>
           <button
             onClick={handleCreatePrize}
-            className={`flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition duration-300 ${
+            className={`flex-1 button-primary ${
               loading ? "opacity-50 cursor-not-allowed" : ""
             }`}
             disabled={!isConnected || !address || loading}

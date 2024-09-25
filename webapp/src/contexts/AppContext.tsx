@@ -69,16 +69,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!prizeDiamond.getPrizeCount || !prizeDiamond.getPrizes) {
       throw new Error("PrizeDiamond not fully initialized");
     }
+    const cacheKey = ["allPrizes"];
+    const cachedPrizes = queryClient.getQueryData<PrizeDetails[]>(cacheKey);
+
+    if (cachedPrizes) {
+      return cachedPrizes;
+    }
+
     const count = await prizeDiamond.getPrizeCount();
-    return prizeDiamond.getPrizes(0n, count);
-  }, [prizeDiamond]);
+    const prizes = await prizeDiamond.getPrizes(0n, count);
+    queryClient.setQueryData(cacheKey, prizes);
+    return prizes;
+  }, [prizeDiamond, queryClient]);
 
   const {
     data: prizesData,
     refetch: refetchPrizesQuery,
     isLoading: isPrizesLoading,
   } = useQuery<PrizeDetails[], Error>({
-    queryKey: ["initialPrizes"],
+    queryKey: ["allPrizes"],
     queryFn: fetchPrizes,
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 3,
@@ -110,29 +119,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await refetchPrizesQuery();
   }, [refetchPrizesQuery]);
 
-  const contextValue = useMemo<AppContextType>(() => ({
-    contracts: config.contracts,
-    prizeDiamond,
-    isLoading: isPrizesLoading,
-    setIsLoading: () => {}, // Implement if needed
-    prizes: prizesData || [],
-    userRoles,
-    setUserRoles,
-    blockNumber: blockNumber ? Number(blockNumber) : undefined,
-    refetchPrizes,
-    isPrizesLoading,
-    allocateRewardsBatch: (params) => prizeDiamond.allocateRewardsBatchAsync(params),
-    getAllocationDetails: (prizeId) => prizeDiamond.getAllocationDetails(prizeId),
-    hasClaimableReward: prizeDiamond.hasClaimableReward,
-    claimReward: (prizeId) => prizeDiamond.computeContestantClaimRewardAsync({ prizeId }),
-  }), [
-    prizeDiamond,
-    isPrizesLoading,
-    prizesData,
-    userRoles,
-    blockNumber,
-    refetchPrizes,
-  ]);
+  const contextValue = useMemo<AppContextType>(
+    () => ({
+      contracts: config.contracts,
+      prizeDiamond,
+      isLoading: isPrizesLoading,
+      setIsLoading: () => {}, // Implement if needed
+      prizes: prizesData || [],
+      userRoles,
+      setUserRoles,
+      blockNumber: blockNumber ? Number(blockNumber) : undefined,
+      refetchPrizes,
+      isPrizesLoading,
+      allocateRewardsBatch: (params) => prizeDiamond.allocateRewardsBatchAsync(params),
+      getAllocationDetails: (prizeId) => prizeDiamond.getAllocationDetails(prizeId),
+      hasClaimableReward: prizeDiamond.hasClaimableReward,
+      claimReward: (prizeId) => prizeDiamond.computeContestantClaimRewardAsync({ prizeId }),
+    }),
+    [prizeDiamond, isPrizesLoading, prizesData, userRoles, blockNumber, refetchPrizes],
+  );
 
   return (
     <QueryClientProvider client={queryClient}>

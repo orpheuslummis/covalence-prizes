@@ -8,12 +8,7 @@ interface EvaluationCriteriaProps {
   isSubmitting: boolean;
 }
 
-const EvaluationCriteria: React.FC<EvaluationCriteriaProps> = ({
-  criteria,
-  scores,
-  onScoreChange,
-  isSubmitting,
-}) => {
+const EvaluationCriteria: React.FC<EvaluationCriteriaProps> = ({ criteria, scores, onScoreChange, isSubmitting }) => {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-semibold mb-4">Evaluation Criteria</h2>
@@ -23,7 +18,7 @@ const EvaluationCriteria: React.FC<EvaluationCriteriaProps> = ({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: index * 0.1 }}
-          className="bg-white bg-opacity-20 p-6 rounded-lg shadow-md"
+          className="bg-primary-800 bg-opacity-20 p-6 rounded-lg shadow-md"
         >
           <h3 className="text-xl font-medium mb-3">{criterion}</h3>
           <div className="flex items-center space-x-4">

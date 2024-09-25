@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { EncryptedUint32, Permission } from "fhenixjs";
 import { useCallback } from "react";
 import toast from "react-hot-toast";
@@ -92,10 +92,18 @@ export const usePrizeDiamond = () => {
 
   const getPrizeDetails = useCallback(
     async (prizeId: bigint): Promise<PrizeDetails> => {
+      const cacheKey = ["prizeDetails", prizeId.toString()];
+      const cachedPrize = queryClient.getQueryData<PrizeDetails>(cacheKey);
+
+      if (cachedPrize) {
+        return cachedPrize;
+      }
+
       try {
         const details = await readDiamond("getPrizeDetails", [prizeId.toString()]);
         console.log("Prize details fetched:", details);
-        return {
+
+        const prizeDetails = {
           id: BigInt(details.id),
           organizer: details.organizer as Address,
           name: details.name as string,
@@ -113,25 +121,41 @@ export const usePrizeDiamond = () => {
           rewardsAllocated: details.rewardsAllocated as boolean,
           lastProcessedIndex: details.lastProcessedIndex || 0n,
         };
+
+        queryClient.setQueryData(cacheKey, prizeDetails);
+        return prizeDetails;
       } catch (error) {
         console.error(`Error fetching details for prize ${prizeId}:`, error);
         throw error;
       }
     },
-    [readDiamond],
+    [readDiamond, queryClient],
   );
 
-  const usePrizeDetails = (prizeId: bigint) => {
-    return useQuery<PrizeDetails, Error>({
-      queryKey: ["prizeDetails", prizeId.toString()],
-      queryFn: () => getPrizeDetails(prizeId),
-      staleTime: 60000,
-      enabled: !!prizeId,
+  const usePrizeDetails = (prizeIds: bigint[]) => {
+    return useQueries({
+      queries: prizeIds.map((id) => ({
+        queryKey: ["prizeDetails", id.toString()],
+        queryFn: () => getPrizeDetails(id),
+        staleTime: 30000,
+        cacheTime: 60000,
+      })),
     });
   };
 
   const getPrizes = useCallback(
     async (startIndex: bigint, count: bigint): Promise<PrizeDetails[]> => {
+      // Remove this line
+      // const queryClient = useQueryClient();
+
+      const cachedPrizes = queryClient.getQueryData<PrizeDetails[]>(["allPrizes"]);
+
+      if (cachedPrizes) {
+        const start = Number(startIndex);
+        const end = Math.min(start + Number(count), cachedPrizes.length);
+        return cachedPrizes.slice(start, end);
+      }
+
       try {
         const prizeCount = await getPrizeCount();
         if (prizeCount === 0n) {
@@ -167,8 +191,19 @@ export const usePrizeDiamond = () => {
         throw error;
       }
     },
-    [readDiamond, getPrizeDetails, getPrizeCount],
+    [readDiamond, getPrizeDetails, getPrizeCount, queryClient],
   );
+
+  // const useAllPrizes = () => {
+  //   return useQuery<PrizeDetails[], Error>({
+  //     queryKey: ["allPrizes"],
+  //     queryFn: async () => {
+  //       const count = await getPrizeCount();
+  //       return getPrizes(0n, count);
+  //     },
+  //     staleTime: 300000, // 5 minutes
+  //   });
+  // };
 
   const getContestants = useCallback(
     async (prizeId: bigint): Promise<Address[]> => {
@@ -205,7 +240,14 @@ export const usePrizeDiamond = () => {
         value: amount,
       });
     },
-    onSuccess: (_, { prizeId }) => {
+    onSuccess: (_, { prizeId, amount }) => {
+      queryClient.setQueryData<PrizeDetails | undefined>(["prizeDetails", prizeId.toString()], (oldData) => {
+        if (!oldData) return undefined;
+        return {
+          ...oldData,
+          fundedAmount: oldData.fundedAmount + amount,
+        };
+      });
       queryClient.invalidateQueries({ queryKey: ["prizeDetails", prizeId.toString()] });
       toast.success("Prize funded successfully");
     },

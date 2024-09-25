@@ -39,8 +39,8 @@ const PrizeDetails: React.FC<PrizeDetailsProps> = ({ prize }) => {
   ];
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-2xl font-semibold text-purple-800 mb-4">Prize Details</h2>
+    <div className="bg-primary-800 rounded-lg shadow-lg p-6">
+      <h2 className="text-2xl font-semibold text-accent-300 mb-4">Prize Details</h2>
       <DetailSections sections={detailSections} />
     </div>
   );
@@ -68,7 +68,7 @@ interface DetailSectionProps {
 
 const DetailSection: React.FC<DetailSectionProps> = ({ title, items }) => (
   <section className="mb-6">
-    <h3 className="text-xl font-semibold text-purple-700 mb-3">{title}</h3>
+    <h3 className="text-xl font-semibold text-accent-400 mb-3">{title}</h3>
     <dl className="grid grid-cols-2 gap-4">
       {items.map(({ label, value }) => (
         <DetailItem key={label} label={label} value={value} />
@@ -84,8 +84,8 @@ interface DetailItemProps {
 
 const DetailItem: React.FC<DetailItemProps> = ({ label, value }) => (
   <div>
-    <dt className="text-sm font-medium text-gray-500">{label}</dt>
-    <dd className="text-base font-semibold text-gray-900">{value}</dd>
+    <dt className="text-sm font-medium text-secondary-300">{label}</dt>
+    <dd className="text-base font-semibold text-white">{value}</dd>
   </div>
 );
 

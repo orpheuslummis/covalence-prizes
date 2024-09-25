@@ -19,7 +19,7 @@ interface ProgressBarProps {
 
 const ProgressBar: React.FC<ProgressBarProps> = ({ states, currentState }) => {
   return (
-    <div className="bg-purple-800 p-6 rounded-lg shadow-lg mb-8">
+    <div className="bg-primary-800 p-6 rounded-lg shadow-lg mb-8">
       {/* Progress Steps */}
       <div className="flex items-center justify-between mb-6">
         {states.map((item, index) => (
@@ -27,24 +27,24 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ states, currentState }) => {
             {/* Circle and Connector */}
             <div className="flex items-center">
               <div
-                className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors duration-300 ${
+                className={`flex items-center justify-center w-12 h-12 rounded-full transition-colors duration-300 ${
                   item.active
-                    ? "bg-purple-300 text-purple-900"
+                    ? "bg-secondary-400 text-white"
                     : item.completed
-                      ? "bg-green-500 text-white"
-                      : "bg-gray-400 text-gray-200"
+                      ? "bg-accent-500 text-white"
+                      : "bg-primary-600 text-primary-300"
                 }`}
               >
-                {item.completed ? <CheckIcon className="w-5 h-5" /> : <span>{index + 1}</span>}
+                {item.completed ? <CheckIcon /> : <span className="text-lg font-bold">{index + 1}</span>}
               </div>
               {index < states.length - 1 && (
-                <div className={`flex-1 h-1 ${item.completed ? "bg-green-500" : "bg-gray-400"}`}></div>
+                <div className={`w-16 h-1 ${item.completed ? "bg-accent-500" : "bg-primary-600"}`}></div>
               )}
             </div>
             {/* Label */}
             <span
-              className={`mt-2 text-sm font-medium ${
-                item.active ? "text-purple-300" : item.completed ? "text-green-500" : "text-gray-400"
+              className={`mt-3 text-sm font-medium ${
+                item.active ? "text-secondary-300" : item.completed ? "text-accent-400" : "text-primary-300"
               }`}
             >
               {State[item.state]}
@@ -52,17 +52,14 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ states, currentState }) => {
           </div>
         ))}
       </div>
-
       {/* State Management Actions */}
-      <div className="bg-purple-700 p-4 rounded-md">
-        <h3 className="text-xl font-semibold mb-2">Current State: {State[currentState.state]}</h3>
-        <p className="mb-4">{currentState.requirements}</p>
+      <div className="bg-primary-700 p-6 rounded-md">
+        <h3 className="text-2xl font-semibold mb-3 text-white">Current State: {State[currentState.state]}</h3>
+        <p className="mb-4 text-primary-100">{currentState.requirements}</p>
         <button
           onClick={currentState.handleMoveToNextState}
           disabled={!currentState.canMoveToNext}
-          className={`w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition-opacity duration-200 ${
-            !currentState.canMoveToNext ? "opacity-50 cursor-not-allowed" : ""
-          }`}
+          className={`w-full bg-accent-500 hover:bg-accent-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-lg`}
         >
           Move to Next State
         </button>

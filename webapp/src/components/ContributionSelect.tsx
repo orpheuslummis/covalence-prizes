@@ -18,14 +18,14 @@ const ContributionSelect: React.FC<ContributionSelectProps> = ({
 }) => {
   return (
     <div>
-      <label htmlFor="contribution" className="form-label text-xl mb-2 block">
+      <label htmlFor="contribution" className="form-label text-xl mb-2 block text-white">
         Select Contribution:
       </label>
       <select
         id="contribution"
         value={selectedContributionId}
         onChange={onChange}
-        className="form-input w-full bg-white text-purple-800 py-3 px-4 rounded-lg"
+        className="form-input w-full bg-white text-primary-800 py-3 px-4 rounded-lg"
         required
         disabled={isSubmitting}
       >
@@ -36,7 +36,7 @@ const ContributionSelect: React.FC<ContributionSelectProps> = ({
             <option
               key={contribution.id.toString()}
               value={contribution.id.toString()}
-              className={isEvaluated ? "text-gray-500" : ""}
+              className={isEvaluated ? "text-neutral-500" : ""}
             >
               Contribution {contribution.id.toString()} by {contribution.contestant}
               {isEvaluated ? " (Evaluated)" : ""}

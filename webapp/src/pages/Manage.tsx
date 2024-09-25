@@ -20,13 +20,13 @@ export default function ManagePrizePage() {
 
   if (!isConnected) {
     return (
-      <div className="container mx-auto px-4 py-8 bg-gradient-to-br from-purple-800 to-purple-900 min-h-screen text-white flex items-center justify-center">
+      <div className="container mx-auto px-4 py-8 bg-gradient-to-br from-primary-800 to-primary-900 min-h-screen text-white flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-3xl font-bold mb-4">Wallet Not Connected</h1>
           <p className="mb-4">Please connect your wallet to access the Manage Prize page.</p>
           <button
             onClick={() => (window.location.href = "/")}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
+            className="button-primary"
           >
             Go to Home
           </button>
@@ -71,50 +71,29 @@ export default function ManagePrizePage() {
   const fetchPrizeDetails = useCallback(async () => {
     if (!parsedPrizeId || !memoizedPrizeDiamond) return;
 
+    setIsLoading(true);
     try {
-      console.log("Fetching prize details for ID:", parsedPrizeId);
-      const prizeDetails = await memoizedPrizeDiamond.getPrizeDetails(parsedPrizeId);
-      console.log("Prize details fetched:", prizeDetails);
-      console.log("Allocation strategy:", prizeDetails.strategy, typeof prizeDetails.strategy);
+      const [prizeDetails, fetchedWeights, isOrganizerResult, evaluatorsList, allocationDetails] = await Promise.all([
+        memoizedPrizeDiamond.getPrizeDetails(parsedPrizeId),
+        memoizedPrizeDiamond.getCriteriaWeights(parsedPrizeId),
+        address ? memoizedPrizeDiamond.isPrizeOrganizer(parsedPrizeId, address) : false,
+        memoizedPrizeDiamond.getPrizeEvaluators(parsedPrizeId),
+        memoizedPrizeDiamond.getAllocationDetails(parsedPrizeId),
+      ]);
 
       setPrize(prizeDetails);
-
-      console.log("Fetching criteria weights");
-      const fetchedWeights = await memoizedPrizeDiamond.getCriteriaWeights(parsedPrizeId);
       setWeights(fetchedWeights);
-
-      console.log("Fetching allocation strategy");
-      const strategyName = getStrategyName(prizeDetails.strategy);
-      console.log("Allocation strategy:", strategyName);
-
-      console.log("Checking if user is organizer");
-      if (address) {
-        try {
-          const isOrganizerResult = await memoizedPrizeDiamond.isPrizeOrganizer(parsedPrizeId, address);
-          setIsOrganizer(isOrganizerResult);
-        } catch (error) {
-          console.error("Error checking if user is organizer:", error);
-          setIsOrganizer(false);
-        }
-      } else {
-        console.log("Wallet not connected, skipping organizer check");
-        setIsOrganizer(false);
-      }
+      setIsOrganizer(isOrganizerResult);
       setIsOrganizerLoaded(true);
-
-      setIsFunded(prizeDetails.fundedAmount >= prizeDetails.monetaryRewardPool);
-      setIsLoading(false);
-
-      // Fetch current evaluators
-      const evaluatorsList = await memoizedPrizeDiamond.getPrizeEvaluators(parsedPrizeId);
       setCurrentEvaluators(evaluatorsList);
+      setAllocationDetails(allocationDetails);
 
-      // Adjust batch size based on remaining contributions
       const remainingContributions = prizeDetails.contributionCount - prizeDetails.lastProcessedIndex;
       setBatchSize(Number(remainingContributions >= 10n ? 10n : remainingContributions));
     } catch (error) {
       console.error("Error fetching prize details:", error);
       setError("Failed to fetch prize details. Please try again later.");
+    } finally {
       setIsLoading(false);
     }
   }, [parsedPrizeId, memoizedPrizeDiamond, address]);
@@ -188,6 +167,7 @@ export default function ManagePrizePage() {
       toast.dismiss(loadingToast);
       toast.success("Prize funded successfully");
       await fetchPrizeDetails();
+      setIsFunded(true);
     } catch (error) {
       console.error("Error funding prize:", error);
       toast.error("Failed to fund prize: " + (error instanceof Error ? error.message : String(error)));
@@ -310,6 +290,7 @@ export default function ManagePrizePage() {
   useEffect(() => {
     if (prize) {
       setFundAmount(formatEther(prize.monetaryRewardPool));
+      setIsFunded(prize.fundedAmount >= prize.monetaryRewardPool);
     }
   }, [prize]);
 
@@ -382,16 +363,20 @@ export default function ManagePrizePage() {
     allocationDetails: allocationDetails, // Log allocation details
   });
 
+  if (!prize) {
+    return <div className="flex justify-center items-center h-screen text-white text-2xl">Prize not found</div>;
+  }
+
   return (
-    <div className="container mx-auto px-4 py-8 bg-gradient-to-br from-purple-800 to-purple-900 min-h-screen text-white">
-      <div className="max-w-5xl mx-auto">
+    <div className="container mx-auto px-4 py-8 bg-gradient-to-br from-primary-100 via-primary-300 to-primary-500 min-h-screen">
+      <div className="max-w-4xl mx-auto space-y-8">
         <div className="text-center mb-4">
-          <Link to={`/prize/${prizeId}`} className="text-purple-300 hover:underline">
+          <Link to={`/prize/${prizeId}`} className="text-primary-700 hover:underline">
             Back to Prize
           </Link>
         </div>
 
-        <h1 className="text-5xl font-bold mb-8 text-center">Manage Prize: {prize.name}</h1>
+        <h1 className="text-5xl font-bold mb-8 text-center text-primary-900">Manage Prize: {prize.name}</h1>
 
         {/* Unified ProgressBar with State Management */}
         <ProgressBar
@@ -406,7 +391,7 @@ export default function ManagePrizePage() {
 
         {/* Prize Details */}
         <ManagementCard title="Prize Details" className="mt-12 mb-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-white">
             <StatusItem label="Organizer" value={prize.organizer} />
             <StatusItem label="Created At" value={new Date(Number(prize.createdAt) * 1000).toLocaleDateString()} />
             <StatusItem label="Allocation Strategy" value={getStrategyName(prize.strategy)} />
@@ -420,7 +405,7 @@ export default function ManagePrizePage() {
           {/* Fund Prize */}
           {isOrganizer && (
             <ManagementCard title="Fund Prize">
-              <div className="space-y-2">
+              <div className="space-y-2 text-white">
                 <StatusItem label="Required" value={`${formatEther(prize.monetaryRewardPool)} ETH`} />
                 <StatusItem label="Current" value={`${formatEther(prize.fundedAmount)} ETH`} />
                 <StatusItem
@@ -431,7 +416,7 @@ export default function ManagePrizePage() {
               </div>
               {!isFunded && (
                 <div className="mt-4">
-                  <label className="block mb-2">Fund Amount: {fundAmount} ETH</label>
+                  <label className="block mb-2 text-white">Fund Amount: {fundAmount} ETH</label>
                   <input
                     type="range"
                     min="0"
@@ -439,13 +424,14 @@ export default function ManagePrizePage() {
                     step="0.0001"
                     value={fundAmount}
                     onChange={(e) => setFundAmount(e.target.value)}
-                    className="w-full"
+                    className="w-full h-2 bg-primary-200 rounded-lg appearance-none cursor-pointer"
                   />
                   <button
                     onClick={handleFundPrize}
-                    className="w-full mt-4 bg-purple-600 hover:bg-purple-700 p-3 rounded-md transition duration-200 ease-in-out"
+                    className="w-full mt-4 bg-accent-500 hover:bg-accent-600 text-white font-bold py-2 px-4 rounded transition duration-300"
+                    disabled={isFunded}
                   >
-                    Fund Prize
+                    {isFunded ? "Prize Fully Funded" : "Fund Prize"}
                   </button>
                 </div>
               )}
@@ -458,14 +444,14 @@ export default function ManagePrizePage() {
               <>
                 {prize.criteriaNames.map((name, index) => (
                   <div key={index} className="mb-4">
-                    <label className="block mb-1">
+                    <label className="block mb-1 text-white">
                       {name}: {weights[index] || 0}
                     </label>
                     <input
                       type="range"
                       value={weights[index] || 0}
                       onChange={(e) => handleWeightChange(index, e.target.value)}
-                      className="w-full"
+                      className="w-full h-2 bg-primary-200 rounded-lg appearance-none cursor-pointer"
                       min="0"
                       max="10"
                       step="1"
@@ -474,11 +460,11 @@ export default function ManagePrizePage() {
                 ))}
               </>
             ) : (
-              <p className="text-yellow-400">Criteria weights cannot be changed when there is only one dimension.</p>
+              <p className="text-accent-300">Criteria weights cannot be changed when there is only one dimension.</p>
             )}
             <button
               onClick={handleAssignWeights}
-              className={`w-full mt-2 bg-purple-600 hover:bg-purple-700 p-3 rounded-md transition duration-200 ease-in-out ${
+              className={`w-full mt-2 button-primary ${
                 prize.criteriaNames.length <= 1 ? "opacity-50 cursor-not-allowed" : ""
               }`}
               disabled={prize.criteriaNames.length <= 1}
@@ -489,8 +475,8 @@ export default function ManagePrizePage() {
 
           {/* Manage Evaluators */}
           <ManagementCard title="Manage Evaluators">
-            <h3 className="font-semibold mb-2">Current Evaluators:</h3>
-            <ul className="list-disc list-inside mb-4">
+            <h3 className="font-semibold mb-2 text-white">Current Evaluators:</h3>
+            <ul className="list-disc list-inside mb-4 text-white">
               {currentEvaluators.map((evaluator, index) => (
                 <li key={index} className="truncate">
                   {evaluator}
@@ -501,12 +487,12 @@ export default function ManagePrizePage() {
               value={evaluators}
               onChange={(e) => setEvaluators(e.target.value)}
               placeholder="Enter evaluator addresses, separated by commas"
-              className="w-full p-3 text-gray-900 bg-white rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+              className="w-full p-3 text-gray-900 bg-white rounded-md shadow-sm focus:ring-2 focus:ring-primary-500 resize-none"
               rows={4}
             />
             <button
               onClick={handleAddEvaluators}
-              className="w-full mt-2 bg-purple-600 hover:bg-purple-700 p-3 rounded-md transition duration-200 ease-in-out"
+              className="w-full mt-2 button-primary"
             >
               Add Evaluators
             </button>
@@ -515,34 +501,33 @@ export default function ManagePrizePage() {
 
         <ManagementCard title="Allocate Rewards" className="mt-12">
           <div>
-            <label className="block mb-2">Batch Size:</label>
+            <label className="block mb-2 text-white">Batch Size:</label>
             <input
               type="number"
               min="1"
               max={Number(prize.contributionCount - (prize.lastProcessedIndex || 0n))}
               value={batchSize}
               onChange={(e) => setBatchSize(Math.max(1, parseInt(e.target.value, 10) || 1))}
-              className="w-full p-3 text-gray-900 bg-white rounded-md shadow-sm focus:ring-2 focus:ring-purple-500"
+              className="w-full p-3 text-gray-900 bg-white rounded-md shadow-sm focus:ring-2 focus:ring-primary-500"
             />
           </div>
           <button
             onClick={handleAllocateRewards}
-            className="w-full bg-purple-600 hover:bg-purple-700 p-3 rounded-md transition duration-200 ease-in-out"
+            className="w-full button-primary mt-4"
             disabled={allocationInProgress || prize.rewardsAllocated}
           >
             {allocationInProgress ? "Allocating..." : "Allocate Rewards"}
           </button>
-          <div className="mt-4">
+          <div className="mt-4 text-white">
             <p>
-              {/* Use allocationDetails for more accurate display */}
               Allocated {allocationDetails?.lastProcessedIndex.toString() || "0"} out of{" "}
               {allocationDetails?.contributionCount.toString() || "0"} contributions.
             </p>
             {!allocationDetails?.rewardsAllocated &&
               (allocationDetails?.lastProcessedIndex || 0n) < (allocationDetails?.contributionCount || 0n) && (
-                <p className="text-yellow-400">Allocation in progress...</p>
+                <p className="text-accent-300">Allocation in progress...</p>
               )}
-            {allocationDetails?.rewardsAllocated && <p className="text-green-400">All rewards have been allocated.</p>}
+            {allocationDetails?.rewardsAllocated && <p className="text-accent-300">All rewards have been allocated.</p>}
           </div>
         </ManagementCard>
       </div>

@@ -69,11 +69,11 @@ const ContributionList: React.FC<ContributionListProps> = ({ prizeId }) => {
               key={index}
               to={`/prize/${prizeId}/contribution/${contribution.id}`}
               className={`block hover:shadow-lg transition-shadow duration-300 ${
-                isOwnContribution ? 'border-2 border-purple-500' : ''
+                isOwnContribution ? 'border-2 border-accent-500' : ''
               }`}
             >
               <div className={`bg-white rounded-lg shadow-md p-6 ${
-                isOwnContribution ? 'bg-purple-50' : ''
+                isOwnContribution ? 'bg-primary-50' : ''
               }`}>
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="text-lg font-semibold">

@@ -47,7 +47,7 @@ const ContributionPage: React.FC = () => {
   }
 
   if (error) {
-    return <div className="text-center py-4 text-red-500">Error: {error.message}</div>;
+    return <div className="text-center py-4 text-secondary-500">Error: {error.message}</div>;
   }
 
   if (!contributionData || !prizeData) {
@@ -55,17 +55,17 @@ const ContributionPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-purple-900 text-white p-8">
+    <div className="min-h-screen bg-primary-900 text-white p-8">
       <div className="max-w-4xl mx-auto">
         <Link
           to={`/prize/${prizeId}`}
-          className="inline-flex items-center text-blue-300 hover:text-blue-100 mb-6 transition duration-300"
+          className="inline-flex items-center text-primary-300 hover:text-primary-100 mb-6 transition duration-300"
         >
           <FaArrowLeft className="mr-2" />
           Back to Prize
         </Link>
         <h1 className="text-4xl font-bold mb-8 text-center">Contribution Details</h1>
-        <div className="bg-white text-purple-900 rounded-lg shadow-lg p-6 mb-8">
+        <div className="bg-white text-primary-900 rounded-lg shadow-lg p-6 mb-8">
           <h2 className="text-2xl font-semibold mb-4">Contribution Information</h2>
           <p className="mb-4 text-lg">
             <strong>Contribution ID:</strong> {contributionData.id.toString()}
@@ -81,14 +81,13 @@ const ContributionPage: React.FC = () => {
           </p>
         </div>
         {evaluationCount !== undefined && evaluationCount > 0 && (
-          <div className="bg-white text-purple-900 rounded-lg shadow-lg p-6 mb-8">
+          <div className="bg-white text-primary-900 rounded-lg shadow-lg p-6 mb-8">
             <h2 className="text-2xl font-semibold mb-4">Evaluation Information</h2>
             <p className="mb-4 text-lg">
               <strong>Total Evaluations:</strong> {evaluationCount.toString()}
             </p>
           </div>
         )}
-        {/* Add more sections for prize details if needed */}
       </div>
     </div>
   );

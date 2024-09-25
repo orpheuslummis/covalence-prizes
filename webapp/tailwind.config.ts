@@ -1,40 +1,56 @@
 module.exports = {
-  content: ["./src/**/*.{js,jsx,ts,tsx}", "./public/index.html"],
+  content: ["./src/**/*.{js,jsx,ts,tsx}", "./public/index.html", "./src/index.css"],
   theme: {
     extend: {
       colors: {
-        purple: {
-          950: "#242424",
-          800: "#9333ea",
-          700: "#7e22ce",
-          600: "#6b21a8",
-          500: "#5a189a",
+        primary: {
+          50: '#F0F7FF',
+          100: '#E0EFFE',
+          200: '#BAD9FB',
+          300: '#94C2F9',
+          400: '#6EABF7',
+          500: '#4894F5',
+          600: '#2272D4',
+          700: '#1C5AB0',
+          800: '#16438C',
+          900: '#102C68',
         },
         secondary: {
-          500: "#3B82F6",
-          600: "#2563EB",
+          50: '#F5F7FA',
+          100: '#E4E7EB',
+          200: '#CBD2D9',
+          300: '#9AA5B1',
+          400: '#7B8794',
+          500: '#616E7C',
+          600: '#52606D',
+          700: '#3E4C59',
+          800: '#323F4B',
+          900: '#1F2933',
         },
-        primary: {
-          900: "#1a202c",
-          800: "#2c3e50",
+        accent: {
+          50: '#FFF9E6',
+          100: '#FFF3CC',
+          200: '#FFE799',
+          300: '#FFDB66',
+          400: '#FFCF33',
+          500: '#FFC300',
+          600: '#E6B000',
+          700: '#CC9C00',
+          800: '#B38800',
+          900: '#996600',
         },
-        green: {
-          500: "#10B981",
-          600: "#059669",
-          700: "#047857",
+        neutral: {
+          50: '#F7F7F7',
+          100: '#E1E1E1',
+          200: '#CFCFCF',
+          300: '#B1B1B1',
+          400: '#9E9E9E',
+          500: '#7E7E7E',
+          600: '#626262',
+          700: '#515151',
+          800: '#3B3B3B',
+          900: '#222222',
         },
-        red: {
-          500: "#EF4444",
-          600: "#DC2626",
-        },
-        yellow: {
-          500: "#F59E0B",
-          600: "#D97706",
-        },
-      },
-      spacing: {
-        128: "32rem",
-        144: "36rem",
       },
       animation: {
         glitter: "glitter 4s linear infinite",
@@ -69,16 +85,21 @@ module.exports = {
         },
       },
       boxShadow: {
-        'outline-purple': '0 0 0 3px rgba(147, 51, 234, 0.5)',
+        "outline-secondary": "0 0 0 3px rgba(130, 87, 245, 0.5)",
       },
       borderRadius: {
-        'xl': '1.5rem',
+        xl: "1.5rem",
+      },
+      screens: {
+        'xxs': '320px', // For very small mobile devices
+        'xs': '375px',  // For small mobile devices
+        'sm': '640px',
+        'md': '768px',
+        'lg': '1024px',
+        'xl': '1280px',
+        '2xl': '1536px',
       },
     },
   },
-  plugins: [
-    require("@tailwindcss/forms"),
-    require("@tailwindcss/typography"),
-    // Add other plugins as needed
-  ],
+  plugins: [require("@tailwindcss/forms"), require("@tailwindcss/typography")],
 };

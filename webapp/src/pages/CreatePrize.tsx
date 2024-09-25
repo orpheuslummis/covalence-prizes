@@ -183,7 +183,7 @@ const CreatePrizePage = () => {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-center items-center">
-          <span className="text-gray-700">Checking wallet connection...</span>
+          <span className="text-white">Checking wallet connection...</span>
         </div>
       </div>
     );
@@ -204,16 +204,17 @@ const CreatePrizePage = () => {
     name.trim() && description.trim() && isValidAmount(totalRewardPool) && criteriaNames.every((name) => name.trim());
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="bg-purple-900 py-12 rounded-lg shadow-xl">
-        <div className="max-w-4xl mx-auto bg-white rounded-lg overflow-hidden">
-          <div className="bg-purple-800 px-6 py-4">
-            <h2 className="text-3xl font-bold text-white">Create a New Prize</h2>
-          </div>
-          <div className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="form-group">
-                <label htmlFor="name" className="form-label text-gray-700">
+    <div className="container-default">
+      <div className="rounded-lg shadow-lg overflow-hidden bg-primary-800">
+        <div className="px-6 py-4">
+          <h2 className="text-3xl font-bold text-white">Create a New Prize</h2>
+          <p className="text-white mt-2">Create a prize competition with custom criteria and rewards.</p>
+        </div>
+        <div className="p-6 bg-primary-700">
+          <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="form-group col-span-2">
+                <label htmlFor="name" className="form-label text-white font-bold">
                   Name
                 </label>
                 <input
@@ -221,12 +222,12 @@ const CreatePrizePage = () => {
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="form-input w-full mt-1 text-gray-900"
+                  className="form-input w-full mt-1 text-primary-800 bg-white"
                   required
                 />
               </div>
-              <div className="form-group">
-                <label htmlFor="description" className="form-label text-gray-700">
+              <div className="form-group col-span-2">
+                <label htmlFor="description" className="form-label text-white font-bold">
                   Description
                 </label>
                 <textarea
@@ -234,34 +235,36 @@ const CreatePrizePage = () => {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={4}
-                  className="form-input w-full mt-1 text-gray-900"
+                  className="form-input w-full mt-1 text-primary-800 bg-white"
                   required
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="totalRewardPool" className="form-label text-gray-700">
+                <label htmlFor="totalRewardPool" className="form-label text-white font-bold">
                   Total Reward Pool (ETH)
                 </label>
+                <p className="text-sm text-white mt-1 mb-2">The total amount to be distributed as rewards.</p>
                 <input
                   type="number"
                   id="totalRewardPool"
                   value={totalRewardPool}
                   onChange={(e) => setTotalRewardPool(e.target.value)}
-                  className="form-input w-full mt-1 text-gray-900"
+                  className="form-input w-full mt-1 text-primary-800 bg-white"
                   required
                   step="0.0001"
                   min="0.0001"
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="allocationStrategy" className="form-label text-gray-700">
+                <label htmlFor="allocationStrategy" className="form-label text-white font-bold">
                   Allocation Strategy
                 </label>
+                <p className="text-sm text-white mt-1 mb-2">Determines how the pool will be distributed.</p>
                 <select
                   id="allocationStrategy"
                   value={allocationStrategy}
                   onChange={(e) => setAllocationStrategy(Number(e.target.value) as AllocationStrategy)}
-                  className="form-input w-full mt-1 text-gray-900"
+                  className="form-input w-full mt-1 text-primary-800 bg-white"
                   required
                 >
                   {allocationStrategies
@@ -273,46 +276,51 @@ const CreatePrizePage = () => {
                     ))}
                 </select>
               </div>
-              <div className="form-group">
-                <label className="form-label text-gray-700">Evaluation Criteria</label>
-                <div className="mt-2 space-y-2">
-                  {criteriaNames.map((criteria, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <input
-                        type="text"
-                        value={criteria}
-                        onChange={(e) => updateCriteria(index, e.target.value)}
-                        className="form-input flex-grow text-gray-900"
-                        placeholder={`Criteria ${index + 1}`}
-                        required
-                      />
-                      {criteriaNames.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeCriteria(index)}
-                          className="button-danger px-2 py-1 text-sm"
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <button type="button" onClick={addCriteria} className="button-secondary mt-2 px-4 py-2 text-sm">
-                  Add Criteria
-                </button>
+            </div>
+            <div className="form-group">
+              <label className="form-label text-white font-bold">Evaluation Criteria</label>
+              <p className="text-sm text-white mt-1 mb-2">
+                The criteria by which submissions will be judged and scored, i.e. the dimensions of excellence.
+              </p>
+              <div className="mt-2 space-y-2">
+                {criteriaNames.map((criteria, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={criteria}
+                      onChange={(e) => updateCriteria(index, e.target.value)}
+                      className="form-input flex-grow text-primary-800 bg-white"
+                      placeholder={`Criteria ${index + 1}`}
+                      required
+                    />
+                    {criteriaNames.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeCriteria(index)}
+                        className="button-danger px-2 py-1 text-sm"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
-              <div className="form-group">
-                <button
-                  type="submit"
-                  disabled={isSubmitting || !isFormValid}
-                  className={`button-primary w-full py-3 ${isSubmitting || !isFormValid ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  {buttonText}
-                </button>
-              </div>
-            </form>
-          </div>
+              <button type="button" onClick={addCriteria} className="button-secondary mt-2 px-4 py-2 text-sm">
+                Add Criteria
+              </button>
+            </div>
+            <div className="form-group">
+              <button
+                type="submit"
+                disabled={isSubmitting || !isFormValid}
+                className={`button-primary w-full py-3 ${
+                  isSubmitting || !isFormValid ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                {buttonText}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

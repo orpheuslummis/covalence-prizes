@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
+import { Toaster } from "react-hot-toast";
 import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import { WagmiProvider } from "wagmi";
 import Footer from "./components/Footer";
@@ -10,14 +11,13 @@ import { WalletProvider } from "./contexts/WalletContext";
 import About from "./pages/About";
 import ContributionPage from "./pages/Contribution";
 import CreatePrizePage from "./pages/CreatePrize";
-import EvaluatePage from "./pages/Evaluate";
+import Evaluator from "./pages/Evaluator";
 import Home from "./pages/Home";
 import ManagePage from "./pages/Manage";
 import NotFound from "./pages/NotFound";
 import PrizePage from "./pages/Prize";
-import TestingPage from "./pages/Testing";
 import SubmitContribution from "./pages/SubmitContribution";
-import { Toaster } from "react-hot-toast";
+import TestingPage from "./pages/Testing";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -36,16 +36,16 @@ const App: React.FC = () => {
         <WalletProvider>
           <AppProvider>
             <Router>
-              <div className="flex flex-col min-h-screen bg-purple-900">
+              <div className="flex flex-col min-h-screen">
                 <Navbar />
-                <main className="flex-grow pt-20">
+                <main className="flex-grow pt-20 mx-auto ">
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/about" element={<About />} />
                     <Route path="/create-prize" element={<CreatePrizePage />} />
                     <Route path="/prize/:prizeId" element={<PrizePage />} />
                     <Route path="/prize/:prizeId/contribution/:id" element={<ContributionPage />} />
-                    <Route path="/prize/:prizeId/evaluate" element={<EvaluatePage />} />
+                    <Route path="/prize/:prizeId/evaluator" element={<Evaluator />} />
                     <Route path="/prize/:prizeId/manage" element={<ManagePage />} />
                     <Route path="/prize/:prizeId/submit" element={<SubmitContribution />} />
                     <Route path="/testing" element={<TestingPage />} />
