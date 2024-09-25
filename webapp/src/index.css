@@ -471,8 +471,6 @@ body {
   /* Current State Card */
   .current-state-card {
     @apply rounded-lg p-4 sm:p-6 md:p-8 shadow-xl transform transition-all duration-300 hover:scale-105 border-4 border-secondary-300;
-    background-image: url("path/to/fractal-background.png"),
-      linear-gradient(135deg, theme("colors.primary.600"), theme("colors.primary.700"));
     background-blend-mode: overlay;
   }
 

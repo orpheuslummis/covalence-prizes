@@ -1,5 +1,3 @@
-"use client";
-
 import React, { ReactNode, useCallback, useContext, useMemo, useState, useEffect, useRef } from "react";
 import {
   useAccount,
