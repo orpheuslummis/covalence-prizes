@@ -10,7 +10,7 @@ interface StatusItemProps {
 const StatusItem: React.FC<StatusItemProps> = ({ label, value, status = "default" }) => {
   const statusColors: Record<string, string> = {
     default: "text-white",
-    success: "text-accent-300",
+    success: "text-accent-300 font-bold",
     warning: "text-accent-400",
     error: "text-red-400",
   };

@@ -38,6 +38,11 @@ const PrizeCard: React.FC<PrizeCardProps> = React.memo(({ prize }) => {
     return result;
   };
 
+  const truncateDescription = (description: string, maxLength: number = 100) => {
+    if (description.length <= maxLength) return description;
+    return description.slice(0, maxLength) + '...';
+  };
+
   return (
     <Link
       to={`/prize/${prize.id}`}
@@ -47,8 +52,8 @@ const PrizeCard: React.FC<PrizeCardProps> = React.memo(({ prize }) => {
         <FractalPatternBackground prize={prize} />
         <div className="absolute inset-0 bg-black/50"></div> {/* Improved overlay */}
         <div className="relative z-10 flex flex-col justify-center items-center h-full text-center px-4 text-white">
-          <h2 className="text-3xl font-bold">{prize.name}</h2>
-          <p className="text-lg mt-2">{prize.description}</p>
+          <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-shadow-md">{prize.name}</h2>
+          <p className="text-sm sm:text-base mt-2 line-clamp-2">{truncateDescription(prize.description)}</p>
         </div>
       </div>
 
