@@ -6,7 +6,7 @@ import { useAccount } from "wagmi";
 import { config } from "../config";
 import { AllocationStrategy, PrizeDetails, State } from "../lib/types";
 import { useAppContext } from "../contexts/AppContext";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import ProgressBar from "../components/ProgressBar";
 import ManagementCard from "../components/ManagementCard";
 import StatusItem from "../components/StatusItem";
@@ -19,9 +19,10 @@ const getStrategyName = (strategy: AllocationStrategy): string => {
 const ManagePrizePage: React.FC = () => {
   const { prizeId } = useParams<{ prizeId: string }>();
   const { prizeDiamond, isPrizesLoading } = useAppContext();
-  const { address } = useAccount();
+  const { address, isConnected } = useAccount();
+  const navigate = useNavigate();
 
-  const parsedPrizeId = useMemo(() => (prizeId ? BigInt(prizeId) : undefined), [prizeId]);
+  const parsedPrizeId = useMemo(() => (prizeId ? prizeId : undefined), [prizeId]);
 
   const [prize, setPrize] = useState<PrizeDetails | null>(null);
   const [weights, setWeights] = useState<number[]>([]);
@@ -40,6 +41,13 @@ const ManagePrizePage: React.FC = () => {
     contributionCount: bigint;
     rewardsAllocated: boolean;
   } | null>(null);
+
+  useEffect(() => {
+    if (!isConnected || !address) {
+      toast.error("Please connect your wallet to manage the prize");
+      navigate("/");
+    }
+  }, [isConnected, address, navigate]);
 
   const fetchPrizeDetails = useCallback(async () => {
     if (!parsedPrizeId || !address) return;
@@ -241,14 +249,26 @@ const ManagePrizePage: React.FC = () => {
     }
 
     try {
+      console.log("Attempting to move to next state...");
+      console.log("Current prizeId:", prizeId);
+      console.log("Parsed prizeId:", parsedPrizeId);
+      console.log("Type of parsedPrizeId:", typeof parsedPrizeId);
+      console.log("parsedPrizeId.toString():", parsedPrizeId?.toString());
+
       const loadingToast = toast.loading("Moving to next state...");
 
-      await prizeDiamond.moveToNextStateAsync({ prizeId: parsedPrizeId! });
+      console.log("Calling moveToNextStateAsync with:", { prizeId: parsedPrizeId! });
+
+      const result = await prizeDiamond.moveToNextStateAsync({ prizeId: parsedPrizeId! });
+
+      console.log("moveToNextStateAsync result:", result);
 
       toast.dismiss(loadingToast);
       toast.success("Moved to next state successfully");
 
       await fetchPrizeDetails();
+
+      console.log("Updated prize details:", await prizeDiamond.getPrizeDetails(parsedPrizeId!));
 
       // Instead of navigating, we'll refresh the current page
       setTimeout(() => {
@@ -257,8 +277,13 @@ const ManagePrizePage: React.FC = () => {
     } catch (error) {
       console.error("Error moving to next state:", error);
       if (error instanceof ContractFunctionExecutionError) {
+        console.log("Contract error details:", error.cause);
+        console.log("Error message:", error.message);
+        console.log("Error name:", error.name);
+        console.log("Error stack:", error.stack);
         toast.error(`Failed to move to next state: ${error.message}`);
       } else {
+        console.log("Unknown error type:", error);
         toast.error("Failed to move to next state");
       }
     }
@@ -270,8 +295,9 @@ const ManagePrizePage: React.FC = () => {
       state,
       active: prize?.state === state,
       completed: states.indexOf(state) < states.indexOf(prize?.state || State.Setup),
+      canActivate: state === states[states.indexOf(prize?.state || State.Setup) + 1] && canMoveToNextState(),
     }));
-  }, [prize?.state]);
+  }, [prize?.state, canMoveToNextState]);
 
   useEffect(() => {
     if (prize) {
@@ -363,7 +389,7 @@ const ManagePrizePage: React.FC = () => {
     isOrganizer,
     prizeState: prize?.state,
     rewardsAllocated: prize?.rewardsAllocated,
-    allocationDetails: allocationDetails, // Log allocation details
+    allocationDetails, // Log allocation details
   });
 
   if (!prize) {
@@ -511,40 +537,42 @@ const ManagePrizePage: React.FC = () => {
           </ManagementCard>
 
           {/* Allocate Rewards */}
-          <ManagementCard title="Allocate Rewards">
-            <div>
-              <label className="block mb-2 text-white">Batch Size:</label>
-              <input
-                type="number"
-                min="1"
-                max={Number(prize.contributionCount - (prize.lastProcessedIndex || 0n))}
-                value={batchSize}
-                onChange={(e) => setBatchSize(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                className="w-full p-3 text-gray-900 bg-white rounded-md shadow-sm focus:ring-2 focus:ring-primary-500"
-                disabled={!canAllocateRewards}
-              />
-            </div>
-            <button
-              onClick={handleAllocateRewards}
-              className={`w-full button-primary mt-4 ${
-                !canAllocateRewards || allocationInProgress ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-              disabled={!canAllocateRewards || allocationInProgress}
-            >
-              {allocationInProgress ? "Allocating..." : "Allocate Rewards"}
-            </button>
-            <div className="mt-4 text-white">
-              <p>
-                Allocated {allocationDetails?.lastProcessedIndex.toString() || "0"} out of{" "}
-                {allocationDetails?.contributionCount.toString() || "0"} contributions.
-              </p>
-              {!allocationDetails?.rewardsAllocated &&
-                (allocationDetails?.lastProcessedIndex || 0n) < (allocationDetails?.contributionCount || 0n) && (
-                  <p className="text-accent-300">Allocation in progress...</p>
-                )}
-              {allocationDetails?.rewardsAllocated && <p className="text-accent-300">All rewards have been allocated.</p>}
-            </div>
-          </ManagementCard>
+          {prize.state === State.Allocating && (
+            <ManagementCard title="Allocate Rewards">
+              <div>
+                <label className="block mb-2 text-white">Batch Size:</label>
+                <input
+                  type="number"
+                  min="1"
+                  max={Number(prize.contributionCount - (prize.lastProcessedIndex || 0n))}
+                  value={batchSize}
+                  onChange={(e) => setBatchSize(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                  className="w-full p-3 text-gray-900 bg-white rounded-md shadow-sm focus:ring-2 focus:ring-primary-500"
+                  disabled={!canAllocateRewards}
+                />
+              </div>
+              <button
+                onClick={handleAllocateRewards}
+                className={`w-full button-primary mt-4 ${
+                  !canAllocateRewards || allocationInProgress ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+                disabled={!canAllocateRewards || allocationInProgress}
+              >
+                {allocationInProgress ? "Allocating..." : "Allocate Rewards"}
+              </button>
+              <div className="mt-4 text-white">
+                <p>
+                  Allocated {allocationDetails?.lastProcessedIndex.toString() || "0"} out of{" "}
+                  {allocationDetails?.contributionCount.toString() || "0"} contributions.
+                </p>
+                {!allocationDetails?.rewardsAllocated &&
+                  (allocationDetails?.lastProcessedIndex || 0n) < (allocationDetails?.contributionCount || 0n) && (
+                    <p className="text-accent-300">Allocation in progress...</p>
+                  )}
+                {allocationDetails?.rewardsAllocated && <p className="text-accent-300">All rewards have been allocated.</p>}
+              </div>
+            </ManagementCard>
+          )}
         </div>
       </div>
     </div>

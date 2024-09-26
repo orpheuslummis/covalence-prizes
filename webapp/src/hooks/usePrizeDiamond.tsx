@@ -338,7 +338,7 @@ export const usePrizeDiamond = () => {
         address: diamondAddress as Address,
         abi: diamondAbi,
         functionName: "moveToNextState",
-        args: [prizeId.toString()],
+        args: [prizeId],
       });
     },
     onSuccess: (_, { prizeId }) => {

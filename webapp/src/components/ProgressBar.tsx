@@ -73,13 +73,17 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ states, currentState }) => {
             onClick={currentState.handleMoveToNextState}
             disabled={!currentState.canMoveToNext}
             className={`current-state-button ${
-              !currentState.canMoveToNext ? "current-state-button-disabled" : ""
+              currentState.canMoveToNext
+                ? "bg-green-500 hover:bg-green-600"
+                : "current-state-button-disabled"
             }`}
           >
             Next State
           </button>
         </div>
-        <p className="current-state-content">{currentState.requirements}</p>
+        <p className={`current-state-content ${currentState.canMoveToNext ? 'text-green-400' : ''}`}>
+          {currentState.requirements}
+        </p>
       </div>
     </div>
   );
