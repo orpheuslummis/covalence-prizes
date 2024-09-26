@@ -31,15 +31,11 @@ export interface PrizeParams {
 }
 
 export interface Contribution {
-  id: bigint;
-  contestant: Address;
+  id?: bigint;
+  contestant: string;
+  evaluationCount: bigint;
   description: string;
-  evaluationCount: number;
-  evaluated: boolean;
-  weightedScore: EncryptedUint32;
-  reward: EncryptedUint32;
-  claimed: boolean;
-  evaluationScores: number[]; // Added property
+  // Add any other properties that are part of the contribution
 }
 
 export interface PrizeDetails {

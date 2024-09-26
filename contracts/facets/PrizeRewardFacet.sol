@@ -75,9 +75,12 @@ contract PrizeRewardFacet is Permissioned {
      * 5. Emits an event to signal the reward claim.
      */
     function computeContestantClaimReward(uint256 prizeId) external {
+        emit DebugEvent("Entering computeContestantClaimReward");
         require(LibPrize.isState(prizeId, LibPrize.State.Claiming), "Invalid state");
+
         AppStorage storage s = LibAppStorage.diamondStorage();
         Prize storage prize = s.prizes[prizeId];
+
         require(prize.rewardsAllocated, "Rewards have not been allocated yet");
 
         uint256[] storage contributionIds = prize.contributionIdsByContestant[msg.sender];
@@ -85,9 +88,12 @@ contract PrizeRewardFacet is Permissioned {
 
         euint32 eTotalReward = FHE.asEuint32(0);
         for (uint256 i = 0; i < contributionIds.length; i++) {
+            emit DebugEventUint("Processing contribution ID:", contributionIds[i]);
             Contribution storage contribution = prize.contributionsById[contributionIds[i]];
+
             require(contribution.contestant == msg.sender, "Contribution does not belong to caller");
             if (!contribution.claimed) {
+                emit DebugEvent("Adding reward to total");
                 eTotalReward = FHE.add(eTotalReward, contribution.reward);
                 contribution.claimed = true;
                 prize.claimedRewardsCount++;
@@ -136,3 +142,7 @@ contract PrizeRewardFacet is Permissioned {
         return prize.claimedRewardsCount == prize.contributionCount;
     }
 }
+
+// Define the debug events outside the function
+event DebugEvent(string message);
+event DebugEventUint(string message, uint256 value);

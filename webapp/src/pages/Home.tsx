@@ -81,7 +81,8 @@ const Home: React.FC = () => {
         <div id="prizes" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {sortedPrizes.length === 0 ? (
             <p className="text-gray-500 col-span-full">
-              No prizes available at the moment. (Total count: {totalPrizes})
+              {totalPrizes > 0 ? "Loading prizes..." : "No prizes available at the moment."}
+              (Total count: {totalPrizes})
             </p>
           ) : (
             sortedPrizes.map((prize) => <PrizeCard key={prize.id} prize={prize} />)

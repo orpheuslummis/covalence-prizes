@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
@@ -7,7 +7,6 @@ import { useAppContext } from "../contexts/AppContext";
 import { PrizeDetails, State, Contribution } from "../lib/types";
 import ManagementCard from "../components/ManagementCard";
 import StatusItem from "../components/StatusItem";
-import ProgressBar from "../components/ProgressBar";
 import ContributionSelect from "../components/ContributionSelect";
 import ContributionDetails from "../components/ContributionDetails";
 import EvaluationCriteria from "../components/EvaluationCriteria";
@@ -37,9 +36,10 @@ const Evaluator: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [evaluatedContributions, setEvaluatedContributions] = useState<bigint[]>([]);
 
-  const parsedPrizeId = BigInt(prizeId || "0");
+  const parsedPrizeId = useMemo(() => BigInt(prizeId || "0"), [prizeId]);
 
   const fetchPrizeDetails = useCallback(async () => {
+    console.log("Fetching prize details...");
     if (!parsedPrizeId || !prizeDiamond) return;
 
     setIsLoading(true);
@@ -72,41 +72,11 @@ const Evaluator: React.FC = () => {
   }, [parsedPrizeId, prizeDiamond, address]);
 
   useEffect(() => {
+    console.log("Effect running. parsedPrizeId:", parsedPrizeId, "isPrizesLoading:", isPrizesLoading);
     if (parsedPrizeId && !isPrizesLoading) {
       fetchPrizeDetails();
     }
   }, [parsedPrizeId, isPrizesLoading, fetchPrizeDetails]);
-
-  const handleWeightChange = useCallback((index: number, value: string) => {
-    setWeights((prevWeights) => {
-      const newWeights = [...prevWeights];
-      newWeights[index] = parseInt(value, 10);
-      return newWeights;
-    });
-  }, []);
-
-  const handleVoteWeights = useCallback(async () => {
-    try {
-      if (!parsedPrizeId) {
-        toast.error("Invalid Prize ID");
-        return;
-      }
-
-      const loadingToast = toast.loading("Voting on criteria weights...");
-
-      await prizeDiamond.assignCriteriaWeightsAsync({
-        prizeId: parsedPrizeId,
-        weights,
-      });
-
-      toast.dismiss(loadingToast);
-      toast.success("Criteria weights voted successfully");
-      await fetchPrizeDetails();
-    } catch (error) {
-      console.error("Error voting on weights:", error);
-      toast.error("Failed to vote on weights");
-    }
-  }, [parsedPrizeId, weights, prizeDiamond, fetchPrizeDetails]);
 
   const handleContributionChange = useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -212,23 +182,7 @@ const Evaluator: React.FC = () => {
           </Link>
         </div>
 
-        <h1 className="text-5xl font-bold mb-8 text-center text-primary-900">Evaluator Dashboard: {prize.name}</h1>
-
-        <ProgressBar
-          states={[State.Setup, State.Open, State.Evaluating, State.Allocating, State.Claiming, State.Closed].map(
-            (state) => ({
-              state,
-              active: prize.state === state,
-              completed: prize.state > state,
-            }),
-          )}
-          currentState={{
-            state: prize.state,
-            requirements: "Current prize state",
-            canMoveToNext: false,
-            handleMoveToNextState: () => {},
-          }}
-        />
+        <h1 className="text-5xl font-bold mb-8 text-center text-primary-900">Evaluator: {prize.name}</h1>
 
         <ManagementCard title="Prize Details" className="mt-12 mb-12">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-white">
@@ -240,31 +194,18 @@ const Evaluator: React.FC = () => {
           </div>
         </ManagementCard>
 
-        <ManagementCard title="Vote on Criteria Weights">
+        <ManagementCard title="Criteria Weights">
           {prize.criteriaNames.length > 1 ? (
-            <>
+            <div className="space-y-4">
               {prize.criteriaNames.map((name, index) => (
-                <div key={index} className="mb-4">
-                  <label className="block mb-1 text-white">
-                    {name}: {weights[index] || 0}
-                  </label>
-                  <input
-                    type="range"
-                    value={weights[index] || 0}
-                    onChange={(e) => handleWeightChange(index, e.target.value)}
-                    className="w-full h-2 bg-primary-200 rounded-lg appearance-none cursor-pointer"
-                    min="0"
-                    max="10"
-                    step="1"
-                  />
+                <div key={index} className="flex justify-between items-center">
+                  <span className="text-white">{name}:</span>
+                  <span className="text-accent-300 font-semibold">{weights[index] || 0}</span>
                 </div>
               ))}
-              <button onClick={handleVoteWeights} className="w-full mt-2 button-primary">
-                Vote on Weights
-              </button>
-            </>
+            </div>
           ) : (
-            <p className="text-accent-300">Criteria weights cannot be changed when there is only one dimension.</p>
+            <p className="text-accent-300">This prize has only one criterion.</p>
           )}
         </ManagementCard>
 

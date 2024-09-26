@@ -1,11 +1,11 @@
 // src/pages/PrizePage.tsx
 
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { formatEther } from "viem";
 import { useAccount } from "wagmi";
-import { State, PrizeDetails } from "../lib/types";
+import { State } from "../lib/types";
 import { useAppContext } from "../contexts/AppContext";
 import PrizeDetailsComponent from "../components/PrizeDetails";
 import ContributionList from "../components/ContributionList";
@@ -19,70 +19,56 @@ const PrizePage: React.FC = () => {
   const { prizeDiamond } = useAppContext();
 
   const prizeIdBigInt = useMemo(() => {
-    return prizeId !== undefined && prizeId !== null && prizeId !== "" ? BigInt(prizeId) : undefined;
+    return prizeId !== undefined && prizeId !== null ? BigInt(prizeId) : undefined;
   }, [prizeId]);
 
-  const { data: prizeDetails, isLoading, error } = useQuery({
+  const {
+    data: prizeDetails,
+    isLoading,
+    error,
+    refetch: refetchPrizeDetails,
+  } = useQuery({
     queryKey: ["prizeDetails", prizeIdBigInt?.toString()],
     queryFn: async () => {
       if (prizeIdBigInt === undefined) throw new Error("Invalid prize ID");
-      console.log("Fetching prize details for ID:", prizeIdBigInt.toString());
-      const result = await prizeDiamond.getPrizeDetails(prizeIdBigInt);
-      console.log("Fetched prize details:", result);
-      return result as PrizeDetails;
+      return prizeDiamond.getPrizeDetails(prizeIdBigInt);
     },
     enabled: prizeIdBigInt !== undefined && !!prizeDiamond,
-    retry: 3,
-    retryDelay: 1000,
+    staleTime: 30000, // 30 seconds
   });
 
-  const [prize, setPrize] = useState<PrizeDetails | undefined>(undefined);
-  const [isOrganizer, setIsOrganizer] = useState(false);
-  const [canClaim, setCanClaim] = useState(false);
-  const [claimedReward, setClaimedReward] = useState<bigint | null>(null);
-
-  useEffect(() => {
-    if (prizeDetails) {
-      console.log("Prize details:", prizeDetails);
-      console.log("Contribution count:", prizeDetails.contributionCount.toString());
-      setPrize(prizeDetails);
-      setIsOrganizer(prizeDetails.organizer.toLowerCase() === address?.toLowerCase());
-    }
-  }, [prizeDetails, address]);
-
-  const { data: roles } = useQuery({
+  const {
+    data: roles,
+    isLoading: rolesLoading,
+    error: rolesError
+  } = useQuery({
     queryKey: ["prizeRoles", prizeIdBigInt?.toString(), address],
     queryFn: async () => {
-      if (!prizeIdBigInt || !address || !prize) {
+      if (!prizeIdBigInt || !address || !prizeDetails) {
         throw new Error("Invalid prize ID, address, or prize not found");
       }
-      const canSubmit = prize.organizer.toLowerCase() === address.toLowerCase();
       const canEvaluate = await prizeDiamond.isPrizeEvaluator(prizeIdBigInt, address);
       const canManagePrize = await prizeDiamond.isPrizeOrganizer(prizeIdBigInt, address);
-      return { canSubmit, canEvaluate, canManagePrize };
+      return { canEvaluate, canManagePrize };
     },
-    enabled: !!prizeIdBigInt && !!address && isConnected && !!prize,
+    enabled: !!prizeIdBigInt && !!address && isConnected && !!prizeDetails,
+    retry: 3,
   });
 
   const { data: claimableReward, refetch: refetchClaimableReward } = useQuery({
     queryKey: ["claimableReward", prizeIdBigInt?.toString(), address],
     queryFn: async () => {
       if (!prizeIdBigInt || !address) return false;
-      return await prizeDiamond.hasClaimableReward(prizeIdBigInt, address);
+      return prizeDiamond.hasClaimableReward(prizeIdBigInt, address);
     },
     enabled: !!prizeIdBigInt && !!address && prizeDetails?.state === State.Claiming,
   });
-
-  useEffect(() => {
-    setCanClaim(!!claimableReward);
-  }, [claimableReward]);
 
   const handleClaimReward = useCallback(async () => {
     if (!prizeIdBigInt) return;
     try {
       await prizeDiamond.computeContestantClaimRewardAsync({ prizeId: prizeIdBigInt });
       toast.success("Reward claimed successfully!");
-      setCanClaim(false);
       refetchClaimableReward();
     } catch (error) {
       console.error("Error claiming reward:", error);
@@ -94,8 +80,7 @@ const PrizePage: React.FC = () => {
     if (!prizeIdBigInt) return;
     try {
       const reward = await prizeDiamond.viewAndDecryptClaimedReward(prizeIdBigInt);
-      setClaimedReward(reward);
-      toast.success("Claimed reward retrieved successfully");
+      toast.success(`Claimed reward: ${formatEther(reward)} ETH`);
     } catch (error) {
       console.error("Error viewing claimed reward:", error);
       toast.error("Failed to view claimed reward. Please try again.");
@@ -108,22 +93,22 @@ const PrizePage: React.FC = () => {
 
   if (error) {
     console.error("Error fetching prize details:", error);
-    return <div className="text-center py-10 text-neutral-100">Error loading prize details. Please try again later.</div>;
+    return (
+      <div className="text-center py-10 text-neutral-100">Error loading prize details. Please try again later.</div>
+    );
   }
 
   if (!prizeDetails) {
-    console.error("Prize not found. PrizeDetails:", prizeDetails);
-    return <div className="text-center py-10 text-neutral-100">Prize not found. Please check the ID and try again.</div>;
+    return (
+      <div className="text-center py-10 text-neutral-100">Prize not found. Please check the ID and try again.</div>
+    );
   }
-
-  console.log("Rendering prize data:", prizeDetails);
 
   return (
     <div className="container-default">
       <div className="bg-neutral-50 rounded-xl shadow-lg overflow-hidden text-neutral-800">
         <div className="prize-page-header relative h-72">
           <FractalPatternBackground prize={prizeDetails} />
-          {/* Overlay for text readability */}
           <div className="absolute inset-0 bg-black opacity-40"></div>
           <div className="relative z-10 flex flex-col justify-center items-center h-full text-center px-4">
             <h1 className="prize-page-title text-4xl font-bold text-white bg-black bg-opacity-50 px-3 py-1 rounded">
@@ -136,7 +121,7 @@ const PrizePage: React.FC = () => {
         </div>
 
         <div className="p-6 space-y-8">
-          {isConnected && prizeIdBigInt !== undefined && (
+          {isConnected && prizeIdBigInt !== undefined && prizeDetails && (
             <div className="bg-primary-100 rounded-lg p-4">
               <h2 className="text-2xl font-semibold text-primary-800 mb-4">Actions</h2>
               <div className="flex flex-wrap gap-4">
@@ -150,12 +135,15 @@ const PrizePage: React.FC = () => {
                     Evaluate Contributions
                   </Link>
                 )}
-                {isOrganizer && (
-                  <button className="button-primary" onClick={() => navigate(`/prize/${prizeIdBigInt.toString()}/manage`)}>
+                {(roles?.canManagePrize || prizeDetails.organizer.toLowerCase() === address?.toLowerCase()) && (
+                  <button
+                    className="button-primary"
+                    onClick={() => navigate(`/prize/${prizeIdBigInt.toString()}/manage`)}
+                  >
                     Manage Prize
                   </button>
                 )}
-                {canClaim && (
+                {claimableReward && (
                   <button
                     onClick={handleClaimReward}
                     className="bg-accent-500 hover:bg-accent-600 text-white font-bold py-2 px-4 rounded"
@@ -163,7 +151,7 @@ const PrizePage: React.FC = () => {
                     Claim Reward
                   </button>
                 )}
-                {canClaim && (
+                {claimableReward && (
                   <button
                     onClick={handleViewClaimReward}
                     className="bg-neutral-200 text-neutral-700 font-semibold py-2 px-4 rounded hover:bg-neutral-300 ml-2"
@@ -172,6 +160,8 @@ const PrizePage: React.FC = () => {
                   </button>
                 )}
               </div>
+              {rolesLoading && <p>Loading roles...</p>}
+              {rolesError && <p>Error loading roles. Please try again.</p>}
             </div>
           )}
 
@@ -189,7 +179,7 @@ const PrizePage: React.FC = () => {
           {prizeIdBigInt !== undefined && (
             <div>
               <h2 className="text-2xl font-semibold text-primary-800 mb-4">Contributions</h2>
-              <ContributionList prizeId={prizeIdBigInt} key={`contributions-${prizeDetails.contributionCount}`} />
+              <ContributionList prizeId={prizeIdBigInt} refetchPrizeDetails={refetchPrizeDetails} />
             </div>
           )}
 
@@ -201,13 +191,6 @@ const PrizePage: React.FC = () => {
               <p className="text-neutral-600">You are not an evaluator for this prize</p>
             )}
           </div>
-
-          {claimedReward !== null && (
-            <div className="mt-4 p-4 bg-primary-100 rounded-lg">
-              <h3 className="text-xl font-semibold text-primary-800">Your Claimed Reward</h3>
-              <p className="text-2xl font-bold text-primary-600">{formatEther(claimedReward)} ETH</p>
-            </div>
-          )}
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 // src/components/ProgressBar.tsx
 import React from "react";
 import { State } from "../lib/types";
-import CheckIcon from "../components/CheckIcon";
+import CheckIcon from "./CheckIcon";
 
 interface ProgressBarProps {
   states: Array<{
@@ -19,50 +19,67 @@ interface ProgressBarProps {
 
 const ProgressBar: React.FC<ProgressBarProps> = ({ states, currentState }) => {
   return (
-    <div className="bg-primary-800 p-6 rounded-lg shadow-lg mb-8">
+    <div className="bg-primary-800 p-4 sm:p-6 rounded-lg shadow-lg mb-8">
       {/* Progress Steps */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="progress-bar">
         {states.map((item, index) => (
-          <div key={item.state} className="flex flex-col items-center relative">
-            {/* Circle and Connector */}
-            <div className="flex items-center">
+          <React.Fragment key={item.state}>
+            <div className="progress-step">
               <div
-                className={`flex items-center justify-center w-12 h-12 rounded-full transition-colors duration-300 ${
-                  item.active
-                    ? "bg-secondary-400 text-white"
-                    : item.completed
-                      ? "bg-accent-500 text-white"
-                      : "bg-primary-600 text-primary-300"
+                className={`progress-circle ${
+                  item.completed
+                    ? "progress-circle-completed"
+                    : item.active
+                    ? "progress-circle-active"
+                    : "progress-circle-inactive"
                 }`}
               >
-                {item.completed ? <CheckIcon className="text-green-500" /> : <span className="text-lg font-bold">{index + 1}</span>}
+                {item.completed ? (
+                  <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 md:w-8 md:h-8" />
+                ) : (
+                  <span>{index + 1}</span>
+                )}
               </div>
-              {index < states.length - 1 && (
-                <div className={`w-16 h-1 ${item.completed ? "bg-accent-500" : "bg-primary-600"}`}></div>
-              )}
+              <span
+                className={`progress-label ${
+                  item.completed
+                    ? "progress-label-completed"
+                    : item.active
+                    ? "progress-label-active"
+                    : "progress-label-inactive"
+                }`}
+              >
+                {State[item.state]}
+              </span>
             </div>
-            {/* Label */}
-            <span
-              className={`mt-3 text-sm font-medium ${
-                item.active ? "text-secondary-300" : item.completed ? "text-accent-400" : "text-primary-300"
-              }`}
-            >
-              {State[item.state]}
-            </span>
-          </div>
+            {index < states.length - 1 && (
+              <div
+                className={`progress-connector ${
+                  item.completed ? "progress-connector-completed" : ""
+                }`}
+              />
+            )}
+          </React.Fragment>
         ))}
       </div>
-      {/* State Management Actions */}
-      <div className="bg-primary-700 p-6 rounded-md">
-        <h3 className="text-2xl font-semibold mb-3 text-white">Current State: {State[currentState.state]}</h3>
-        <p className="mb-4 text-primary-100">{currentState.requirements}</p>
-        <button
-          onClick={currentState.handleMoveToNextState}
-          disabled={!currentState.canMoveToNext}
-          className={`w-full bg-accent-500 hover:bg-accent-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-lg`}
-        >
-          Move to Next State
-        </button>
+
+      {/* Current State Management */}
+      <div className="current-state-card mt-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4">
+          <h3 className="current-state-badge mb-2 sm:mb-0">
+            Current: <span className="font-bold">{State[currentState.state]}</span>
+          </h3>
+          <button
+            onClick={currentState.handleMoveToNextState}
+            disabled={!currentState.canMoveToNext}
+            className={`current-state-button ${
+              !currentState.canMoveToNext ? "current-state-button-disabled" : ""
+            }`}
+          >
+            Next State
+          </button>
+        </div>
+        <p className="current-state-content">{currentState.requirements}</p>
       </div>
     </div>
   );

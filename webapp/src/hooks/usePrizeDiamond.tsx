@@ -520,19 +520,56 @@ export const usePrizeDiamond = () => {
   const computeContestantClaimReward = useMutation<string, Error, { prizeId: bigint }>({
     mutationFn: async ({ prizeId }) => {
       if (!walletClient) throw new Error("Wallet not connected");
-      return writeContractAsync({
-        address: diamondAddress as Address,
-        abi: diamondAbi,
-        functionName: "computeContestantClaimReward",
-        args: [prizeId.toString()],
-      });
+      
+      console.log(`📝 Attempting to compute contestant claim reward for Prize ID: ${prizeId.toString()}`);
+      console.log(`🔍 Fetching prize details...`);
+      
+      try {
+        // Fetch prize details
+        const prizeDetails = await getPrizeDetails(prizeId);
+        console.log(`📄 Prize Details:`, prizeDetails);
+        
+        // Validate Prize State
+        if (prizeDetails.state !== State.Claiming) {
+          throw new Error(`❌ Invalid prize state: ${prizeDetails.state}. Expected: ${State.Claiming}`);
+        }
+        
+        // Check Rewards Allocation
+        if (!prizeDetails.rewardsAllocated) {
+          throw new Error("❌ Rewards have not been allocated yet");
+        }
+        
+        // Verify User's Contributions
+        const contributionIds = await getContributionIdsForContestant(prizeId, address);
+        console.log(`🔢 Contribution IDs for User:`, contributionIds);
+        
+        if (contributionIds.length === 0) {
+          throw new Error("❌ No contributions found for this prize");
+        }
+        
+        // Proceed with contract call
+        const txHash = await writeContractAsync({
+          address: diamondAddress as Address,
+          abi: diamondAbi,
+          functionName: "computeContestantClaimReward",
+          args: [prizeId.toString()],
+        });
+        
+        console.log(`✅ Transaction submitted successfully. Hash: ${txHash}`);
+        return txHash;
+        
+      } catch (error: any) {
+        console.error(`⚠️ Error in computeContestantClaimReward:`, error);
+        throw error;
+      }
     },
     onSuccess: (_, { prizeId }) => {
+      console.log(`🎉 Contestant rewards computed successfully for Prize ID: ${prizeId.toString()}`);
       queryClient.invalidateQueries({ queryKey: ["prizeDetails", prizeId.toString()] });
       toast.success("Contestant rewards computed successfully");
     },
-    onError: (error) => {
-      console.error("Error computing contestant rewards:", error);
+    onError: (error, { prizeId }) => {
+      console.error(`❗ Error computing contestant rewards for Prize ID ${prizeId.toString()}:`, error);
       toast.error(`Failed to compute contestant rewards: ${error.message}`);
     },
   });
