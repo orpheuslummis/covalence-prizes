@@ -10,7 +10,7 @@ interface ContributionListProps {
   refetchPrizeDetails: () => void;
 }
 
-const ContributionList: React.FC<ContributionListProps> = ({ prizeId, refetchPrizeDetails }) => {
+const ContributionList: React.FC<ContributionListProps> = ({ prizeId }) => {
   const { prizeDiamond } = useAppContext();
   const { address } = useAccount();
 
@@ -34,7 +34,7 @@ const ContributionList: React.FC<ContributionListProps> = ({ prizeId, refetchPri
           };
         });
         const contributions = await Promise.all(contributionPromises);
-        console.log('Fetched contributions:', contributions);
+        console.log("Fetched contributions:", contributions);
         return contributions;
       } catch (err) {
         console.error("Error fetching contributions:", err);
@@ -53,8 +53,7 @@ const ContributionList: React.FC<ContributionListProps> = ({ prizeId, refetchPri
         const { contestant, id, evaluationCount, description } = contribution;
         const contributionId = id ?? BigInt(index);
 
-        const isOwnContribution =
-          address && contestant && contestant.toLowerCase() === address.toLowerCase();
+        const isOwnContribution = address && contestant && contestant.toLowerCase() === address.toLowerCase();
 
         return (
           <Link
@@ -62,19 +61,11 @@ const ContributionList: React.FC<ContributionListProps> = ({ prizeId, refetchPri
             to={`/prize/${prizeId}/contribution/${contributionId.toString()}`}
             className="block hover:shadow-lg transition-shadow duration-200"
           >
-            <div
-              className={`contribution-card ${
-                isOwnContribution ? "bg-primary-50" : "bg-white"
-              }`}
-            >
+            <div className={`contribution-card ${isOwnContribution ? "bg-primary-50" : "bg-white"}`}>
               <div className="contribution-card-content">
                 <h3 className="contribution-card-title">
                   Contribution #{index + 1}
-                  {isOwnContribution && (
-                    <span className="contribution-card-own-tag">
-                      (Your contribution)
-                    </span>
-                  )}
+                  {isOwnContribution && <span className="contribution-card-own-tag">(Your contribution)</span>}
                 </h3>
                 <p className="contribution-card-detail">
                   <span className="font-semibold">Contributor:</span> {contestant || "Unknown"}

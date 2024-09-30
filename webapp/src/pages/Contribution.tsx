@@ -1,17 +1,13 @@
-import React, { useState } from "react";
+import React from "react";
 import { FaArrowLeft } from "react-icons/fa";
-import { Link, useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { usePrizeDiamond } from "../hooks/usePrizeDiamond";
+import { Link, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Contribution, PrizeDetails } from "../lib/types";
-import toast from "react-hot-toast";
+import { useAppContext } from "../contexts/AppContext";
 
 const ContributionPage: React.FC = () => {
   const { prizeId, id } = useParams<{ prizeId: string; id: string }>();
-  const prizeDiamond = usePrizeDiamond();
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const [description, setDescription] = useState("");
+  const { prizeDiamond } = useAppContext();
 
   const {
     data: prizeData,
@@ -45,27 +41,6 @@ const ContributionPage: React.FC = () => {
 
   const isLoading = isPrizeLoading || isContributionLoading || isEvaluationCountLoading;
   const error = prizeError || contributionError || evaluationCountError;
-
-  const submitContributionMutation = useMutation({
-    mutationFn: (description: string) =>
-      prizeDiamond.submitContributionAsync({ prizeId: BigInt(prizeId!), description }),
-    onSuccess: () => {
-      // Invalidate and refetch
-      queryClient.invalidateQueries(["prizeDetails", prizeId]);
-      queryClient.invalidateQueries(["contribution", prizeId]);
-      toast.success("Contribution submitted successfully!");
-      navigate(`/prize/${prizeId}`);
-    },
-    onError: (error) => {
-      console.error("Error submitting contribution:", error);
-      toast.error("Failed to submit contribution. Please try again.");
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    submitContributionMutation.mutate(description);
-  };
 
   if (isLoading) {
     return <div className="text-center py-4">Loading contribution details...</div>;
@@ -114,25 +89,13 @@ const ContributionPage: React.FC = () => {
           </div>
         )}
 
-        <div className="bg-white text-primary-900 rounded-lg shadow-lg p-6 mb-8">
-          <h2 className="text-2xl font-semibold mb-4">Submit New Contribution</h2>
-          <form onSubmit={handleSubmit}>
-            <textarea
-              className="w-full p-2 border rounded mb-4"
-              rows={4}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter your contribution description"
-              required
-            />
-            <button
-              type="submit"
-              className="bg-secondary-500 text-white px-4 py-2 rounded hover:bg-secondary-600 transition duration-300"
-              disabled={submitContributionMutation.isPending}
-            >
-              {submitContributionMutation.isPending ? "Submitting..." : "Submit Contribution"}
-            </button>
-          </form>
+        <div className="text-center mt-8">
+          <Link
+            to={`/prize/${prizeId}/submit`}
+            className="bg-secondary-500 text-white px-6 py-3 rounded-lg hover:bg-secondary-600 transition duration-300"
+          >
+            Submit New Contribution
+          </Link>
         </div>
       </div>
     </div>

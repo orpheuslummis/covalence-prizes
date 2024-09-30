@@ -3,18 +3,18 @@ import { toast } from "react-hot-toast";
 import { parseEther } from "viem";
 import { useBalance, useWaitForTransactionReceipt } from "wagmi";
 import { allocationStrategies } from "../config";
-import { usePrizeDiamond } from "../hooks/usePrizeDiamond";
 import { isValidAmount } from "../lib/lib";
 import { AllocationStrategy, PrizeParams } from "../lib/types";
 import { useWalletContext } from "../contexts/WalletContext";
 import { useNavigate } from "react-router-dom";
+import { useAppContext } from "../contexts/AppContext";
 
 const CreatePrizePage = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const { account, isLoading: walletLoading } = useWalletContext();
   const { address, isConnected } = account;
-  const { createPrizeAsync, getPrizeCount, getPrizeDetails } = usePrizeDiamond();
+  const { prizeDiamond } = useAppContext();
   const [transactionHash, setTransactionHash] = useState<`0x${string}` | undefined>(undefined);
   const { data: balance } = useBalance({ address });
 
@@ -62,10 +62,10 @@ const CreatePrizePage = () => {
   const handleTransactionSuccess = useCallback(async () => {
     toast.success("Prize created successfully");
     try {
-      const prizeCount = await getPrizeCount();
+      const prizeCount = await prizeDiamond.getPrizeCount();
       if (prizeCount > 0n) {
         const latestPrizeId = prizeCount - 1n;
-        const createdPrize = await getPrizeDetails(latestPrizeId);
+        const createdPrize = await prizeDiamond.getPrizeDetails(latestPrizeId);
         console.log("Created prize:", createdPrize);
         if (createdPrize && createdPrize.id !== undefined) {
           const navigateUrl = `/prize/${createdPrize.id.toString()}`;
@@ -82,7 +82,7 @@ const CreatePrizePage = () => {
       toast.error("Prize created, but there was an error loading the details.");
       navigate("/");
     }
-  }, [getPrizeCount, getPrizeDetails, navigate]);
+  }, [prizeDiamond.getPrizeCount, prizeDiamond.getPrizeDetails, navigate]);
 
   useEffect(() => {
     if (isSuccess && transactionReceipt) {
@@ -135,7 +135,7 @@ const CreatePrizePage = () => {
           strategy: allocationStrategy,
         };
 
-        const result = await createPrizeAsync(prizeParams);
+        const result = await prizeDiamond.createPrizeAsync(prizeParams);
         console.log("Create Prize Result:", result);
 
         if (result) {
@@ -160,7 +160,7 @@ const CreatePrizePage = () => {
       criteriaNames,
       allocationStrategy,
       balance,
-      createPrizeAsync,
+      prizeDiamond.createPrizeAsync,
     ],
   );
 
