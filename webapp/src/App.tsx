@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import { Toaster } from "react-hot-toast";
-import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import { Outlet, Route, RouterProvider, createHashRouter, createRoutesFromElements } from "react-router-dom";
 import { WagmiProvider } from "wagmi";
 import Footer from "./components/Footer";
 import Navbar from "./components/Navbar";
@@ -29,33 +29,43 @@ const queryClient = new QueryClient({
   },
 });
 
+const RootLayout: React.FC = () => {
+  return (
+    <div className="flex flex-col min-h-screen">
+      <Navbar />
+      <main className="flex-grow pt-20 mx-auto ">
+        <Outlet />
+      </main>
+      <Footer />
+      <Toaster position="top-center" />
+    </div>
+  );
+};
+
+const router = createHashRouter(
+  createRoutesFromElements(
+    <Route path="/" element={<RootLayout />}>
+      <Route index element={<Home />} />
+      <Route path="about" element={<About />} />
+      <Route path="create-prize" element={<CreatePrizePage />} />
+      <Route path="prize/:prizeId" element={<PrizePage />} />
+      <Route path="prize/:prizeId/contribution/:id" element={<ContributionPage />} />
+      <Route path="prize/:prizeId/evaluator" element={<Evaluator />} />
+      <Route path="prize/:prizeId/manage" element={<ManagePage />} />
+      <Route path="prize/:prizeId/submit" element={<SubmitContribution />} />
+      <Route path="testing" element={<TestingPage />} />
+      <Route path="*" element={<NotFound />} />
+    </Route>,
+  ),
+);
+
 const App: React.FC = () => {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <WalletProvider>
           <AppProvider>
-            <Router>
-              <div className="flex flex-col min-h-screen">
-                <Navbar />
-                <main className="flex-grow pt-20 mx-auto ">
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/about" element={<About />} />
-                    <Route path="/create-prize" element={<CreatePrizePage />} />
-                    <Route path="/prize/:prizeId" element={<PrizePage />} />
-                    <Route path="/prize/:prizeId/contribution/:id" element={<ContributionPage />} />
-                    <Route path="/prize/:prizeId/evaluator" element={<Evaluator />} />
-                    <Route path="/prize/:prizeId/manage" element={<ManagePage />} />
-                    <Route path="/prize/:prizeId/submit" element={<SubmitContribution />} />
-                    <Route path="/testing" element={<TestingPage />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </main>
-                <Footer />
-              </div>
-            </Router>
-            <Toaster position="top-center" />
+            <RouterProvider router={router} />
           </AppProvider>
         </WalletProvider>
       </QueryClientProvider>
