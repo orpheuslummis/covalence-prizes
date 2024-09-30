@@ -36,7 +36,14 @@ const Evaluator: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [evaluatedContributions, setEvaluatedContributions] = useState<bigint[]>([]);
 
-  const parsedPrizeId = useMemo(() => BigInt(prizeId || "0"), [prizeId]);
+  const parsedPrizeId = useMemo(() => {
+    try {
+      return BigInt(prizeId || "0");
+    } catch (e) {
+      console.error("Invalid prizeId:", e);
+      return 0n;
+    }
+  }, [prizeId]);
 
   const fetchPrizeDetails = useCallback(async () => {
     console.log("Fetching prize details...");
@@ -81,7 +88,7 @@ const Evaluator: React.FC = () => {
   const handleContributionChange = useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) => {
       const selectedId = event.target.value;
-      const selected = contributions.find((c) => c.id.toString() === selectedId) || null;
+      const selected = contributions.find((c) => c.id?.toString() === selectedId) || null;
       setSelectedContribution(selected);
       setScores(new Array(prize?.criteriaNames.length || 0).fill(5));
     },
@@ -102,7 +109,7 @@ const Evaluator: React.FC = () => {
     return (
       scores.length === prize.criteriaNames.length &&
       scores.every((score) => score >= 1 && score <= 10) &&
-      !evaluatedContributions.includes(selectedContribution.id)
+      !evaluatedContributions.includes(selectedContribution.id ?? BigInt(0))
     );
   }, [prize, scores, selectedContribution, evaluatedContributions]);
 
@@ -111,10 +118,13 @@ const Evaluator: React.FC = () => {
     if (!isFormValid() || !prize || !selectedContribution) return;
     try {
       setIsSubmitting(true);
+      if (!prizeDiamond.fhenixClient) {
+        throw new Error("Fhenix client is not available. Please try again in a moment.");
+      }
       const encrypted = await prizeDiamond.encryptScores(scores);
       await prizeDiamond.evaluateContributionAsync({
         prizeId: parsedPrizeId,
-        contributionId: selectedContribution.id,
+        contributionId: selectedContribution.id ?? 0n,
         encryptedScores: encrypted,
       });
       toast.success("Evaluation submitted successfully");
@@ -229,7 +239,7 @@ const Evaluator: React.FC = () => {
               <div className="bg-white bg-opacity-10 p-6 rounded-lg shadow-md">
                 <ContributionSelect
                   contributions={contributions}
-                  selectedContributionId={selectedContribution?.id.toString() || ""}
+                  selectedContributionId={selectedContribution?.id?.toString() || ""}
                   onChange={handleContributionChange}
                   isSubmitting={isSubmitting}
                   evaluatedContributions={evaluatedContributions}
@@ -238,14 +248,14 @@ const Evaluator: React.FC = () => {
 
               {selectedContribution && (
                 <>
-                  {evaluatedContributions.includes(selectedContribution.id) && <AlreadyEvaluatedBanner />}
+                  {evaluatedContributions.includes(selectedContribution.id ?? 0n) && <AlreadyEvaluatedBanner />}
                   <div className="bg-white bg-opacity-10 p-6 rounded-lg shadow-md">
                     <ContributionDetails contribution={selectedContribution} />
                   </div>
 
                   <div className="bg-white bg-opacity-10 p-6 rounded-lg shadow-md">
                     <EvaluationCriteria
-                      criteria={prize?.criteriaNames || []}
+                      criteria={prize.criteriaNames || []}
                       scores={scores}
                       onScoreChange={handleScoreChange}
                       isSubmitting={isSubmitting}
@@ -257,12 +267,12 @@ const Evaluator: React.FC = () => {
                     whileTap={{ scale: 0.95 }}
                     type="submit"
                     className={`button-primary w-full ${
-                      isFormValid() && !isSubmitting && !evaluatedContributions.includes(selectedContribution.id)
+                      isFormValid() && !isSubmitting && !evaluatedContributions.includes(selectedContribution.id ?? 0n)
                         ? "hover:bg-purple-700"
                         : "bg-gray-400 cursor-not-allowed"
                     }`}
                     disabled={
-                      !isFormValid() || isSubmitting || evaluatedContributions.includes(selectedContribution.id)
+                      !isFormValid() || isSubmitting || evaluatedContributions.includes(selectedContribution.id ?? 0n)
                     }
                   >
                     {isSubmitting ? "Submitting..." : "Submit Evaluation"}

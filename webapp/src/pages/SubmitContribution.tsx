@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { useAccount } from "wagmi";
 import { useAppContext } from "../contexts/AppContext";
@@ -52,7 +52,6 @@ const SubmitContributionPage: React.FC = () => {
           description,
         });
 
-        // Wait for the transaction to be confirmed
         if (typeof txHash === "string" && txHash.startsWith("0x")) {
           await prizeDiamond.waitForTransaction(txHash as `0x${string}`);
         } else {
@@ -63,7 +62,12 @@ const SubmitContributionPage: React.FC = () => {
         navigate(`/prize/${prizeId}`);
       } catch (error) {
         console.error("Error submitting contribution:", error);
-        toast.error("Failed to submit contribution. Please try again.");
+        if (error instanceof Error) {
+          setError(error.message);
+        } else {
+          setError("An unknown error occurred");
+        }
+        toast.error(`Failed to submit contribution: ${error instanceof Error ? error.message : "Unknown error"}`);
       } finally {
         setIsSubmitting(false);
       }
@@ -72,26 +76,40 @@ const SubmitContributionPage: React.FC = () => {
   );
 
   const content = useMemo(() => {
-    if (isLoadingPrizeDetails || isLoadingState) return <div>Loading...</div>;
+    if (isLoadingPrizeDetails || isLoadingState) return <div className="loading-indicator">Loading...</div>;
     if (!isConnected) return null;
 
     return (
-      <div className="container mx-auto px-4 py-8 bg-purple-50 min-h-screen">
-        <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-xl overflow-hidden">
-          <div className="bg-purple-600 px-6 py-4">
-            <h2 className="text-3xl font-bold text-white">Submit Contribution</h2>
+      <div className="container-default">
+        <div className="card">
+          <div className="bg-primary-600 px-6 py-4 flex items-center">
+            <Link
+              to={`/prize/${prizeId}`}
+              className="text-white hover:text-neutral-200 transition-colors duration-300 mr-4"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </Link>
+            <h2 className="text-2xl-mobile font-bold text-white">Submit Contribution</h2>
           </div>
           <div className="p-6">
-            <h3 className="text-2xl font-semibold mb-2 text-purple-800">{prizeDetails?.name}</h3>
-            <p className="text-gray-700 mb-6">{prizeDetails?.description}</p>
+            <h3 className="text-xl-mobile font-semibold mb-2 text-white">{prizeDetails?.name}</h3>
+            <p className="text-sm-mobile text-neutral-200 mb-6">{prizeDetails?.description}</p>
 
-            <div className="mb-6 bg-purple-100 p-4 rounded-lg">
-              <h4 className="text-lg font-semibold mb-2 text-purple-800">Current Prize State</h4>
-              <p className="text-gray-700">
+            <div className="mb-6 bg-primary-700 p-4 rounded-lg">
+              <h4 className="text-lg-mobile font-semibold mb-2 text-white">Current Prize State</h4>
+              <p className="text-sm-mobile text-neutral-200">
                 The prize is currently in the <strong>{State[currentState as number]}</strong> state.
                 <br />
                 {currentState !== State.Open && (
-                  <span className="text-red-600">
+                  <span className="text-accent-300">
                     {" "}
                     Submissions are only allowed when the prize is in the Open state.
                   </span>
@@ -99,9 +117,9 @@ const SubmitContributionPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="mb-6 bg-purple-100 p-4 rounded-lg">
-              <h4 className="text-lg font-semibold mb-2 text-purple-800">About Submitting a Contribution</h4>
-              <p className="text-gray-700">
+            <div className="mb-6 bg-primary-700 p-4 rounded-lg">
+              <h4 className="text-lg-mobile font-semibold mb-2 text-white">About Submitting a Contribution</h4>
+              <p className="text-sm-mobile text-neutral-200">
                 By submitting a contribution, you're proposing a solution or idea for this prize. Your submission will
                 be evaluated based on the prize criteria. Make sure your description is clear, concise, and addresses
                 the prize objectives.
@@ -110,29 +128,27 @@ const SubmitContributionPage: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="description" className="block text-lg font-medium text-gray-800 mb-2">
+                <label htmlFor="description" className="form-label">
                   Contribution Description
                 </label>
                 <textarea
                   id="description"
                   rows={6}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-3 text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  className="form-input"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   maxLength={200}
                   required
                   placeholder="Describe your contribution here..."
                 />
-                {error && <p className="text-red-500">{error}</p>}
-                <p className="text-sm text-gray-500">{description.length}/200 characters</p>
+                {error && <p className="text-accent-500">{error}</p>}
+                <p className="text-xs-mobile text-neutral-400">{description.length}/200 characters</p>
               </div>
               <button
                 type="submit"
                 disabled={isSubmitting || currentState !== State.Open}
-                className={`w-full bg-purple-600 text-white py-3 px-4 rounded-md text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors ${
-                  isSubmitting || currentState !== State.Open
-                    ? "opacity-50 cursor-not-allowed bg-purple-400"
-                    : "hover:bg-purple-700"
+                className={`button-primary w-full ${
+                  isSubmitting || currentState !== State.Open ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
                 {isSubmitting ? "Submitting..." : "Submit Contribution"}
@@ -149,8 +165,10 @@ const SubmitContributionPage: React.FC = () => {
     prizeDetails,
     currentState,
     description,
+    error,
     isSubmitting,
     handleSubmit,
+    prizeId,
   ]);
 
   return content;

@@ -1,12 +1,12 @@
 import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
-import { EncryptedUint32, Permission } from "fhenixjs";
+import { EncryptedUint32, FhenixClient } from "fhenixjs";
 import { useCallback } from "react";
 import toast from "react-hot-toast";
 import { Address, Hash } from "viem";
-import { useBlockNumber, usePublicClient, useWalletClient, useWriteContract, useAccount } from "wagmi";
+import { useBlockNumber, usePublicClient, useWriteContract } from "wagmi";
 import { config } from "../config";
-import { AllocationStrategy, PrizeDetails, PrizeParams, State } from "../lib/types";
 import { useWalletContext } from "../contexts/WalletContext";
+import { AllocationStrategy, PrizeDetails, PrizeParams, State } from "../lib/types";
 
 type AbiFunction = {
   type: "function";
@@ -33,14 +33,12 @@ const convertToAllocationStrategy = (strategy: number): AllocationStrategy => {
   }
 };
 
-export const usePrizeDiamond = () => {
+export const usePrizeDiamond = (fhenixClient: FhenixClient | null) => {
   const queryClient = useQueryClient();
   const publicClient = usePublicClient();
-  const { data: walletClient } = useWalletClient();
-  const { address, isConnected } = useAccount();
   const { writeContractAsync } = useWriteContract();
-  const { fhenixClient } = useWalletContext();
   const { data: blockNumber } = useBlockNumber({ watch: true });
+  const { address, isConnected, walletClient } = useWalletContext();
 
   const diamondAddress = config.contracts.Diamond.address;
 
@@ -62,7 +60,7 @@ export const usePrizeDiamond = () => {
         throw error;
       }
     },
-    [publicClient, diamondAddress, diamondAbi],
+    [publicClient, diamondAddress],
   );
 
   const useReadDiamond = useCallback(
@@ -94,16 +92,14 @@ export const usePrizeDiamond = () => {
     async (prizeId: bigint): Promise<PrizeDetails> => {
       const cacheKey = ["prizeDetails", prizeId.toString()];
       const cachedPrize = queryClient.getQueryData<PrizeDetails>(cacheKey);
-
       if (cachedPrize) {
         return cachedPrize;
       }
-
       try {
         const details = await readDiamond("getPrizeDetails", [prizeId.toString()]);
         console.log("Prize details fetched:", details);
 
-        const prizeDetails = {
+        const prizeDetails: PrizeDetails = {
           id: BigInt(details.id),
           organizer: details.organizer as Address,
           name: details.name as string,
@@ -469,23 +465,6 @@ export const usePrizeDiamond = () => {
     [getPrizeDetails, getContributionIdsForContestant],
   );
 
-  const encryptScores = useCallback(
-    async (scores: number[]): Promise<EncryptedUint32[]> => {
-      if (!fhenixClient) throw new Error("FHE client is not available");
-      return Promise.all(scores.map((score) => fhenixClient.encrypt_uint32(score)));
-    },
-    [fhenixClient],
-  );
-
-  const decryptReward = useCallback(
-    async (encryptedReward: string): Promise<bigint> => {
-      if (!fhenixClient) throw new Error("FHE client is not available");
-      const decryptedReward = await fhenixClient.unseal(config.contracts.Diamond.address, encryptedReward);
-      return BigInt(decryptedReward);
-    },
-    [fhenixClient],
-  );
-
   function formatForContractCall(encryptedString: EncryptedUint32[]): { data: Hash }[] {
     return encryptedString.map((encNum) => ({ data: `0x${Buffer.from(encNum.data).toString("hex")}` }));
   }
@@ -520,33 +499,33 @@ export const usePrizeDiamond = () => {
   const computeContestantClaimReward = useMutation<string, Error, { prizeId: bigint }>({
     mutationFn: async ({ prizeId }) => {
       if (!walletClient) throw new Error("Wallet not connected");
-      
+
       console.log(`📝 Attempting to compute contestant claim reward for Prize ID: ${prizeId.toString()}`);
       console.log(`🔍 Fetching prize details...`);
-      
+
       try {
         // Fetch prize details
         const prizeDetails = await getPrizeDetails(prizeId);
         console.log(`📄 Prize Details:`, prizeDetails);
-        
+
         // Validate Prize State
         if (prizeDetails.state !== State.Claiming) {
           throw new Error(`❌ Invalid prize state: ${prizeDetails.state}. Expected: ${State.Claiming}`);
         }
-        
+
         // Check Rewards Allocation
         if (!prizeDetails.rewardsAllocated) {
           throw new Error("❌ Rewards have not been allocated yet");
         }
-        
+
         // Verify User's Contributions
         const contributionIds = await getContributionIdsForContestant(prizeId, address);
         console.log(`🔢 Contribution IDs for User:`, contributionIds);
-        
+
         if (contributionIds.length === 0) {
           throw new Error("❌ No contributions found for this prize");
         }
-        
+
         // Proceed with contract call
         const txHash = await writeContractAsync({
           address: diamondAddress as Address,
@@ -554,10 +533,9 @@ export const usePrizeDiamond = () => {
           functionName: "computeContestantClaimReward",
           args: [prizeId.toString()],
         });
-        
+
         console.log(`✅ Transaction submitted successfully. Hash: ${txHash}`);
         return txHash;
-        
       } catch (error: any) {
         console.error(`⚠️ Error in computeContestantClaimReward:`, error);
         throw error;
@@ -574,13 +552,6 @@ export const usePrizeDiamond = () => {
     },
   });
 
-  const viewContestantClaimReward = useCallback(
-    async (prizeId: bigint, permission: Permission): Promise<string> => {
-      return readDiamond("viewContestantClaimReward", [prizeId.toString(), permission]);
-    },
-    [readDiamond],
-  );
-
   const allocateRewardsBatch = useMutation<void, Error, { prizeId: bigint; batchSize: bigint }>({
     mutationFn: async ({ prizeId, batchSize }) => {
       if (!writeContractAsync) throw new Error("Write contract function is unavailable");
@@ -589,7 +560,7 @@ export const usePrizeDiamond = () => {
         address: diamondAddress as Address,
         abi: diamondAbi,
         functionName: "allocateRewardsBatch",
-        args: [prizeId.toString(), batchSize.toString()],
+        args: [prizeId, batchSize.toString()],
       });
     },
     onSuccess: (_, { prizeId }) => {
@@ -616,7 +587,7 @@ export const usePrizeDiamond = () => {
         address: diamondAddress as Address,
         abi: diamondAbi,
         functionName: "updateClaimStatus",
-        args: [prizeId.toString()],
+        args: [prizeId],
       });
     },
     onSuccess: (_, { prizeId }) => {
@@ -630,88 +601,156 @@ export const usePrizeDiamond = () => {
   });
 
   const viewAndDecryptClaimedReward = useCallback(
-    async (prizeId: bigint): Promise<bigint> => {
-      if (!fhenixClient) throw new Error("Fhenix client is not available");
-      if (!address) throw new Error("Address is not available");
+    async (prizeId: bigint) => {
+      console.log("Starting viewAndDecryptClaimedReward for prizeId:", prizeId.toString());
+      console.log("Current wallet address:", address);
 
-      const reward = await readDiamond("viewContestantClaimReward", [
-        prizeId.toString(),
-        fhenixClient.getPermit(config.contracts.Diamond.address, address),
-      ]);
-      const decryptedReward = await fhenixClient.unseal(config.contracts.Diamond.address, reward);
-      return BigInt(decryptedReward);
+      if (!fhenixClient || !walletClient) {
+        console.error("Fhenix client or wallet client is not available");
+        throw new Error("Fhenix client or wallet client is not available");
+      }
+
+      try {
+        console.log("Using wallet client as signer...");
+        console.log("Wallet client address:", walletClient.account.address);
+
+        console.log("Generating permit...");
+        console.log("PrizeRewardFacet address:", config.contracts.PrizeRewardFacet.address);
+
+        // Create a compatible signer object for FhenixClient
+        const compatibleSigner = {
+          getAddress: async () => walletClient.account.address,
+          signTypedData: async (domain, types, value) => {
+            return walletClient.signTypedData({
+              domain,
+              types,
+              primaryType: "Permit",
+              message: value,
+            });
+          },
+        };
+
+        const permit = await fhenixClient.generatePermit(
+          config.contracts.PrizeRewardFacet.address,
+          undefined,
+          compatibleSigner,
+        );
+
+        console.log("Generated permit:", JSON.stringify(permit, null, 2));
+
+        console.log("Extracting permit permission...");
+        const permission = fhenixClient.extractPermitPermission(permit);
+        console.log("Extracted permission:", permission);
+
+        console.log("Calling viewContestantClaimReward...");
+        const encryptedReward: string = await readDiamond("viewContestantClaimReward", [prizeId, permission]);
+        console.log("Received encrypted reward:", encryptedReward);
+
+        console.log("Unsealing reward...");
+        const decryptedReward = fhenixClient.unseal(config.contracts.PrizeRewardFacet.address, encryptedReward);
+        console.log("Decrypted reward:", decryptedReward);
+
+        return decryptedReward;
+      } catch (error) {
+        console.error("Error in viewAndDecryptClaimedReward:", error);
+        throw error;
+      }
     },
-    [fhenixClient, readDiamond, address],
+    [fhenixClient, address, readDiamond, walletClient],
+  );
+
+  // const createPermitSigner = (signer: WalletClient): FhenixPermitSigner => {
+  //   return {
+  //     getAddress: async () => {
+  //       const [address] = await signer.getAddresses();
+  //       return address;
+  //     },
+  //     signTypedData: async (
+  //       domain: TypedDataDomain,
+  //       types: Record<string, Array<{ name: string; type: string }>>,
+  //       value: Record<string, any>,
+  //     ) => {
+  //       const [address] = await signer.getAddresses();
+
+  //       // Ensure that the types object includes the Permissioned type
+  //       if (!types.Permissioned) {
+  //         throw new Error("Permissioned type is missing from types object");
+  //       }
+
+  //       // Convert the domain object to the expected format
+  //       const formattedDomain: TypedDataDomain = {
+  //         name: domain.name,
+  //         version: domain.version,
+  //         chainId: domain.chainId,
+  //         verifyingContract: domain.verifyingContract,
+  //       };
+
+  //       try {
+  //         const signature = await signer.signTypedData({
+  //           account: address,
+  //           domain: formattedDomain,
+  //           types,
+  //           primaryType: "Permissioned",
+  //           message: value,
+  //         });
+  //         return signature;
+  //       } catch (error) {
+  //         console.error("Error in signTypedData:", error);
+  //         throw error;
+  //       }
+  //     },
+  //   };
+  // };
+
+  const encryptScores = useCallback(
+    async (scores: number[]): Promise<EncryptedUint32[]> => {
+      if (!fhenixClient) throw new Error("FHE client is not available");
+      return Promise.all(scores.map((score) => fhenixClient.encrypt_uint32(score)));
+    },
+    [fhenixClient],
   );
 
   return {
-    getState,
-    isPrizeEvaluator,
-    getPrizeEvaluatorCount,
-    getContributionCount,
+    addEvaluatorsAsync,
+    allocateRewardsBatchAsync: allocateRewardsBatch.mutateAsync,
+    areAllRewardsClaimed,
+    assignCriteriaWeightsAsync: assignCriteriaWeights.mutateAsync,
+    blockNumber: blockNumber ? Number(blockNumber) : undefined,
+    canEvaluate,
+    computeContestantClaimRewardAsync: computeContestantClaimReward.mutateAsync,
+    createPrizeAsync: createPrize.mutateAsync,
+    evaluateContributionAsync: evaluateContribution.mutateAsync,
+    fundTotallyAsync: fundTotally.mutateAsync,
+    getAllAllocationStrategies,
+    getAllocationDetails,
+    getAllocationStrategy,
+    getContestants,
     getContribution,
     getContributionByIndex,
+    getContributionCount,
     getContributionIdsForContestant,
-    getEvaluationCount,
-    hasEvaluatorScoredContribution,
     getCriteriaWeights,
-    areAllRewardsClaimed,
-    getAllAllocationStrategies,
-    getAllocationStrategy,
-    getPrizeEvaluators,
-
+    getEvaluatedContributions,
+    getEvaluationCount,
     getPrizeCount,
     getPrizeDetails,
-    usePrizeDetails,
+    getPrizeEvaluatorCount,
+    getPrizeEvaluators,
     getPrizes,
-    getContestants,
-
-    fundTotally: fundTotally.mutate,
-    fundTotallyAsync: fundTotally.mutateAsync,
-
-    setAllocationStrategy: setAllocationStrategy.mutate,
-    setAllocationStrategyAsync: setAllocationStrategy.mutateAsync,
-
-    assignCriteriaWeights: assignCriteriaWeights.mutate,
-    assignCriteriaWeightsAsync: assignCriteriaWeights.mutateAsync,
-
-    createPrize: createPrize.mutate,
-    createPrizeAsync: createPrize.mutateAsync,
-
-    submitContribution: submitContribution.mutate,
-    submitContributionAsync: submitContribution.mutateAsync,
-
-    evaluateContribution: evaluateContribution.mutate,
-    evaluateContributionAsync: evaluateContribution.mutateAsync,
-
-    allocateRewardsBatch: allocateRewardsBatch.mutate,
-    allocateRewardsBatchAsync: allocateRewardsBatch.mutateAsync,
-
-    computeContestantClaimReward: computeContestantClaimReward.mutate,
-    computeContestantClaimRewardAsync: computeContestantClaimReward.mutateAsync,
-
-    viewContestantClaimReward,
-
-    moveToNextState: moveToNextState.mutate,
-    moveToNextStateAsync: moveToNextState.mutateAsync,
-
-    updateClaimStatus: updateClaimStatus.mutate,
-    updateClaimStatusAsync: updateClaimStatus.mutateAsync,
-
-    encryptScores,
-    decryptReward,
-
-    waitForTransaction,
-
-    blockNumber: blockNumber ? Number(blockNumber) : undefined,
-
-    canEvaluate,
-    isPrizeOrganizer,
-    addEvaluatorsAsync,
-    getEvaluatedContributions,
-    getAllocationDetails,
+    getState,
     hasClaimableReward,
+    hasEvaluatorScoredContribution,
+    isPrizeEvaluator,
+    isPrizeOrganizer,
+    encryptScores,
+    moveToNextStateAsync: moveToNextState.mutateAsync,
+    setAllocationStrategyAsync: setAllocationStrategy.mutateAsync,
+    submitContributionAsync: submitContribution.mutateAsync,
+    updateClaimStatusAsync: updateClaimStatus.mutateAsync,
+    usePrizeDetails,
     viewAndDecryptClaimedReward,
+    waitForTransaction,
+    fhenixClient,
   } as const;
 };
 

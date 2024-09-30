@@ -9,8 +9,7 @@ import React from "react";
 const Navbar: React.FC = () => {
   const [isMounted, setIsMounted] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { account, isLoading } = useWalletContext();
-  const isConnected = account.isConnected;
+  const { isConnected, isLoading } = useWalletContext();
 
   useEffect(() => {
     setIsMounted(true);

@@ -22,6 +22,7 @@ contract PrizeStateFacet {
             newState = LibPrize.State.Open;
         } else if (prize.state == LibPrize.State.Open) {
             require(prize.contributionCount > 0, "At least one contribution is required");
+            require(LibACL.getPrizeEvaluatorCount(prizeId) > 0, "At least one evaluator must be set up");
             newState = LibPrize.State.Evaluating;
         } else if (prize.state == LibPrize.State.Evaluating) {
             require(prize.evaluatedContributionsCount == prize.contributionCount, "Not all contributions evaluated");

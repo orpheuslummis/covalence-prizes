@@ -1,6 +1,6 @@
 // src/pages/PrizePage.tsx
 
-import React, { useEffect, useMemo, useCallback } from "react";
+import React, { useMemo, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { formatEther } from "viem";
@@ -40,7 +40,7 @@ const PrizePage: React.FC = () => {
   const {
     data: roles,
     isLoading: rolesLoading,
-    error: rolesError
+    error: rolesError,
   } = useQuery({
     queryKey: ["prizeRoles", prizeIdBigInt?.toString(), address],
     queryFn: async () => {
@@ -79,13 +79,22 @@ const PrizePage: React.FC = () => {
   const handleViewClaimReward = useCallback(async () => {
     if (!prizeIdBigInt) return;
     try {
+      console.log("Attempting to view claimed reward for prize:", prizeIdBigInt.toString());
+      console.log("Current address:", address);
+
       const reward = await prizeDiamond.viewAndDecryptClaimedReward(prizeIdBigInt);
+      console.log("Received decrypted reward:", reward);
       toast.success(`Claimed reward: ${formatEther(reward)} ETH`);
     } catch (error) {
       console.error("Error viewing claimed reward:", error);
-      toast.error("Failed to view claimed reward. Please try again.");
+      if (error instanceof Error) {
+        console.error("Error name:", error.name);
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      }
+      toast.error("Failed to view claimed reward. Please check console for details.");
     }
-  }, [prizeIdBigInt, prizeDiamond]);
+  }, [prizeIdBigInt, prizeDiamond, address]);
 
   if (isLoading) {
     return <div className="text-center py-10 text-neutral-100">Loading prize details...</div>;
@@ -130,7 +139,7 @@ const PrizePage: React.FC = () => {
                     Submit Contribution
                   </Link>
                 )}
-                {roles?.canEvaluate && (
+                {roles?.canEvaluate && prizeDetails.state !== State.Open && (
                   <Link to={`/prize/${prizeIdBigInt.toString()}/evaluator`} className="button-secondary">
                     Evaluate Contributions
                   </Link>

@@ -95,6 +95,9 @@ export const config = {
       address: addresses.Diamond,
       abi: mergedABI,
     },
+    PrizeRewardFacet: {
+      address: addresses.PrizeRewardFacet,
+    },
   },
   allocationStrategies,
 };

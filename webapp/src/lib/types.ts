@@ -1,5 +1,4 @@
 import { Address } from "viem";
-import { EncryptedUint32 } from "fhenixjs";
 import { usePrizeDiamond } from "../hooks/usePrizeDiamond";
 import { config } from "../config";
 
@@ -69,7 +68,9 @@ export interface AppContextType {
   refetchPrizes: () => Promise<unknown>;
   isPrizesLoading: boolean;
   allocateRewardsBatch: (params: { prizeId: bigint; batchSize: bigint }) => Promise<void>;
-  getAllocationDetails: (prizeId: bigint) => Promise<{ lastProcessedIndex: bigint; contributionCount: bigint; rewardsAllocated: boolean }>;
+  getAllocationDetails: (
+    prizeId: bigint,
+  ) => Promise<{ lastProcessedIndex: bigint; contributionCount: bigint; rewardsAllocated: boolean }>;
   hasClaimableReward: (prizeId: bigint, address: Address) => Promise<boolean>;
   claimReward: (prizeId: bigint) => Promise<void>;
 }
