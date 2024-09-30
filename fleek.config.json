@@ -1,0 +1,9 @@
+{
+  "sites": [
+    {
+      "slug": "purring-france-crooked",
+      "distDir": "webapp/dist",
+      "buildCommand": "pnpm run webapp:build"
+    }
+  ]
+}
