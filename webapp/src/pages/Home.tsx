@@ -1,10 +1,8 @@
-import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { usePrizeDiamond } from "../hooks/usePrizeDiamond";
-import { useAppContext } from "../contexts/AppContext";
+import React, { useEffect, useMemo, useState } from "react";
 import PrizeCard from "../components/PrizeCard";
-import { UserRoles } from "../lib/types";
-import { PrizeDetails } from "../lib/types";
+import { useAppContext } from "../contexts/AppContext";
+import { PrizeDetails, UserRoles, State } from "../lib/types";
 
 const PRIZES_PER_PAGE = 9;
 
@@ -16,9 +14,9 @@ const Home: React.FC = () => {
   const { userRoles } = useAppContext();
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPrizes, setTotalPrizes] = useState(0);
+  const [showClosedPrizes, setShowClosedPrizes] = useState(false);
 
-  // Ensure hooks are called at the top level of the component
-  const prizeDiamond = usePrizeDiamond();
+  const { prizeDiamond } = useAppContext();
 
   const { data, isLoading, error } = useQuery<PrizeDetails[], Error>({
     queryKey: ["prizes", currentPage],
@@ -47,10 +45,13 @@ const Home: React.FC = () => {
 
   const sortedPrizes = useMemo(() => {
     const prizes = data ?? [];
-    const activePrizes = prizes.filter((_) => isUserActiveInPrize(userRoles));
-    const inactivePrizes = prizes.filter((_) => !isUserActiveInPrize(userRoles));
+    const filteredPrizes = prizes.filter((prize) =>
+      showClosedPrizes ? prize.state === State.Closed : prize.state !== State.Closed,
+    );
+    const activePrizes = filteredPrizes.filter(() => isUserActiveInPrize(userRoles));
+    const inactivePrizes = filteredPrizes.filter(() => !isUserActiveInPrize(userRoles));
     return [...activePrizes, ...inactivePrizes];
-  }, [data, userRoles]);
+  }, [data, userRoles, showClosedPrizes]);
 
   if (error) {
     console.error("Error fetching prizes:", error);
@@ -67,10 +68,23 @@ const Home: React.FC = () => {
           A decentralized platform revolutionizing prize management with homomorphic smart contracts.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
-          <FeatureCard title="Privacy & Transparency" description="Ensure data privacy while maintaining verifiable records." />
+          <FeatureCard
+            title="Privacy & Transparency"
+            description="Ensure data privacy while maintaining verifiable records."
+          />
           <FeatureCard title="Flexible Rewards" description="Support both monetary and non-monetary incentives." />
           <FeatureCard title="Community-Driven" description="Involve stakeholders in prize creation and evaluation." />
         </div>
+      </div>
+
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">Prizes</h2>
+        <button
+          onClick={() => setShowClosedPrizes(!showClosedPrizes)}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+        >
+          {showClosedPrizes ? "Show Open Prizes" : "Show Closed Prizes"}
+        </button>
       </div>
 
       {isLoading ? (
@@ -81,7 +95,8 @@ const Home: React.FC = () => {
         <div id="prizes" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {sortedPrizes.length === 0 ? (
             <p className="text-gray-500 col-span-full">
-              No prizes available at the moment. (Total count: {totalPrizes})
+              {totalPrizes > 0 ? "Loading prizes..." : "No prizes available at the moment."}
+              (Total count: {totalPrizes})
             </p>
           ) : (
             sortedPrizes.map((prize) => <PrizeCard key={prize.id} prize={prize} />)

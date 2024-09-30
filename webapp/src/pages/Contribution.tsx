@@ -2,12 +2,12 @@ import React from "react";
 import { FaArrowLeft } from "react-icons/fa";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { usePrizeDiamond } from "../hooks/usePrizeDiamond";
 import { Contribution, PrizeDetails } from "../lib/types";
+import { useAppContext } from "../contexts/AppContext";
 
 const ContributionPage: React.FC = () => {
   const { prizeId, id } = useParams<{ prizeId: string; id: string }>();
-  const prizeDiamond = usePrizeDiamond();
+  const { prizeDiamond } = useAppContext();
 
   const {
     data: prizeData,
@@ -88,6 +88,15 @@ const ContributionPage: React.FC = () => {
             </p>
           </div>
         )}
+
+        <div className="text-center mt-8">
+          <Link
+            to={`/prize/${prizeId}/submit`}
+            className="bg-secondary-500 text-white px-6 py-3 rounded-lg hover:bg-secondary-600 transition duration-300"
+          >
+            Submit New Contribution
+          </Link>
+        </div>
       </div>
     </div>
   );

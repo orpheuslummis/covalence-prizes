@@ -387,6 +387,95 @@ body {
   .text-content {
     @apply text-lg leading-relaxed;
   }
+
+  .progress-circle {
+    @apply w-8 h-8 sm:w-10 sm:h-10 md:w-16 md:h-16 rounded-full flex items-center justify-center text-xs sm:text-sm md:text-base font-bold transition-all duration-300 shadow-md;
+  }
+
+  .progress-circle-completed {
+    @apply bg-accent-500 text-white;
+  }
+
+  .progress-circle-active {
+    @apply bg-secondary-500 text-white shadow-lg transform scale-110 animate-pulse;
+  }
+
+  .progress-circle-inactive {
+    @apply bg-gray-400 text-gray-200;
+  }
+
+  .progress-label {
+    @apply mt-2 text-xs sm:text-sm font-medium;
+  }
+
+  .progress-label-completed {
+    @apply text-accent-400;
+  }
+
+  .progress-label-active {
+    @apply text-secondary-300 font-bold;
+  }
+
+  .progress-label-inactive {
+    @apply text-gray-400;
+  }
+
+  .progress-connector {
+    @apply flex-grow h-1 bg-gray-300;
+  }
+
+  .progress-connector-completed {
+    @apply bg-accent-500;
+  }
+
+  /* Current State Card */
+  .current-state-card {
+    @apply bg-primary-700 rounded-lg p-4 sm:p-5 shadow-md transition-all duration-300 hover:shadow-lg border border-primary-600;
+  }
+
+  .current-state-badge {
+    @apply text-sm sm:text-base font-medium text-primary-200 bg-primary-600 rounded-full px-3 py-1 inline-block;
+  }
+
+  .current-state-content {
+    @apply text-white text-sm sm:text-base mt-2;
+  }
+
+  .current-state-button {
+    @apply px-4 py-2 text-sm sm:text-base bg-secondary-500 text-white font-semibold rounded-lg transition-all duration-300 hover:bg-secondary-600 focus:outline-none focus:ring-2 focus:ring-secondary-400 focus:ring-opacity-50 shadow-md hover:shadow-lg;
+  }
+
+  .current-state-button-disabled {
+    @apply bg-gray-400 cursor-not-allowed hover:bg-gray-400 shadow-none;
+  }
+
+  .contribution-card {
+    @apply rounded-lg shadow-md transition-shadow duration-300 hover:shadow-xl flex flex-col h-full overflow-hidden;
+  }
+
+  .contribution-card-content {
+    @apply p-4 flex-grow;
+  }
+
+  .contribution-card-title {
+    @apply text-lg font-semibold mb-2 truncate;
+  }
+
+  .contribution-card-own-tag {
+    @apply ml-2 text-sm font-normal text-purple-600;
+  }
+
+  .contribution-card-detail {
+    @apply text-gray-700 mb-2 truncate;
+  }
+
+  .contribution-card-description {
+    @apply text-gray-700 mb-2 line-clamp-3;
+  }
+
+  .contribution-card-footer {
+    @apply mt-auto p-4 bg-gray-50 border-t border-gray-200;
+  }
 }
 
 /* Animations */
@@ -477,27 +566,5 @@ body {
 
   .progress-connector-completed {
     @apply bg-green-500;
-  }
-
-  /* Current State Card */
-  .current-state-card {
-    @apply rounded-lg p-4 sm:p-6 md:p-8 shadow-xl transform transition-all duration-300 hover:scale-105 border-4 border-secondary-300;
-    background-blend-mode: overlay;
-  }
-
-  .current-state-title {
-    @apply text-xl sm:text-xl md:text-2xl font-bold mb-3 sm:mb-4 md:mb-6 text-white text-shadow-lg text-center;
-  }
-
-  .current-state-content {
-    @apply text-white text-sm sm:text-base md:text-lg text-center;
-  }
-
-  .current-state-button {
-    @apply mt-3 sm:mt-4 md:mt-6 w-full py-2 sm:py-3 md:py-4 px-4 sm:px-6 md:px-8 bg-gray-200 text-gray-900 font-bold text-sm sm:text-base md:text-xl rounded-full transition-all duration-300 hover:bg-gray-100 hover:shadow-lg transform hover:scale-105;
-  }
-
-  .current-state-button-disabled {
-    @apply bg-gray-300 text-gray-500 cursor-not-allowed hover:bg-gray-300 hover:scale-100;
   }
 }

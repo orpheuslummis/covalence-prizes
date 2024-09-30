@@ -4,6 +4,7 @@ import { formatEther, parseEther } from "viem";
 import { toast } from "react-hot-toast";
 import { AllocationStrategy, PrizeParams } from "../lib/types";
 import { usePrizeDiamond } from "../hooks/usePrizeDiamond";
+import { useAppContext } from "../contexts/AppContext";
 
 interface TestPrize {
   name: string;
@@ -63,7 +64,7 @@ const TestPrizeCreation: React.FC = () => {
     };
   }, []);
 
-  const { createPrizeAsync } = usePrizeDiamond();
+  const { prizeDiamond } = useAppContext();
   const { address, isConnected } = useAccount();
   const { data: balance } = useBalance({ address });
 
@@ -114,7 +115,7 @@ const TestPrizeCreation: React.FC = () => {
         strategy: testPrize.allocationStrategy,
       };
 
-      await createPrizeAsync(prizeParams);
+      await prizeDiamond.createPrizeAsync(prizeParams);
       toast.success("Prize created successfully!");
       // Optionally, wait for transaction confirmation
 
@@ -170,17 +171,12 @@ const TestPrizeCreation: React.FC = () => {
           </ul>
         </div>
         <div className="flex space-x-4 mb-6">
-          <button
-            onClick={handleGenerateNewPrize}
-            className="flex-1 button-secondary"
-          >
+          <button onClick={handleGenerateNewPrize} className="flex-1 button-secondary">
             Generate New Prize
           </button>
           <button
             onClick={handleCreatePrize}
-            className={`flex-1 button-primary ${
-              loading ? "opacity-50 cursor-not-allowed" : ""
-            }`}
+            className={`flex-1 button-primary ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
             disabled={!isConnected || !address || loading}
           >
             {loading ? "Creating Prize..." : "Create Prize"}

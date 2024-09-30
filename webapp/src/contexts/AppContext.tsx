@@ -1,3 +1,11 @@
+/**
+ * Provides a React context for managing global application state. This context uses
+ * React's built-in context API and TanStack Query for data fetching and caching.
+ * It provides access to contract instances, prize details, user roles, and functions
+ * for interacting with the Prize Diamond contract.  It also includes the `fhenixClient`
+ * for interacting with Fhenix.  The context ensures data consistency and efficient
+ * updates through TanStack Query's caching and invalidation mechanisms.
+ */
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from "react";
 import { useQuery, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { persistQueryClient } from "@tanstack/react-query-persist-client";
@@ -7,13 +15,14 @@ import { config } from "../config";
 import { usePrizeDiamond } from "../hooks/usePrizeDiamond";
 import { PrizeDetails, Role } from "../lib/types";
 import { Address } from "viem";
-// import { debounce } from "lodash";
+import { useWalletContext } from "./WalletContext";
+import { useFhenixClient } from "../hooks/useFhenixClient";
+import { FhenixClient } from "fhenixjs";
 
 export interface AppContextType {
   contracts: typeof config.contracts;
   prizeDiamond: ReturnType<typeof usePrizeDiamond>;
   isLoading: boolean;
-  setIsLoading: (isLoading: boolean) => void;
   prizes: PrizeDetails[];
   userRoles: Role[];
   setUserRoles: React.Dispatch<React.SetStateAction<Role[]>>;
@@ -28,28 +37,11 @@ export interface AppContextType {
   }>;
   hasClaimableReward: (prizeId: bigint, address: Address) => Promise<boolean>;
   claimReward: (prizeId: bigint) => Promise<void>;
+  fhenixClient: FhenixClient | null;
+  fhenixError: string | null;
 }
 
-export const AppContext = createContext<AppContextType>({
-  contracts: config.contracts,
-  prizeDiamond: {} as ReturnType<typeof usePrizeDiamond>,
-  isLoading: false,
-  setIsLoading: () => {},
-  prizes: [],
-  userRoles: [],
-  setUserRoles: () => {},
-  blockNumber: undefined,
-  refetchPrizes: async () => {},
-  isPrizesLoading: false,
-  allocateRewardsBatch: async () => {},
-  getAllocationDetails: async () => ({
-    lastProcessedIndex: 0n,
-    contributionCount: 0n,
-    rewardsAllocated: false,
-  }),
-  hasClaimableReward: async () => false,
-  claimReward: async () => {},
-});
+const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,9 +53,11 @@ const queryClient = new QueryClient({
 });
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { address } = useWalletContext();
   const [userRoles, setUserRoles] = useState<Role[]>([]);
-  const prizeDiamond = usePrizeDiamond();
   const { data: blockNumber } = useBlockNumber({ watch: true });
+  const { fhenixClient, fhenixError } = useFhenixClient();
+  const prizeDiamond = usePrizeDiamond(fhenixClient);
 
   const fetchPrizes = useCallback(async () => {
     if (!prizeDiamond.getPrizeCount || !prizeDiamond.getPrizes) {
@@ -80,7 +74,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const prizes = await prizeDiamond.getPrizes(0n, count);
     queryClient.setQueryData(cacheKey, prizes);
     return prizes;
-  }, [prizeDiamond, queryClient]);
+  }, [prizeDiamond]);
 
   const {
     data: prizesData,
@@ -93,12 +87,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     retry: 3,
     enabled: !!prizeDiamond.getPrizeCount && !!prizeDiamond.getPrizes,
   });
-
-  useEffect(() => {
-    if (blockNumber && blockNumber % 10n === 0n) {
-      refetchPrizesQuery();
-    }
-  }, [blockNumber, refetchPrizesQuery]);
 
   // Setup Query Persistence
   useEffect(() => {
@@ -124,7 +112,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       contracts: config.contracts,
       prizeDiamond,
       isLoading: isPrizesLoading,
-      setIsLoading: () => {}, // Implement if needed
       prizes: prizesData || [],
       userRoles,
       setUserRoles,
@@ -133,10 +120,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isPrizesLoading,
       allocateRewardsBatch: (params) => prizeDiamond.allocateRewardsBatchAsync(params),
       getAllocationDetails: (prizeId) => prizeDiamond.getAllocationDetails(prizeId),
-      hasClaimableReward: prizeDiamond.hasClaimableReward,
+      hasClaimableReward: (prizeId, address) => prizeDiamond.hasClaimableReward(prizeId, address),
       claimReward: (prizeId) => prizeDiamond.computeContestantClaimRewardAsync({ prizeId }).then(() => {}),
+      fhenixClient,
+      fhenixError,
     }),
-    [prizeDiamond, isPrizesLoading, prizesData, userRoles, blockNumber, refetchPrizes],
+    [
+      prizeDiamond,
+      isPrizesLoading,
+      prizesData,
+      userRoles,
+      blockNumber,
+      refetchPrizes,
+      address,
+      fhenixClient,
+      fhenixError,
+    ],
   );
 
   return (

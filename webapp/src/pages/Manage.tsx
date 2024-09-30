@@ -6,40 +6,25 @@ import { useAccount } from "wagmi";
 import { config } from "../config";
 import { AllocationStrategy, PrizeDetails, State } from "../lib/types";
 import { useAppContext } from "../contexts/AppContext";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import ProgressBar from "../components/ProgressBar";
 import ManagementCard from "../components/ManagementCard";
 import StatusItem from "../components/StatusItem";
+import React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 const getStrategyName = (strategy: AllocationStrategy): string => {
   return config.allocationStrategies[strategy].label;
 };
 
-export default function ManagePrizePage() {
-  const { isConnected } = useAccount();
-
-  if (!isConnected) {
-    return (
-      <div className="container mx-auto px-4 py-8 bg-gradient-to-br from-primary-800 to-primary-900 min-h-screen text-white flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold mb-4">Wallet Not Connected</h1>
-          <p className="mb-4">Please connect your wallet to access the Manage Prize page.</p>
-          <button
-            onClick={() => (window.location.href = "/")}
-            className="button-primary"
-          >
-            Go to Home
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+const ManagePrizePage: React.FC = () => {
   const { prizeId } = useParams<{ prizeId: string }>();
-  const { address } = useAccount();
-  const { prizeDiamond, isPrizesLoading, prizes, allocateRewardsBatch, getAllocationDetails } = useAppContext();
+  const { prizeDiamond, isPrizesLoading } = useAppContext();
+  const { address, isConnected } = useAccount();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const memoizedPrizeDiamond = useMemo(() => prizeDiamond, [prizeDiamond]);
+  const parsedPrizeId: bigint | undefined = useMemo(() => (prizeId ? BigInt(prizeId) : undefined), [prizeId]);
 
   const [prize, setPrize] = useState<PrizeDetails | null>(null);
   const [weights, setWeights] = useState<number[]>([]);
@@ -59,48 +44,43 @@ export default function ManagePrizePage() {
     rewardsAllocated: boolean;
   } | null>(null);
 
-  const parsedPrizeId = useMemo(() => (prizeId ? BigInt(prizeId as string) : undefined), [prizeId]);
-
   useEffect(() => {
-    console.log("ManagePrizePage: Component mounted");
-    console.log("prizeId:", prizeId);
-    console.log("isPrizesLoading:", isPrizesLoading);
-    console.log("prizes:", prizes);
-  }, [prizeId, isPrizesLoading, prizes]);
+    if (!isConnected || !address) {
+      toast.error("Please connect your wallet to manage the prize");
+      navigate("/");
+    }
+  }, [isConnected, address, navigate]);
 
   const fetchPrizeDetails = useCallback(async () => {
-    if (parsedPrizeId === undefined || !memoizedPrizeDiamond) {
-      console.log("Cannot fetch prize details: parsedPrizeId is undefined or memoizedPrizeDiamond is not available");
-      return;
-    }
+    if (!parsedPrizeId || !address) return;
 
-    setIsLoading(true);
-    setError(null);
+    console.log("Fetching prize details for prizeId:", parsedPrizeId.toString());
     try {
-      console.log("Fetching prize details for prizeId:", parsedPrizeId.toString());
+      const fetchedPrize = await prizeDiamond.getPrizeDetails(parsedPrizeId);
+      const weights = await prizeDiamond.getCriteriaWeights(parsedPrizeId);
+      const isOrganizerCheck = await prizeDiamond.isPrizeOrganizer(parsedPrizeId, address);
+      const evaluatorsList = await prizeDiamond.getPrizeEvaluators(parsedPrizeId);
+      const allocDetails = await prizeDiamond.getAllocationDetails(parsedPrizeId);
+      const contributionCount = await prizeDiamond.getContributionCount(parsedPrizeId);
 
-      const [prizeDetails, fetchedWeights, isOrganizerResult, evaluatorsList, allocationDetails] = await Promise.all([
-        memoizedPrizeDiamond.getPrizeDetails(parsedPrizeId),
-        memoizedPrizeDiamond.getCriteriaWeights(parsedPrizeId),
-        address ? memoizedPrizeDiamond.isPrizeOrganizer(parsedPrizeId, address) : false,
-        memoizedPrizeDiamond.getPrizeEvaluators(parsedPrizeId),
-        memoizedPrizeDiamond.getAllocationDetails(parsedPrizeId),
-      ]);
-
-      console.log("Fetched prize details:", prizeDetails);
-      console.log("Fetched weights:", fetchedWeights);
-      console.log("Is organizer:", isOrganizerResult);
+      console.log("Fetched prize details:", fetchedPrize);
+      console.log("Fetched weights:", weights);
+      console.log("Is organizer:", isOrganizerCheck);
       console.log("Evaluators list:", evaluatorsList);
-      console.log("Allocation details:", allocationDetails);
+      console.log("Allocation details:", allocDetails);
+      console.log("Contribution count:", contributionCount.toString());
 
-      setPrize(prizeDetails);
-      setWeights(fetchedWeights);
-      setIsOrganizer(isOrganizerResult);
+      setPrize({
+        ...fetchedPrize,
+        contributionCount: contributionCount,
+      });
+      setWeights(weights);
+      setIsOrganizer(isOrganizerCheck);
       setIsOrganizerLoaded(true);
       setCurrentEvaluators(evaluatorsList);
-      setAllocationDetails(allocationDetails);
+      setAllocationDetails(allocDetails);
 
-      const remainingContributions = prizeDetails.contributionCount - prizeDetails.lastProcessedIndex;
+      const remainingContributions = contributionCount - fetchedPrize.lastProcessedIndex;
       setBatchSize(Number(remainingContributions >= 10n ? 10n : remainingContributions));
     } catch (error) {
       console.error("Error fetching prize details:", error);
@@ -108,11 +88,11 @@ export default function ManagePrizePage() {
     } finally {
       setIsLoading(false);
     }
-  }, [parsedPrizeId, memoizedPrizeDiamond, address]);
+  }, [parsedPrizeId, address, prizeDiamond]);
 
   useEffect(() => {
-    console.log("Effect triggered. parsedPrizeId:", parsedPrizeId, "isPrizesLoading:", isPrizesLoading);
-    if (parsedPrizeId !== undefined && !isPrizesLoading) {
+    console.log("Effect triggered. parsedPrizeId:", parsedPrizeId?.toString(), "isPrizesLoading:", isPrizesLoading);
+    if (parsedPrizeId && !isPrizesLoading) {
       console.log("Calling fetchPrizeDetails");
       fetchPrizeDetails();
     }
@@ -136,6 +116,17 @@ export default function ManagePrizePage() {
     });
   }, [prize, weights, isOrganizer, isOrganizerLoaded, isFunded, isLoading, error]);
 
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (parsedPrizeId && !isPrizesLoading) {
+        console.log("Refreshing prize details");
+        fetchPrizeDetails();
+      }
+    }, 10000); // Refresh every 10 seconds
+
+    return () => clearInterval(intervalId);
+  }, [parsedPrizeId, isPrizesLoading, fetchPrizeDetails]);
+
   const handleWeightChange = useCallback((index: number, value: string) => {
     setWeights((prevWeights) => {
       const newWeights = [...prevWeights];
@@ -153,7 +144,7 @@ export default function ManagePrizePage() {
 
       const loadingToast = toast.loading("Assigning criteria weights...");
 
-      await memoizedPrizeDiamond.assignCriteriaWeightsAsync({
+      await prizeDiamond.assignCriteriaWeightsAsync({
         prizeId: parsedPrizeId!,
         weights,
       });
@@ -165,7 +156,7 @@ export default function ManagePrizePage() {
       console.error("Error assigning weights:", error);
       toast.error("Failed to assign weights");
     }
-  }, [parsedPrizeId, weights, memoizedPrizeDiamond, fetchPrizeDetails]);
+  }, [parsedPrizeId, weights, prizeDiamond, fetchPrizeDetails]);
 
   const handleFundPrize = useCallback(async () => {
     if (isFunded) {
@@ -176,7 +167,7 @@ export default function ManagePrizePage() {
       const amount = parseEther(fundAmount);
       const loadingToast = toast.loading("Funding prize...");
 
-      await memoizedPrizeDiamond.fundTotallyAsync({ prizeId: parsedPrizeId!, amount });
+      await prizeDiamond.fundTotallyAsync({ prizeId: parsedPrizeId!, amount });
 
       toast.dismiss(loadingToast);
       toast.success("Prize funded successfully");
@@ -186,12 +177,12 @@ export default function ManagePrizePage() {
       console.error("Error funding prize:", error);
       toast.error("Failed to fund prize: " + (error instanceof Error ? error.message : String(error)));
     }
-  }, [memoizedPrizeDiamond, fundAmount, parsedPrizeId, isFunded, fetchPrizeDetails]);
+  }, [prizeDiamond, fundAmount, parsedPrizeId, isFunded, fetchPrizeDetails]);
 
   const handleAddEvaluators = useCallback(async () => {
     try {
-      if (prize?.state !== State.Setup) {
-        toast.error("Evaluators can only be added during the Setup state");
+      if (prize?.state !== State.Setup && prize?.state !== State.Open) {
+        toast.error("Evaluators can only be added during the Setup or Open state");
         return;
       }
 
@@ -205,7 +196,7 @@ export default function ManagePrizePage() {
 
       const loadingToast = toast.loading("Adding evaluators...");
 
-      await memoizedPrizeDiamond.addEvaluatorsAsync({
+      await prizeDiamond.addEvaluatorsAsync({
         prizeId: parsedPrizeId!,
         evaluators: evaluatorAddresses,
       });
@@ -214,13 +205,13 @@ export default function ManagePrizePage() {
       toast.success("Evaluators added successfully");
       setEvaluators("");
 
-      const updatedEvaluators = await memoizedPrizeDiamond.getPrizeEvaluators(parsedPrizeId!);
+      const updatedEvaluators = await prizeDiamond.getPrizeEvaluators(parsedPrizeId!);
       setCurrentEvaluators(updatedEvaluators);
     } catch (error) {
       console.error("Error adding evaluators:", error);
       toast.error("Failed to add evaluators: " + (error instanceof Error ? error.message : String(error)));
     }
-  }, [memoizedPrizeDiamond, evaluators, parsedPrizeId, prize?.state]);
+  }, [prizeDiamond, evaluators, parsedPrizeId, prize?.state]);
 
   const canMoveToNextState = useCallback(() => {
     if (!prize) return false;
@@ -229,10 +220,12 @@ export default function ManagePrizePage() {
       case State.Setup:
         return prize.fundedAmount >= prize.monetaryRewardPool && prize.strategy !== AllocationStrategy.Invalid;
       case State.Open:
-        return prize.contributionCount > 0n;
+        console.log("Checking Open state conditions:", {
+          contributionCount: prize.contributionCount.toString(),
+          evaluatorsCount: currentEvaluators.length,
+        });
+        return prize.contributionCount > 0n && currentEvaluators.length > 0;
       case State.Evaluating:
-        console.log("Evaluated Contributions:", prize.evaluatedContributionsCount);
-        console.log("Total Contributions:", Number(prize.contributionCount));
         return prize.evaluatedContributionsCount === Number(prize.contributionCount);
       case State.Allocating:
         return prize.rewardsAllocated;
@@ -241,26 +234,26 @@ export default function ManagePrizePage() {
       default:
         return false;
     }
-  }, [prize]);
+  }, [prize, currentEvaluators.length]);
 
   const getNextStateRequirements = useCallback(() => {
     if (!prize) return "";
 
     switch (prize.state) {
       case State.Setup:
-        return "Prize must be fully funded and have a valid allocation strategy.";
+        return `Prize must be fully funded (${formatEther(prize.fundedAmount)}/${formatEther(prize.monetaryRewardPool)} ETH) and have a valid allocation strategy (${prize.strategy !== AllocationStrategy.Invalid ? "Valid" : "Invalid"}).`;
       case State.Open:
-        return "At least one contribution is required.";
+        return `At least one contribution (${prize.contributionCount.toString()}) and one evaluator (${currentEvaluators.length}) are required.`;
       case State.Evaluating:
-        return "All contributions must be evaluated.";
+        return `All contributions must be evaluated (${prize.evaluatedContributionsCount}/${prize.contributionCount}).`;
       case State.Allocating:
-        return "Rewards must be allocated.";
+        return `Rewards must be allocated (${prize.rewardsAllocated ? "Done" : "Pending"}).`;
       case State.Claiming:
-        return "All rewards must be claimed.";
+        return `All rewards must be claimed (${prize.claimedRewardsCount}/${prize.contributionCount.toString()}).`;
       default:
         return "Cannot move to next state.";
     }
-  }, [prize]);
+  }, [prize, currentEvaluators.length]);
 
   const handleMoveToNextState = useCallback(async () => {
     if (!canMoveToNextState()) {
@@ -269,14 +262,26 @@ export default function ManagePrizePage() {
     }
 
     try {
+      console.log("Attempting to move to next state...");
+      console.log("Current prizeId:", prizeId);
+      console.log("Parsed prizeId:", parsedPrizeId);
+      console.log("Type of parsedPrizeId:", typeof parsedPrizeId);
+      console.log("parsedPrizeId.toString():", parsedPrizeId?.toString());
+
       const loadingToast = toast.loading("Moving to next state...");
 
-      await memoizedPrizeDiamond.moveToNextStateAsync({ prizeId: parsedPrizeId! });
+      console.log("Calling moveToNextStateAsync with:", { prizeId: parsedPrizeId! });
+
+      const result = await prizeDiamond.moveToNextStateAsync({ prizeId: parsedPrizeId! });
+
+      console.log("moveToNextStateAsync result:", result);
 
       toast.dismiss(loadingToast);
       toast.success("Moved to next state successfully");
 
       await fetchPrizeDetails();
+
+      console.log("Updated prize details:", await prizeDiamond.getPrizeDetails(parsedPrizeId!));
 
       // Instead of navigating, we'll refresh the current page
       setTimeout(() => {
@@ -285,12 +290,17 @@ export default function ManagePrizePage() {
     } catch (error) {
       console.error("Error moving to next state:", error);
       if (error instanceof ContractFunctionExecutionError) {
+        console.log("Contract error details:", error.cause);
+        console.log("Error message:", error.message);
+        console.log("Error name:", error.name);
+        console.log("Error stack:", error.stack);
         toast.error(`Failed to move to next state: ${error.message}`);
       } else {
+        console.log("Unknown error type:", error);
         toast.error("Failed to move to next state");
       }
     }
-  }, [canMoveToNextState, getNextStateRequirements, memoizedPrizeDiamond, parsedPrizeId, fetchPrizeDetails]);
+  }, [canMoveToNextState, getNextStateRequirements, prizeDiamond, parsedPrizeId, fetchPrizeDetails]);
 
   const stateProgress = useMemo(() => {
     const states = [State.Setup, State.Open, State.Evaluating, State.Allocating, State.Claiming, State.Closed];
@@ -298,8 +308,9 @@ export default function ManagePrizePage() {
       state,
       active: prize?.state === state,
       completed: states.indexOf(state) < states.indexOf(prize?.state || State.Setup),
+      canActivate: state === states[states.indexOf(prize?.state || State.Setup) + 1] && canMoveToNextState(),
     }));
-  }, [prize?.state]);
+  }, [prize?.state, canMoveToNextState]);
 
   useEffect(() => {
     if (prize) {
@@ -329,34 +340,59 @@ export default function ManagePrizePage() {
     setAllocationInProgress(true);
 
     try {
-      await allocateRewardsBatch({
+      const result = await prizeDiamond.allocateRewardsBatchAsync({
         prizeId: parsedPrizeId,
         batchSize: BigInt(batchSize),
       });
+
+      console.log("Allocation result:", result);
       toast.success(`Successfully allocated rewards for ${batchSize} contributions`);
 
-      // Refetch prize details and allocation details
+      // Fetch updated prize details and allocation details
       await fetchPrizeDetails();
-      const updatedDetails = await getAllocationDetails(parsedPrizeId);
+      const updatedDetails = await prizeDiamond.getAllocationDetails(parsedPrizeId);
       setAllocationDetails(updatedDetails);
+
+      // Invalidate and refetch the prize details query
+      queryClient.invalidateQueries({ queryKey: ["prizeDetails", parsedPrizeId.toString()] });
     } catch (error: any) {
       console.error("Allocation error:", error);
-      toast.error(`Failed to allocate rewards: ${error.message || String(error)}`);
+      let errorMessage = "Failed to allocate rewards";
+      if (error.message) {
+        if (error.message.includes("execution aborted (timeout = 5s)")) {
+          errorMessage += ": Operation timed out. Please try a smaller batch size.";
+        } else {
+          errorMessage += `: ${error.message}`;
+        }
+      }
+      toast.error(errorMessage);
     } finally {
       setAllocationInProgress(false);
     }
-  }, [allocateRewardsBatch, batchSize, parsedPrizeId, prize, getAllocationDetails, fetchPrizeDetails]);
+  }, [prizeDiamond, batchSize, parsedPrizeId, fetchPrizeDetails, queryClient]);
 
   useEffect(() => {
     const fetchAllocationDetails = async () => {
       if (parsedPrizeId) {
-        const details = await getAllocationDetails(parsedPrizeId);
+        const details = await prizeDiamond.getAllocationDetails(parsedPrizeId);
         setAllocationDetails(details);
       }
     };
 
     fetchAllocationDetails();
-  }, [parsedPrizeId, getAllocationDetails]);
+  }, [parsedPrizeId, prizeDiamond]);
+
+  const canAssignWeights = useMemo(() => {
+    return prize?.state === State.Setup;
+  }, [prize?.state]);
+
+  const canAllocateRewards = useMemo(() => {
+    return prize?.state === State.Allocating && !allocationDetails?.rewardsAllocated;
+  }, [prize?.state, allocationDetails?.rewardsAllocated]);
+
+  const canAddEvaluators = useMemo(() => {
+    return prize?.state === State.Setup || prize?.state === State.Open;
+  }, [prize?.state]);
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-screen text-white text-2xl">Loading prize data...</div>;
@@ -374,7 +410,7 @@ export default function ManagePrizePage() {
     isOrganizer,
     prizeState: prize?.state,
     rewardsAllocated: prize?.rewardsAllocated,
-    allocationDetails: allocationDetails, // Log allocation details
+    allocationDetails, // Log allocation details
   });
 
   if (!prize) {
@@ -387,8 +423,17 @@ export default function ManagePrizePage() {
     <div className="container mx-auto px-4 py-8 bg-gradient-to-br from-primary-100 via-primary-300 to-primary-500 min-h-screen">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="flex items-center mb-8">
-          <Link to={`/prize/${prizeId}`} className="text-primary-700 hover:text-primary-900 transition-colors duration-300">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <Link
+            to={`/prize/${prizeId}`}
+            className="text-primary-700 hover:text-primary-900 transition-colors duration-300"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-8 w-8"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </Link>
@@ -424,8 +469,8 @@ export default function ManagePrizePage() {
         </ManagementCard>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Fund Prize */}
-          {isOrganizer && (
+          {/* Active Components */}
+          {isOrganizer && prize && prize.state === State.Setup && (
             <ManagementCard title="Fund Prize">
               <div className="space-y-2 text-white">
                 <StatusItem label="Required" value={`${formatEther(prize.monetaryRewardPool)} ETH`} />
@@ -460,100 +505,139 @@ export default function ManagePrizePage() {
             </ManagementCard>
           )}
 
-          {/* Assign Criteria Weights */}
-          <ManagementCard title="Assign Criteria Weights">
-            {prize.criteriaNames.length > 1 ? (
-              <>
-                {prize.criteriaNames.map((name, index) => (
-                  <div key={index} className="mb-4">
-                    <label className="block mb-1 text-white">
-                      {name}: {weights[index] || 0}
-                    </label>
-                    <input
-                      type="range"
-                      value={weights[index] || 0}
-                      onChange={(e) => handleWeightChange(index, e.target.value)}
-                      className="w-full h-2 bg-primary-200 rounded-lg appearance-none cursor-pointer"
-                      min="0"
-                      max="10"
-                      step="1"
-                    />
-                  </div>
+          {prize.state === State.Setup && (
+            <ManagementCard title="Assign Criteria Weights">
+              {prize.criteriaNames.length > 1 ? (
+                <>
+                  {prize.criteriaNames.map((name, index) => (
+                    <div key={index} className="mb-4">
+                      <label className="block mb-1 text-white">
+                        {name}: {weights[index] || 0}
+                      </label>
+                      <input
+                        type="range"
+                        value={weights[index] || 0}
+                        onChange={(e) => handleWeightChange(index, e.target.value)}
+                        className="w-full h-2 bg-primary-200 rounded-lg appearance-none cursor-pointer"
+                        min="0"
+                        max="10"
+                        step="1"
+                        disabled={!canAssignWeights}
+                      />
+                    </div>
+                  ))}
+                  <button
+                    onClick={handleAssignWeights}
+                    className={`w-full mt-2 button-primary ${!canAssignWeights ? "opacity-50 cursor-not-allowed" : ""}`}
+                    disabled={!canAssignWeights}
+                  >
+                    Assign Weights
+                  </button>
+                </>
+              ) : (
+                <p className="text-accent-300">Criteria weights cannot be changed when there is only one dimension.</p>
+              )}
+            </ManagementCard>
+          )}
+
+          {canAddEvaluators ? (
+            <ManagementCard title="Manage Evaluators">
+              <h3 className="font-semibold mb-2 text-white">Current Evaluators:</h3>
+              <ul className="list-disc list-inside mb-4 text-white">
+                {currentEvaluators.map((evaluator, index) => (
+                  <li key={index} className="truncate">
+                    {evaluator}
+                  </li>
                 ))}
-              </>
-            ) : (
-              <p className="text-accent-300">Criteria weights cannot be changed when there is only one dimension.</p>
-            )}
-            <button
-              onClick={handleAssignWeights}
-              className={`w-full mt-2 button-primary ${
-                prize.criteriaNames.length <= 1 ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-              disabled={prize.criteriaNames.length <= 1}
-            >
-              Assign Weights
-            </button>
-          </ManagementCard>
-
-          {/* Manage Evaluators */}
-          <ManagementCard title="Manage Evaluators">
-            <h3 className="font-semibold mb-2 text-white">Current Evaluators:</h3>
-            <ul className="list-disc list-inside mb-4 text-white">
-              {currentEvaluators.map((evaluator, index) => (
-                <li key={index} className="truncate">
-                  {evaluator}
-                </li>
-              ))}
-            </ul>
-            <textarea
-              value={evaluators}
-              onChange={(e) => setEvaluators(e.target.value)}
-              placeholder="Enter evaluator addresses, separated by commas"
-              className="w-full p-3 text-gray-900 bg-white rounded-md shadow-sm focus:ring-2 focus:ring-primary-500 resize-none"
-              rows={4}
-            />
-            <button
-              onClick={handleAddEvaluators}
-              className="w-full mt-2 button-primary"
-            >
-              Add Evaluators
-            </button>
-          </ManagementCard>
-
-          {/* Allocate Rewards */}
-          <ManagementCard title="Allocate Rewards">
-            <div>
-              <label className="block mb-2 text-white">Batch Size:</label>
-              <input
-                type="number"
-                min="1"
-                max={Number(prize.contributionCount - (prize.lastProcessedIndex || 0n))}
-                value={batchSize}
-                onChange={(e) => setBatchSize(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                className="w-full p-3 text-gray-900 bg-white rounded-md shadow-sm focus:ring-2 focus:ring-primary-500"
+              </ul>
+              <textarea
+                value={evaluators}
+                onChange={(e) => setEvaluators(e.target.value)}
+                placeholder="Enter evaluator addresses, separated by commas"
+                className="w-full p-3 text-gray-900 bg-white rounded-md shadow-sm focus:ring-2 focus:ring-primary-500 resize-none"
+                rows={4}
               />
-            </div>
-            <button
-              onClick={handleAllocateRewards}
-              className="w-full button-primary mt-4"
-              disabled={allocationInProgress || prize.rewardsAllocated}
-            >
-              {allocationInProgress ? "Allocating..." : "Allocate Rewards"}
-            </button>
-            <div className="mt-4 text-white">
-              <p>
-                Allocated {allocationDetails?.lastProcessedIndex.toString() || "0"} out of{" "}
-                {allocationDetails?.contributionCount.toString() || "0"} contributions.
-              </p>
-              {!allocationDetails?.rewardsAllocated &&
-                (allocationDetails?.lastProcessedIndex || 0n) < (allocationDetails?.contributionCount || 0n) && (
-                  <p className="text-accent-300">Allocation in progress...</p>
+              <button onClick={handleAddEvaluators} className="w-full mt-2 button-primary">
+                Add Evaluators
+              </button>
+            </ManagementCard>
+          ) : null}
+
+          {prize.state === State.Allocating && !allocationDetails?.rewardsAllocated && (
+            <ManagementCard title="Allocate Rewards">
+              <div>
+                <label className="block mb-2 text-white">Batch Size:</label>
+                <input
+                  type="number"
+                  min="1"
+                  max={Number(prize.contributionCount - (prize.lastProcessedIndex || 0n))}
+                  value={batchSize}
+                  onChange={(e) => setBatchSize(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                  className="w-full p-3 text-gray-900 bg-white rounded-md shadow-sm focus:ring-2 focus:ring-primary-500"
+                  disabled={!canAllocateRewards}
+                />
+              </div>
+              <button
+                onClick={handleAllocateRewards}
+                className={`w-full button-primary mt-4 ${
+                  !canAllocateRewards || allocationInProgress ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+                disabled={!canAllocateRewards || allocationInProgress}
+              >
+                {allocationInProgress ? "Allocating..." : "Allocate Rewards"}
+              </button>
+              <div className="mt-4 text-white">
+                <p>
+                  Allocated {allocationDetails?.lastProcessedIndex.toString() || "0"} out of{" "}
+                  {allocationDetails?.contributionCount.toString() || "0"} contributions.
+                </p>
+                {!allocationDetails?.rewardsAllocated &&
+                  (allocationDetails?.lastProcessedIndex || 0n) < (allocationDetails?.contributionCount || 0n) && (
+                    <p className="text-accent-300">Allocation in progress...</p>
+                  )}
+                {allocationDetails?.rewardsAllocated && (
+                  <p className="text-accent-300">All rewards have been allocated.</p>
                 )}
-              {allocationDetails?.rewardsAllocated && <p className="text-accent-300">All rewards have been allocated.</p>}
-            </div>
-          </ManagementCard>
+              </div>
+            </ManagementCard>
+          )}
+        </div>
+
+        {/* Disabled Components */}
+        <div className="mt-12">
+          <h2 className="text-2xl font-semibold text-white mb-4">Disabled Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {prize.state !== State.Setup && (
+              <ManagementCard title="Fund Prize" disabled>
+                <p className="text-white opacity-50">Funding is only available during the Setup state.</p>
+              </ManagementCard>
+            )}
+
+            {prize.state !== State.Setup && (
+              <ManagementCard title="Assign Criteria Weights" disabled>
+                <p className="text-white opacity-50">Weights can only be assigned during the Setup state.</p>
+              </ManagementCard>
+            )}
+
+            {(prize.state !== State.Allocating || allocationDetails?.rewardsAllocated) && (
+              <ManagementCard title="Allocate Rewards" disabled>
+                <p className="text-white opacity-50">
+                  Reward allocation is only available during the Allocating state and when rewards haven't been fully
+                  allocated.
+                </p>
+              </ManagementCard>
+            )}
+
+            {!canAddEvaluators && (
+              <ManagementCard title="Manage Evaluators" disabled>
+                <p className="text-white opacity-50">Evaluators can only be added during the Setup or Open states.</p>
+              </ManagementCard>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default React.memo(ManagePrizePage);
