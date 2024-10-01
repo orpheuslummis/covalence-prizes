@@ -17,7 +17,6 @@ import ManagePage from "./pages/Manage";
 import NotFound from "./pages/NotFound";
 import PrizePage from "./pages/Prize";
 import SubmitContribution from "./pages/SubmitContribution";
-import TestingPage from "./pages/Testing";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,7 +52,6 @@ const router = createHashRouter(
       <Route path="prize/:prizeId/evaluator" element={<Evaluator />} />
       <Route path="prize/:prizeId/manage" element={<ManagePage />} />
       <Route path="prize/:prizeId/submit" element={<SubmitContribution />} />
-      <Route path="testing" element={<TestingPage />} />
       <Route path="*" element={<NotFound />} />
     </Route>,
   ),
