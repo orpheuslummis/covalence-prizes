@@ -41,21 +41,23 @@ const RootLayout: React.FC = () => {
   );
 };
 
-const router = createBrowserRouter(
-  createRoutesFromElements(
-    <Route path="/" element={<RootLayout />}>
-      <Route index element={<Home />} />
-      <Route path="about" element={<About />} />
-      <Route path="create-prize" element={<CreatePrizePage />} />
-      <Route path="prize/:prizeId" element={<PrizePage />} />
-      <Route path="prize/:prizeId/contribution/:id" element={<ContributionPage />} />
-      <Route path="prize/:prizeId/evaluator" element={<Evaluator />} />
-      <Route path="prize/:prizeId/manage" element={<ManagePage />} />
-      <Route path="prize/:prizeId/submit" element={<SubmitContribution />} />
-      <Route path="*" element={<NotFound />} />
-    </Route>,
-  ),
-);
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <RootLayout />,
+    children: [
+      { index: true, element: <Home /> },
+      { path: "about", element: <About /> },
+      { path: "create-prize", element: <CreatePrizePage /> },
+      { path: "prize/:prizeId", element: <PrizePage /> },
+      { path: "prize/:prizeId/contribution/:id", element: <ContributionPage /> },
+      { path: "prize/:prizeId/evaluator", element: <Evaluator /> },
+      { path: "prize/:prizeId/manage", element: <ManagePage /> },
+      { path: "prize/:prizeId/submit", element: <SubmitContribution /> },
+      { path: "*", element: <NotFound /> },
+    ],
+  },
+]);
 
 const App: React.FC = () => {
   return (
