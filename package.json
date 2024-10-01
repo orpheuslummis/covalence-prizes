@@ -8,7 +8,8 @@
     "test:testnet": "hardhat test test/DiamondPrize.ts --network testnet",
     "localfhenix:start": "hardhat localfhenix:start",
     "localfhenix:stop": "hardhat localfhenix:stop",
-    "webapp:build": "cd webapp && pnpm run build"
+    "webapp:build": "cd webapp && pnpm run build",
+    "webapp:dev": "cd webapp && pnpm run dev"
   },
   "repository": {
     "type": "git",
