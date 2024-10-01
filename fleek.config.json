@@ -1,7 +1,7 @@
 {
   "sites": [
     {
-      "slug": "purring-france-crooked",
+      "slug": "covalence-prizes",
       "distDir": "webapp/dist",
       "buildCommand": "pnpm run webapp:build"
     }
