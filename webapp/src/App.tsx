@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import { Toaster } from "react-hot-toast";
-import { Outlet, Route, RouterProvider, createHashRouter, createRoutesFromElements } from "react-router-dom";
+import { Outlet, Route, RouterProvider, createBrowserRouter, createRoutesFromElements } from "react-router-dom";
 import { WagmiProvider } from "wagmi";
 import Footer from "./components/Footer";
 import Navbar from "./components/Navbar";
@@ -41,7 +41,7 @@ const RootLayout: React.FC = () => {
   );
 };
 
-const router = createHashRouter(
+const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" element={<RootLayout />}>
       <Route index element={<Home />} />
