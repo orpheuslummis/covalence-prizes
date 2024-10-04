@@ -131,47 +131,56 @@ const PrizePage: React.FC = () => {
 
         <div className="p-6 space-y-8">
           {isConnected && prizeIdBigInt !== undefined && prizeDetails && (
-            <div className="bg-primary-100 rounded-lg p-4">
-              <h2 className="text-2xl font-semibold text-primary-800 mb-4">Actions</h2>
-              <div className="flex flex-wrap gap-4">
-                {prizeDetails.state === State.Open && (
-                  <Link to={`/prize/${prizeIdBigInt.toString()}/submit`} className="button-primary">
-                    Submit Contribution
-                  </Link>
-                )}
-                {roles?.canEvaluate && prizeDetails.state !== State.Open && (
-                  <Link to={`/prize/${prizeIdBigInt.toString()}/evaluator`} className="button-secondary">
-                    Evaluate Contributions
-                  </Link>
-                )}
-                {(roles?.canManagePrize || prizeDetails.organizer.toLowerCase() === address?.toLowerCase()) && (
-                  <button
-                    className="button-primary"
-                    onClick={() => navigate(`/prize/${prizeIdBigInt.toString()}/manage`)}
-                  >
-                    Manage Prize
-                  </button>
-                )}
-                {claimableReward && (
-                  <button
-                    onClick={handleClaimReward}
-                    className="bg-accent-500 hover:bg-accent-600 text-white font-bold py-2 px-4 rounded"
-                  >
-                    Claim Reward
-                  </button>
-                )}
-                {claimableReward && (
-                  <button
-                    onClick={handleViewClaimReward}
-                    className="bg-neutral-200 text-neutral-700 font-semibold py-2 px-4 rounded hover:bg-neutral-300 ml-2"
-                  >
-                    View Claimed Reward
-                  </button>
-                )}
-              </div>
-              {rolesLoading && <p>Loading roles...</p>}
-              {rolesError && <p>Error loading roles. Please try again.</p>}
-            </div>
+            <>
+              {/* Check if any actions are available */}
+              {(prizeDetails.state === State.Open ||
+                roles?.canEvaluate ||
+                roles?.canManagePrize ||
+                prizeDetails.organizer.toLowerCase() === address?.toLowerCase() ||
+                claimableReward) && (
+                <div className="bg-primary-100 rounded-lg p-4">
+                  <h2 className="text-2xl font-semibold text-primary-800 mb-4">Actions</h2>
+                  <div className="flex flex-wrap gap-4">
+                    {prizeDetails.state === State.Open && (
+                      <Link to={`/prize/${prizeIdBigInt.toString()}/submit`} className="button-primary">
+                        Submit Contribution
+                      </Link>
+                    )}
+                    {roles?.canEvaluate && prizeDetails.state !== State.Open && (
+                      <Link to={`/prize/${prizeIdBigInt.toString()}/evaluator`} className="button-secondary">
+                        Evaluate Contributions
+                      </Link>
+                    )}
+                    {(roles?.canManagePrize || prizeDetails.organizer.toLowerCase() === address?.toLowerCase()) && (
+                      <button
+                        className="button-primary"
+                        onClick={() => navigate(`/prize/${prizeIdBigInt.toString()}/manage`)}
+                      >
+                        Manage Prize
+                      </button>
+                    )}
+                    {claimableReward && (
+                      <button
+                        onClick={handleClaimReward}
+                        className="bg-accent-500 hover:bg-accent-600 text-white font-bold py-2 px-4 rounded"
+                      >
+                        Claim Reward
+                      </button>
+                    )}
+                    {claimableReward && (
+                      <button
+                        onClick={handleViewClaimReward}
+                        className="bg-neutral-200 text-neutral-700 font-semibold py-2 px-4 rounded hover:bg-neutral-300 ml-2"
+                      >
+                        View Claimed Reward
+                      </button>
+                    )}
+                  </div>
+                  {rolesLoading && <p>Loading roles...</p>}
+                  {rolesError && <p>Error loading roles. Please try again.</p>}
+                </div>
+              )}
+            </>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
