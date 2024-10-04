@@ -63,16 +63,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!prizeDiamond.getPrizeCount || !prizeDiamond.getPrizes) {
       throw new Error("PrizeDiamond not fully initialized");
     }
-    const cacheKey = ["allPrizes"];
-    const cachedPrizes = queryClient.getQueryData<PrizeDetails[]>(cacheKey);
-
-    if (cachedPrizes) {
-      return cachedPrizes;
-    }
-
     const count = await prizeDiamond.getPrizeCount();
     const prizes = await prizeDiamond.getPrizes(0n, count);
-    queryClient.setQueryData(cacheKey, prizes);
+    console.log("Fetched prizes:", prizes);
     return prizes;
   }, [prizeDiamond]);
 

@@ -1,8 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
 import React, { useEffect, useMemo, useState } from "react";
-import PrizeCard from "../components/PrizeCard";
 import { useAppContext } from "../contexts/AppContext";
-import { PrizeDetails, UserRoles, State } from "../lib/types";
+import { UserRoles, State } from "../lib/types";
+import PrizeCard from "../components/PrizeCard";
 
 const PRIZES_PER_PAGE = 9;
 
@@ -11,51 +10,31 @@ const isUserActiveInPrize = (userRoles: UserRoles) => {
 };
 
 const Home: React.FC = () => {
-  const { userRoles } = useAppContext();
+  const { prizes, isPrizesLoading, userRoles } = useAppContext();
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPrizes, setTotalPrizes] = useState(0);
   const [showClosedPrizes, setShowClosedPrizes] = useState(false);
 
-  const { prizeDiamond } = useAppContext();
-
-  const { data, isLoading, error } = useQuery<PrizeDetails[], Error>({
-    queryKey: ["prizes", currentPage],
-    queryFn: () => {
-      const startIndex = BigInt((currentPage - 1) * PRIZES_PER_PAGE);
-      const count = BigInt(PRIZES_PER_PAGE);
-      return prizeDiamond.getPrizes(startIndex, count);
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
-  });
-
-  useEffect(() => {
-    const fetchTotalPrizes = async () => {
-      try {
-        const count = await prizeDiamond.getPrizeCount();
-        setTotalPrizes(Number(count));
-      } catch (error) {
-        console.error("Error fetching total prize count:", error);
-      }
-    };
-    fetchTotalPrizes();
-  }, [prizeDiamond.getPrizeCount]);
-
-  const totalPages = Math.max(1, Math.ceil(totalPrizes / PRIZES_PER_PAGE));
-
   const sortedPrizes = useMemo(() => {
-    const prizes = data ?? [];
+    console.log("All prizes:", prizes);
     const filteredPrizes = prizes.filter((prize) =>
-      showClosedPrizes ? prize.state === State.Closed : prize.state !== State.Closed,
+      showClosedPrizes ? prize.state === State.Closed : prize.state !== State.Closed
     );
+    console.log("Filtered prizes:", filteredPrizes);
     const activePrizes = filteredPrizes.filter(() => isUserActiveInPrize(userRoles));
     const inactivePrizes = filteredPrizes.filter(() => !isUserActiveInPrize(userRoles));
-    return [...activePrizes, ...inactivePrizes];
-  }, [data, userRoles, showClosedPrizes]);
+    const sorted = [...activePrizes, ...inactivePrizes].sort((a, b) => Number(b.id) - Number(a.id));
+    console.log("Sorted prizes:", sorted);
+    return sorted;
+  }, [prizes, userRoles, showClosedPrizes]);
 
-  if (error) {
-    console.error("Error fetching prizes:", error);
-  }
+  useEffect(() => {
+    console.log("Rendered prizes:", sortedPrizes);
+  }, [sortedPrizes]);
+
+  const totalPages = Math.ceil(sortedPrizes.length / PRIZES_PER_PAGE);
+  const startIndex = (currentPage - 1) * PRIZES_PER_PAGE;
+  const endIndex = startIndex + PRIZES_PER_PAGE;
+  const currentPrizes = sortedPrizes.slice(startIndex, endIndex);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -87,19 +66,14 @@ const Home: React.FC = () => {
         </button>
       </div>
 
-      {isLoading ? (
+      {isPrizesLoading ? (
         <p className="text-center">Loading prizes...</p>
-      ) : error ? (
-        <p className="text-center text-red-500">Error loading prizes. Please try again later.</p>
       ) : (
         <div id="prizes" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {sortedPrizes.length === 0 ? (
-            <p className="text-gray-500 col-span-full">
-              {totalPrizes > 0 ? "Loading prizes..." : "No prizes available at the moment."}
-              (Total count: {totalPrizes})
-            </p>
+          {currentPrizes.length === 0 ? (
+            <p className="text-gray-500 col-span-full">No prizes available at the moment.</p>
           ) : (
-            sortedPrizes.map((prize) => <PrizeCard key={prize.id} prize={prize} />)
+            currentPrizes.map((prize) => <PrizeCard key={prize.id.toString()} prize={prize} />)
           )}
         </div>
       )}
@@ -117,9 +91,8 @@ const Home: React.FC = () => {
             <button
               key={page}
               onClick={() => handlePageChange(page)}
-              className={`mx-1 px-3 py-1 rounded ${
-                currentPage === page ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
+              className={`mx-1 px-3 py-1 rounded ${currentPage === page ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
             >
               {page}
             </button>
