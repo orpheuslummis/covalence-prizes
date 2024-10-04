@@ -299,7 +299,6 @@ export const usePrizeDiamond = (fhenixClient: FhenixClient | null) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prizes"] });
-      toast.success("Prize created successfully");
     },
     onError: (error) => {
       console.error("Error creating prize:", error);

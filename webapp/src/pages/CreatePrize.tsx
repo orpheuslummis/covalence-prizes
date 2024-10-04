@@ -60,7 +60,6 @@ const CreatePrizePage = () => {
   }, [isConnected, isSubmitting]);
 
   const handleTransactionSuccess = useCallback(async () => {
-    toast.success("Prize created successfully");
     try {
       const prizeCount = await prizeDiamond.getPrizeCount();
       if (prizeCount > 0n) {
@@ -71,6 +70,7 @@ const CreatePrizePage = () => {
           const navigateUrl = `/prize/${createdPrize.id.toString()}`;
           console.log("Navigating to:", navigateUrl);
           navigate(navigateUrl);
+          toast.success("Prize created successfully");
         } else {
           throw new Error("Failed to retrieve the created prize");
         }
@@ -313,9 +313,8 @@ const CreatePrizePage = () => {
               <button
                 type="submit"
                 disabled={isSubmitting || !isFormValid}
-                className={`button-primary w-full py-3 ${
-                  isSubmitting || !isFormValid ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+                className={`button-primary w-full py-3 ${isSubmitting || !isFormValid ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
               >
                 {buttonText}
               </button>
