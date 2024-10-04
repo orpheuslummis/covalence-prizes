@@ -269,11 +269,9 @@ export const usePrizeDiamond = (fhenixClient: FhenixClient | null) => {
     },
     onSuccess: (_, { prizeId }) => {
       queryClient.invalidateQueries({ queryKey: ["prizeDetails", prizeId.toString()] });
-      toast.success("Criteria weights assigned successfully");
     },
     onError: (error) => {
       console.error("Error assigning criteria weights:", error);
-      toast.error(`Failed to assign criteria weights: ${error.message}`);
     },
   });
 

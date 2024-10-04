@@ -43,6 +43,8 @@ const ManagePrizePage: React.FC = () => {
     contributionCount: bigint;
     rewardsAllocated: boolean;
   } | null>(null);
+  const [isAssigningWeights, setIsAssigningWeights] = useState(false);
+  const [submittingWeights, setSubmittingWeights] = useState<number[]>([]);
 
   useEffect(() => {
     if (!isConnected || !address) {
@@ -142,11 +144,13 @@ const ManagePrizePage: React.FC = () => {
         return;
       }
 
+      setIsAssigningWeights(true);
+      setSubmittingWeights([...weights]);
       const loadingToast = toast.loading("Assigning criteria weights...");
 
       await prizeDiamond.assignCriteriaWeightsAsync({
         prizeId: parsedPrizeId!,
-        weights,
+        weights: weights,
       });
 
       toast.dismiss(loadingToast);
@@ -155,6 +159,10 @@ const ManagePrizePage: React.FC = () => {
     } catch (error) {
       console.error("Error assigning weights:", error);
       toast.error("Failed to assign weights");
+      setWeights(submittingWeights);
+    } finally {
+      setIsAssigningWeights(false);
+      setSubmittingWeights([]);
     }
   }, [parsedPrizeId, weights, prizeDiamond, fetchPrizeDetails]);
 
@@ -512,26 +520,27 @@ const ManagePrizePage: React.FC = () => {
                   {prize.criteriaNames.map((name, index) => (
                     <div key={index} className="mb-4">
                       <label className="block mb-1 text-white">
-                        {name}: {weights[index] || 0}
+                        {name}: {isAssigningWeights ? submittingWeights[index] || weights[index] : weights[index] || 0}
                       </label>
                       <input
                         type="range"
-                        value={weights[index] || 0}
+                        value={isAssigningWeights ? submittingWeights[index] || weights[index] : weights[index] || 0}
                         onChange={(e) => handleWeightChange(index, e.target.value)}
                         className="w-full h-2 bg-primary-200 rounded-lg appearance-none cursor-pointer"
                         min="0"
                         max="10"
                         step="1"
-                        disabled={!canAssignWeights}
+                        disabled={!canAssignWeights || isAssigningWeights}
                       />
                     </div>
                   ))}
                   <button
                     onClick={handleAssignWeights}
-                    className={`w-full mt-2 button-primary ${!canAssignWeights ? "opacity-50 cursor-not-allowed" : ""}`}
-                    disabled={!canAssignWeights}
+                    className={`w-full mt-2 button-primary ${!canAssignWeights || isAssigningWeights ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
+                    disabled={!canAssignWeights || isAssigningWeights}
                   >
-                    Assign Weights
+                    {isAssigningWeights ? "Assigning..." : "Assign Weights"}
                   </button>
                 </>
               ) : (
@@ -579,9 +588,8 @@ const ManagePrizePage: React.FC = () => {
               </div>
               <button
                 onClick={handleAllocateRewards}
-                className={`w-full button-primary mt-4 ${
-                  !canAllocateRewards || allocationInProgress ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+                className={`w-full button-primary mt-4 ${!canAllocateRewards || allocationInProgress ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
                 disabled={!canAllocateRewards || allocationInProgress}
               >
                 {allocationInProgress ? "Allocating..." : "Allocate Rewards"}
