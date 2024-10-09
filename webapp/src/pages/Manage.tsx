@@ -28,6 +28,8 @@ const ManagePrizePage: React.FC = () => {
 
   const [prize, setPrize] = useState<PrizeDetails | null>(null);
   const [weights, setWeights] = useState<number[]>([]);
+  const [userWeights, setUserWeights] = useState<number[]>([]);
+  const [isWeightsChanged, setIsWeightsChanged] = useState(false);
   const [evaluators, setEvaluators] = useState<string>("");
   const [fundAmount, setFundAmount] = useState<string>("0.0001");
   const [isOrganizer, setIsOrganizer] = useState<boolean>(false);
@@ -59,14 +61,14 @@ const ManagePrizePage: React.FC = () => {
     console.log("Fetching prize details for prizeId:", parsedPrizeId.toString());
     try {
       const fetchedPrize = await prizeDiamond.getPrizeDetails(parsedPrizeId);
-      const weights = await prizeDiamond.getCriteriaWeights(parsedPrizeId);
+      const fetchedWeights = await prizeDiamond.getCriteriaWeights(parsedPrizeId);
       const isOrganizerCheck = await prizeDiamond.isPrizeOrganizer(parsedPrizeId, address);
       const evaluatorsList = await prizeDiamond.getPrizeEvaluators(parsedPrizeId);
       const allocDetails = await prizeDiamond.getAllocationDetails(parsedPrizeId);
       const contributionCount = await prizeDiamond.getContributionCount(parsedPrizeId);
 
       console.log("Fetched prize details:", fetchedPrize);
-      console.log("Fetched weights:", weights);
+      console.log("Fetched weights:", fetchedWeights);
       console.log("Is organizer:", isOrganizerCheck);
       console.log("Evaluators list:", evaluatorsList);
       console.log("Allocation details:", allocDetails);
@@ -76,7 +78,13 @@ const ManagePrizePage: React.FC = () => {
         ...fetchedPrize,
         contributionCount: contributionCount,
       });
-      setWeights(weights);
+      
+      // Only update weights if the user hasn't made changes
+      if (!isWeightsChanged) {
+        setWeights(fetchedWeights);
+        setUserWeights(fetchedWeights);
+      }
+      
       setIsOrganizer(isOrganizerCheck);
       setIsOrganizerLoaded(true);
       setCurrentEvaluators(evaluatorsList);
@@ -90,7 +98,7 @@ const ManagePrizePage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [parsedPrizeId, address, prizeDiamond]);
+  }, [parsedPrizeId, address, prizeDiamond, isWeightsChanged]);
 
   useEffect(() => {
     console.log("Effect triggered. parsedPrizeId:", parsedPrizeId?.toString(), "isPrizesLoading:", isPrizesLoading);
@@ -130,11 +138,12 @@ const ManagePrizePage: React.FC = () => {
   }, [parsedPrizeId, isPrizesLoading, fetchPrizeDetails]);
 
   const handleWeightChange = useCallback((index: number, value: string) => {
-    setWeights((prevWeights) => {
+    setUserWeights((prevWeights) => {
       const newWeights = [...prevWeights];
       newWeights[index] = parseInt(value, 10);
       return newWeights;
     });
+    setIsWeightsChanged(true);
   }, []);
 
   const handleAssignWeights = useCallback(async () => {
@@ -145,26 +154,27 @@ const ManagePrizePage: React.FC = () => {
       }
 
       setIsAssigningWeights(true);
-      setSubmittingWeights([...weights]);
+      setSubmittingWeights([...userWeights]);
       const loadingToast = toast.loading("Assigning criteria weights...");
 
       await prizeDiamond.assignCriteriaWeightsAsync({
         prizeId: parsedPrizeId!,
-        weights: weights,
+        weights: userWeights,
       });
 
       toast.dismiss(loadingToast);
       toast.success("Criteria weights assigned successfully");
+      setIsWeightsChanged(false);
       await fetchPrizeDetails();
     } catch (error) {
       console.error("Error assigning weights:", error);
       toast.error("Failed to assign weights");
-      setWeights(submittingWeights);
+      setUserWeights(submittingWeights);
     } finally {
       setIsAssigningWeights(false);
       setSubmittingWeights([]);
     }
-  }, [parsedPrizeId, weights, prizeDiamond, fetchPrizeDetails]);
+  }, [parsedPrizeId, userWeights, prizeDiamond, fetchPrizeDetails]);
 
   const handleFundPrize = useCallback(async () => {
     if (isFunded) {
@@ -520,11 +530,11 @@ const ManagePrizePage: React.FC = () => {
                   {prize.criteriaNames.map((name, index) => (
                     <div key={index} className="mb-4">
                       <label className="block mb-1 text-white">
-                        {name}: {isAssigningWeights ? submittingWeights[index] || weights[index] : weights[index] || 0}
+                        {name}: {isAssigningWeights ? submittingWeights[index] || userWeights[index] : userWeights[index] || 0}
                       </label>
                       <input
                         type="range"
-                        value={isAssigningWeights ? submittingWeights[index] || weights[index] : weights[index] || 0}
+                        value={isAssigningWeights ? submittingWeights[index] || userWeights[index] : userWeights[index] || 0}
                         onChange={(e) => handleWeightChange(index, e.target.value)}
                         className="w-full h-2 bg-primary-200 rounded-lg appearance-none cursor-pointer"
                         min="0"
@@ -536,9 +546,8 @@ const ManagePrizePage: React.FC = () => {
                   ))}
                   <button
                     onClick={handleAssignWeights}
-                    className={`w-full mt-2 button-primary ${!canAssignWeights || isAssigningWeights ? "opacity-50 cursor-not-allowed" : ""
-                      }`}
-                    disabled={!canAssignWeights || isAssigningWeights}
+                    className={`w-full mt-2 button-primary ${!canAssignWeights || isAssigningWeights || !isWeightsChanged ? "opacity-50 cursor-not-allowed" : ""}`}
+                    disabled={!canAssignWeights || isAssigningWeights || !isWeightsChanged}
                   >
                     {isAssigningWeights ? "Assigning..." : "Assign Weights"}
                   </button>
