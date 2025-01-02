@@ -1,7 +1,7 @@
 // src/pages/PrizePage.tsx
 
-import React, { useMemo, useCallback } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import React, { useCallback, useMemo } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { formatEther } from "viem";
 import { useAccount } from "wagmi";
@@ -19,7 +19,9 @@ const PrizePage: React.FC = () => {
   const { prizeDiamond } = useAppContext();
 
   const prizeIdBigInt = useMemo(() => {
-    return prizeId !== undefined && prizeId !== null ? BigInt(prizeId) : undefined;
+    return prizeId !== undefined && prizeId !== null
+      ? BigInt(prizeId)
+      : undefined;
   }, [prizeId]);
 
   const {
@@ -47,8 +49,14 @@ const PrizePage: React.FC = () => {
       if (!prizeIdBigInt || !address || !prizeDetails) {
         throw new Error("Invalid prize ID, address, or prize not found");
       }
-      const canEvaluate = await prizeDiamond.isPrizeEvaluator(prizeIdBigInt, address);
-      const canManagePrize = await prizeDiamond.isPrizeOrganizer(prizeIdBigInt, address);
+      const canEvaluate = await prizeDiamond.isPrizeEvaluator(
+        prizeIdBigInt,
+        address,
+      );
+      const canManagePrize = await prizeDiamond.isPrizeOrganizer(
+        prizeIdBigInt,
+        address,
+      );
       return { canEvaluate, canManagePrize };
     },
     enabled: !!prizeIdBigInt && !!address && isConnected && !!prizeDetails,
@@ -61,13 +69,16 @@ const PrizePage: React.FC = () => {
       if (!prizeIdBigInt || !address) return false;
       return prizeDiamond.hasClaimableReward(prizeIdBigInt, address);
     },
-    enabled: !!prizeIdBigInt && !!address && prizeDetails?.state === State.Claiming,
+    enabled: !!prizeIdBigInt && !!address &&
+      prizeDetails?.state === State.Claiming,
   });
 
   const handleClaimReward = useCallback(async () => {
     if (!prizeIdBigInt) return;
     try {
-      await prizeDiamond.computeContestantClaimRewardAsync({ prizeId: prizeIdBigInt });
+      await prizeDiamond.computeContestantClaimRewardAsync({
+        prizeId: prizeIdBigInt,
+      });
       toast.success("Reward claimed successfully!");
       refetchClaimableReward();
     } catch (error) {
@@ -79,10 +90,15 @@ const PrizePage: React.FC = () => {
   const handleViewClaimReward = useCallback(async () => {
     if (!prizeIdBigInt) return;
     try {
-      console.log("Attempting to view claimed reward for prize:", prizeIdBigInt.toString());
+      console.log(
+        "Attempting to view claimed reward for prize:",
+        prizeIdBigInt.toString(),
+      );
       console.log("Current address:", address);
 
-      const reward = await prizeDiamond.viewAndDecryptClaimedReward(prizeIdBigInt);
+      const reward = await prizeDiamond.viewAndDecryptClaimedReward(
+        prizeIdBigInt,
+      );
       console.log("Received decrypted reward:", reward);
       toast.success(`Claimed reward: ${formatEther(reward)} ETH`);
     } catch (error) {
@@ -92,38 +108,49 @@ const PrizePage: React.FC = () => {
         console.error("Error message:", error.message);
         console.error("Error stack:", error.stack);
       }
-      toast.error("Failed to view claimed reward. Please check console for details.");
+      toast.error(
+        "Failed to view claimed reward. Please check console for details.",
+      );
     }
   }, [prizeIdBigInt, prizeDiamond, address]);
 
   if (isLoading) {
-    return <div className="text-center py-10 text-neutral-100">Loading prize details...</div>;
+    return (
+      <div className="text-center py-10 text-neutral-100">
+        Loading prize details...
+      </div>
+    );
   }
 
   if (error) {
     console.error("Error fetching prize details:", error);
     return (
-      <div className="text-center py-10 text-neutral-100">Error loading prize details. Please try again later.</div>
+      <div className="text-center py-10 text-neutral-100">
+        Error loading prize details. Please try again later.
+      </div>
     );
   }
 
   if (!prizeDetails) {
     return (
-      <div className="text-center py-10 text-neutral-100">Prize not found. Please check the ID and try again.</div>
+      <div className="text-center py-10 text-neutral-100">
+        Prize not found. Please check the ID and try again.
+      </div>
     );
   }
 
   return (
     <div className="container-default">
       <div className="bg-neutral-50 rounded-xl shadow-lg overflow-hidden text-neutral-800">
-        <div className="prize-page-header relative h-72">
+        <div className="prize-page-header relative min-h-[32rem]">
           <FractalPatternBackground prize={prizeDetails} />
-          <div className="absolute inset-0 bg-black opacity-40"></div>
-          <div className="relative z-10 flex flex-col justify-center items-center h-full text-center px-4">
-            <h1 className="prize-page-title text-4xl font-bold text-white bg-black bg-opacity-50 px-3 py-1 rounded">
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/70 to-black/80">
+          </div>
+          <div className="relative z-10 flex flex-col justify-center items-center h-full text-center p-12">
+            <h1 className="prize-page-title text-6xl font-bold text-white mb-8">
               {prizeDetails.name || "Unnamed Prize"}
             </h1>
-            <p className="prize-page-description mt-4 text-xl text-white bg-black bg-opacity-50 px-3 py-1 rounded">
+            <p className="prize-page-description text-xl text-white leading-relaxed max-w-5xl">
               {prizeDetails.description || "No description available"}
             </p>
           </div>
@@ -136,25 +163,38 @@ const PrizePage: React.FC = () => {
               {(prizeDetails.state === State.Open ||
                 roles?.canEvaluate ||
                 roles?.canManagePrize ||
-                prizeDetails.organizer.toLowerCase() === address?.toLowerCase() ||
+                prizeDetails.organizer.toLowerCase() ===
+                  address?.toLowerCase() ||
                 claimableReward) && (
                 <div className="bg-primary-100 rounded-lg p-4">
-                  <h2 className="text-2xl font-semibold text-primary-800 mb-4">Actions</h2>
+                  <h2 className="text-2xl font-semibold text-primary-800 mb-4">
+                    Actions
+                  </h2>
                   <div className="flex flex-wrap gap-4">
                     {prizeDetails.state === State.Open && (
-                      <Link to={`/prize/${prizeIdBigInt.toString()}/submit`} className="button-primary">
+                      <Link
+                        to={`/prize/${prizeIdBigInt.toString()}/submit`}
+                        className="button-primary"
+                      >
                         Submit Contribution
                       </Link>
                     )}
-                    {roles?.canEvaluate && prizeDetails.state !== State.Open && (
-                      <Link to={`/prize/${prizeIdBigInt.toString()}/evaluator`} className="button-secondary">
-                        Evaluate Contributions
-                      </Link>
-                    )}
-                    {(roles?.canManagePrize || prizeDetails.organizer.toLowerCase() === address?.toLowerCase()) && (
+                    {roles?.canEvaluate && prizeDetails.state !== State.Open &&
+                      (
+                        <Link
+                          to={`/prize/${prizeIdBigInt.toString()}/evaluator`}
+                          className="button-secondary"
+                        >
+                          Evaluate Contributions
+                        </Link>
+                      )}
+                    {(roles?.canManagePrize ||
+                      prizeDetails.organizer.toLowerCase() ===
+                        address?.toLowerCase()) && (
                       <button
                         className="button-primary"
-                        onClick={() => navigate(`/prize/${prizeIdBigInt.toString()}/manage`)}
+                        onClick={() =>
+                          navigate(`/prize/${prizeIdBigInt.toString()}/manage`)}
                       >
                         Manage Prize
                       </button>
@@ -196,18 +236,31 @@ const PrizePage: React.FC = () => {
 
           {prizeIdBigInt !== undefined && (
             <div>
-              <h2 className="text-2xl font-semibold text-primary-800 mb-4">Contributions</h2>
-              <ContributionList prizeId={prizeIdBigInt} refetchPrizeDetails={refetchPrizeDetails} />
+              <h2 className="text-2xl font-semibold text-primary-800 mb-4">
+                Contributions
+              </h2>
+              <ContributionList
+                prizeId={prizeIdBigInt}
+                refetchPrizeDetails={refetchPrizeDetails}
+              />
             </div>
           )}
 
           <div className="bg-primary-50 rounded-lg p-4 mt-8">
-            <h2 className="text-2xl font-semibold text-primary-800 mb-4">Evaluator Status</h2>
-            {roles?.canEvaluate ? (
-              <p className="text-accent-500 font-semibold">You are an evaluator for this prize</p>
-            ) : (
-              <p className="text-neutral-600">You are not an evaluator for this prize</p>
-            )}
+            <h2 className="text-2xl font-semibold text-primary-800 mb-4">
+              Evaluator Status
+            </h2>
+            {roles?.canEvaluate
+              ? (
+                <p className="text-accent-500 font-semibold">
+                  You are an evaluator for this prize
+                </p>
+              )
+              : (
+                <p className="text-neutral-600">
+                  You are not an evaluator for this prize
+                </p>
+              )}
           </div>
         </div>
       </div>
@@ -218,18 +271,20 @@ const PrizePage: React.FC = () => {
 const EvaluationCriteria: React.FC<{ criteria: string[] }> = ({ criteria }) => {
   return (
     <div className="bg-neutral-50 rounded-lg shadow p-6 mt-8">
-      <h2 className="text-2xl font-semibold text-primary-800 mb-4">Evaluation Criteria</h2>
-      {criteria && criteria.length > 0 ? (
-        <ul className="list-disc pl-5 space-y-2">
-          {criteria.map((criterion, index) => (
-            <li key={index} className="text-neutral-700">
-              {criterion}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-neutral-600">No evaluation criteria specified.</p>
-      )}
+      <h2 className="text-2xl font-semibold text-primary-800 mb-4">
+        Evaluation Criteria
+      </h2>
+      {criteria && criteria.length > 0
+        ? (
+          <ul className="list-disc pl-5 space-y-2">
+            {criteria.map((criterion, index) => (
+              <li key={index} className="text-neutral-700">
+                {criterion}
+              </li>
+            ))}
+          </ul>
+        )
+        : <p className="text-neutral-600">No evaluation criteria specified.</p>}
     </div>
   );
 };
@@ -237,13 +292,19 @@ const EvaluationCriteria: React.FC<{ criteria: string[] }> = ({ criteria }) => {
 const PrizeAmount: React.FC<{ amount: bigint }> = ({ amount }) => {
   return (
     <div className="bg-neutral-50 rounded-lg shadow p-6">
-      <h2 className="text-2xl font-semibold text-primary-800 mb-4">Prize Amount</h2>
-      <p className="text-3xl font-bold text-primary-600">{formatEther(amount)} ETH</p>
+      <h2 className="text-2xl font-semibold text-primary-800 mb-4">
+        Prize Amount
+      </h2>
+      <p className="text-3xl font-bold text-primary-600">
+        {formatEther(amount)} ETH
+      </p>
     </div>
   );
 };
 
-const PrizeInPageStatus: React.FC<{ currentState: State }> = ({ currentState }) => {
+const PrizeInPageStatus: React.FC<{ currentState: State }> = (
+  { currentState },
+) => {
   const stateLabels: Record<State, string> = {
     [State.Setup]: "Setup",
     [State.Open]: "Open",
@@ -264,7 +325,9 @@ const PrizeInPageStatus: React.FC<{ currentState: State }> = ({ currentState }) 
 
   return (
     <div className="bg-neutral-50 rounded-lg shadow p-6 mt-6">
-      <h2 className="text-2xl font-semibold text-primary-800 mb-4">Prize Status</h2>
+      <h2 className="text-2xl font-semibold text-primary-800 mb-4">
+        Prize Status
+      </h2>
       <div className="space-y-2">
         {Object.values(State)
           .filter((value) => typeof value === "number")
@@ -283,7 +346,8 @@ const PrizeInPageStatus: React.FC<{ currentState: State }> = ({ currentState }) 
                   className={`w-3 h-3 rounded-full mr-2 ${
                     currentState === numericState ? "bg-current" : "bg-gray-300"
                   }`}
-                ></div>
+                >
+                </div>
                 <span>{stateLabels[numericState]}</span>
               </div>
             );
