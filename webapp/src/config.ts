@@ -16,19 +16,22 @@ import contractAddresses from "../contract-addresses.json";
 import { AllocationStrategy } from "./lib/types";
 
 const ENV = {
-  TESTNET_RPC_URL: import.meta.env.VITE_TESTNET_RPC_URL || "https://api.helium.fhenix.zone",
-  CHAIN_ID: import.meta.env.VITE_CHAIN_ID || "8008135",
-  EXPLORER_URL: import.meta.env.VITE_EXPLORER_URL || "https://explorer.helium.fhenix.zone",
-  WALLET_CONNECT_PROJECT_ID: import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID || "",
+  TESTNET_RPC_URL: import.meta.env.VITE_TESTNET_RPC_URL ||
+    "https://api.nitrogen.fhenix.zone/",
+  CHAIN_ID: import.meta.env.VITE_CHAIN_ID || "8008148",
+  EXPLORER_URL: import.meta.env.VITE_EXPLORER_URL ||
+    "https://explorer.nitrogen.fhenix.zone",
+  WALLET_CONNECT_PROJECT_ID: import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID ||
+    "",
 };
 
 export const fhenixTestnet = {
   id: parseInt(ENV.CHAIN_ID, 10),
-  name: "Fhenix Helium",
+  name: "Fhenix Nitrogen",
   nativeCurrency: {
     decimals: 18,
     name: "Fhenix",
-    symbol: "tFHE",
+    symbol: "FHE",
   },
   rpcUrls: {
     default: { http: [ENV.TESTNET_RPC_URL] },
@@ -61,13 +64,17 @@ export const publicClient = createPublicClient({
 console.log("Fhenix Testnet Chain:", fhenixTestnet);
 console.log("Wagmi Config:", wagmiConfig);
 
-const addresses = contractAddresses[ENV.CHAIN_ID as keyof typeof contractAddresses];
+const addresses =
+  contractAddresses[ENV.CHAIN_ID as keyof typeof contractAddresses];
 
 if (!addresses) {
   throw new Error(`No contract addresses found for chain ID: ${ENV.CHAIN_ID}`);
 }
 
-export const allocationStrategies: { label: string; value: AllocationStrategy }[] = [
+export const allocationStrategies: {
+  label: string;
+  value: AllocationStrategy;
+}[] = [
   { label: "Linear", value: AllocationStrategy.Linear },
   { label: "Quadratic", value: AllocationStrategy.Quadratic },
   { label: "Invalid", value: AllocationStrategy.Invalid },

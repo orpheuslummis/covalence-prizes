@@ -91,6 +91,11 @@
             "internalType": "bytes",
             "name": "data",
             "type": "bytes"
+          },
+          {
+            "internalType": "int32",
+            "name": "securityZone",
+            "type": "int32"
           }
         ],
         "internalType": "struct inEuint32[]",

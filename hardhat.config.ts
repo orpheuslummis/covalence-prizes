@@ -10,7 +10,8 @@ import { resolve } from "path";
 import { fhenixTestnet } from "./chainConfig";
 import "./tasks";
 
-const dotenvConfigPath: string = process.env.DOTENV_CONFIG_PATH || "./.env.local";
+const dotenvConfigPath: string = process.env.DOTENV_CONFIG_PATH ||
+  "./.env.local";
 dotenvConfig({ path: resolve(__dirname, dotenvConfigPath) });
 
 const PRIVATE_KEYS = [
@@ -23,7 +24,9 @@ const PRIVATE_KEYS = [
 ].filter((key): key is string => typeof key === "string");
 
 if (PRIVATE_KEYS.length === 0) {
-  throw new Error("Please set at least one PRIVATE_KEY in your .env.local file");
+  throw new Error(
+    "Please set at least one PRIVATE_KEY in your .env.local file",
+  );
 }
 
 const config: HardhatUserConfig = {
@@ -58,8 +61,8 @@ const config: HardhatUserConfig = {
         network: "testnet",
         chainId: 412346,
         urls: {
-          apiURL: "https://explorer.helium.fhenix.zone/api",
-          browserURL: "https://explorer.helium.fhenix.zone/",
+          apiURL: "https://explorer.nitrogen.fhenix.zone/api",
+          browserURL: "https://explorer.nitrogen.fhenix.zone/",
         },
       },
     ],
