@@ -6,8 +6,20 @@
  * for interacting with Fhenix.  The context ensures data consistency and efficient
  * updates through TanStack Query's caching and invalidation mechanisms.
  */
-import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from "react";
-import { useQuery, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import React, {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQuery,
+} from "@tanstack/react-query";
 import { persistQueryClient } from "@tanstack/react-query-persist-client";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { useBlockNumber } from "wagmi";
@@ -16,7 +28,7 @@ import { usePrizeDiamond } from "../hooks/usePrizeDiamond";
 import { PrizeDetails, Role } from "../lib/types";
 import { Address } from "viem";
 import { useWalletContext } from "./WalletContext";
-import { useFhenixClient } from "../hooks/useFhenixClient";
+import useFhenixClient from "../hooks/useFhenixClient";
 import { FhenixClient } from "fhenixjs";
 
 export interface AppContextType {
@@ -29,7 +41,9 @@ export interface AppContextType {
   blockNumber: number | undefined;
   refetchPrizes: () => Promise<void>;
   isPrizesLoading: boolean;
-  allocateRewardsBatch: (params: { prizeId: bigint; batchSize: bigint }) => Promise<void>;
+  allocateRewardsBatch: (
+    params: { prizeId: bigint; batchSize: bigint },
+  ) => Promise<void>;
   getAllocationDetails: (prizeId: bigint) => Promise<{
     lastProcessedIndex: bigint;
     contributionCount: bigint;
@@ -52,7 +66,9 @@ const queryClient = new QueryClient({
   },
 });
 
-export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AppProvider: React.FC<{ children: ReactNode }> = (
+  { children },
+) => {
   const { address } = useWalletContext();
   const [userRoles, setUserRoles] = useState<Role[]>([]);
   const { data: blockNumber } = useBlockNumber({ watch: true });
@@ -111,10 +127,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       blockNumber: blockNumber ? Number(blockNumber) : undefined,
       refetchPrizes,
       isPrizesLoading,
-      allocateRewardsBatch: (params) => prizeDiamond.allocateRewardsBatchAsync(params),
-      getAllocationDetails: (prizeId) => prizeDiamond.getAllocationDetails(prizeId),
-      hasClaimableReward: (prizeId, address) => prizeDiamond.hasClaimableReward(prizeId, address),
-      claimReward: (prizeId) => prizeDiamond.computeContestantClaimRewardAsync({ prizeId }).then(() => {}),
+      allocateRewardsBatch: (params) =>
+        prizeDiamond.allocateRewardsBatchAsync(params),
+      getAllocationDetails: (prizeId) =>
+        prizeDiamond.getAllocationDetails(prizeId),
+      hasClaimableReward: (prizeId, address) =>
+        prizeDiamond.hasClaimableReward(prizeId, address),
+      claimReward: (prizeId) =>
+        prizeDiamond.computeContestantClaimRewardAsync({ prizeId }).then(
+          () => {},
+        ),
       fhenixClient,
       fhenixError,
     }),
